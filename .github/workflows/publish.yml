@@ -1,12 +1,14 @@
-name: Production Deploy
+name: Publish
 
 on:
   push:
-    branches: main
+    branches:
+      - main
+      - staging
 
 env:
 #  SERVER_WORK_DIR: /root/zingoweb/production
-  IMAGE_NAME: ghcr.io/$(echo '${{github.REPOSITORY}}/main:latest' | tr '[:upper:]' '[:lower:]')
+  IMAGE_NAME: ghcr.io/$(echo '${{github.REPOSITORY}}/${{GITHUB_HEAD_REF}}:latest' | tr '[:upper:]' '[:lower:]')
 
 jobs:
   Publish:
@@ -18,6 +20,7 @@ jobs:
       - name: Checking out
         uses: actions/checkout@v4.1.7
       - name: Build
+        working-directory: src
         run: docker image build -f ./WebApi/Dockerfile -t $IMAGE .
       - name: Docker login
         uses: docker/login-action@v3.3.0
@@ -26,4 +29,5 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push
+        working-directory: src
         run: IMAGE_NAME=${{env.IMAGE_NAME}} docker image push $IMAGE
