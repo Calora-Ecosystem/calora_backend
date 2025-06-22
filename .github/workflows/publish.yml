@@ -8,7 +8,7 @@ on:
 
 env:
 #  SERVER_WORK_DIR: /root/zingoweb/production
-  IMAGE_NAME: ghcr.io/$(echo '${{github.REPOSITORY}}/${{github.HEAD_REF}}:latest' | tr '[:upper:]' '[:lower:]')
+  IMAGE_NAME: ghcr.io/$(echo '${{github.REPOSITORY}}/${{GITHUB_HEAD_REF}}:latest' | tr '[:upper:]' '[:lower:]')
 
 jobs:
   Publish:
