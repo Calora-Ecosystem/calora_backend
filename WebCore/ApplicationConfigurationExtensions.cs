@@ -86,7 +86,7 @@ public static class ApplicationConfigurationExtensions
         return builder;
     }
 
-    
+
     private static WebApplicationBuilder ConfigureKestrel(this WebApplicationBuilder builder)
     {
         builder.Services.Configure<KestrelServerOptions>(options => { options.Limits.MaxRequestBodySize = null; });
@@ -129,31 +129,6 @@ public static class ApplicationConfigurationExtensions
         return builder;
     }
 
-    private static WebApplicationBuilder AddDefaultConfiguredDbContext<T>(this WebApplicationBuilder builder, ServiceLifetime? lifetime = null) where T: DbContext 
-    {
-        var dataSourceBuilder =
-            new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("ConnectionString"))
-                .EnableDynamicJson();
-
-        if (lifetime is null)
-            builder.Services.AddDbContextPool<T>(optionsBuilder =>
-            {
-                optionsBuilder
-                    .UseNpgsql(
-                        dataSourceBuilder.Build(),
-                        options => { }).UseSnakeCaseNamingConvention();
-            });
-        else 
-            builder.Services.AddDbContext<T>(optionsBuilder =>
-            {
-                optionsBuilder
-                    .UseNpgsql(
-                        dataSourceBuilder.Build(),
-                        options => { }).UseSnakeCaseNamingConvention();
-            }, lifetime.Value, lifetime.Value);
-
-        return builder;
-    }
 
     private static WebApplicationBuilder ConfigureSwagger(this WebApplicationBuilder builder, string appName)
     {
@@ -255,7 +230,7 @@ public static class ApplicationConfigurationExtensions
             .AddOptions<JwtOption>()
             .BindConfiguration("Auth")
             .ValidateOnStart();
-        
+
         builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -323,7 +298,6 @@ public static class ApplicationConfigurationExtensions
 
     private static WebApplicationBuilder AddRpcServices(this WebApplicationBuilder builder)
     {
-
         return builder;
     }
 
@@ -351,7 +325,7 @@ public static class ApplicationConfigurationExtensions
         builder.Services.AddHttpContextAccessor();
         return builder;
     }
-    
+
     public static WebApplication UseStaticFiles(this WebApplication app)
     {
         var cacheMaxAgeOneWeek = (60 * 60 * 24 * 7).ToString(); // 7 days = 1 week

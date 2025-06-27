@@ -1,0 +1,56 @@
+using BRB.Core.EF.Extensions;
+using Core.Brokers.EmailBroker;
+using Core.Services.Auth;
+using Core.Services.Auth.Contracts;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+
+namespace Core;
+
+public static class CoreConfiguration
+{
+    public static WebApplicationBuilder AddCore(this WebApplicationBuilder builder)
+    {
+        builder.Services.ConfigureServicesFromTypeAssembly<AuthService>();
+
+        builder.Services.AddEmailClient();
+
+        builder.Services
+            .AddOptions<AuthConfig>()
+            .BindConfiguration("Auth")
+            .ValidateOnStart();
+
+        return builder;
+    }
+
+    public static WebApplicationBuilder AddDefaultConfiguredDbContext<T>(this WebApplicationBuilder builder,
+        string connectionString = "Default",
+        ServiceLifetime? lifetime = null) where T : DbContext
+    {
+        var dataSourceBuilder =
+            new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString(connectionString))
+                .EnableDynamicJson();
+
+        if (lifetime is null)
+            builder.Services.AddDbContextPool<T>(optionsBuilder =>
+            {
+                optionsBuilder
+                    .UseNpgsql(
+                        dataSourceBuilder.Build(),
+                        options => { }).UseSnakeCaseNamingConvention();
+            });
+        else
+            builder.Services.AddDbContext<T>(optionsBuilder =>
+            {
+                optionsBuilder
+                    .UseNpgsql(
+                        dataSourceBuilder.Build(),
+                        options => { }).UseSnakeCaseNamingConvention();
+            }, lifetime.Value, lifetime.Value);
+
+        return builder;
+    }
+}
