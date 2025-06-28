@@ -11,6 +11,8 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<Device> Devices { get; set; }
     public DbSet<SignLog> SignLogs { get; set; }
     public DbSet<UserExtra> UserExtras { get; set; }
+    public DbSet<UserNorm> UserNorms { get; set; }
+    public DbSet<UserDaily> UserDailies { get; set; }
 
     public AppDbContext()
     {
