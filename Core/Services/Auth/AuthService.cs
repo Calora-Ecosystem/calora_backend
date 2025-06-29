@@ -128,7 +128,7 @@ public class AuthService(
 
     public IEnumerable<string> GetAllRoles()
     {
-        return Enum.GetValues<EnumRoles>().Select(x => x.ToString());
+        return Enum.GetValues<EnumRole>().Select(x => x.ToString());
     }
 
     private async Task<string> MakeJwtFromUser(long userId, long deviceId)
