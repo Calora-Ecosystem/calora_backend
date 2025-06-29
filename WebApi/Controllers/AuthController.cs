@@ -17,7 +17,7 @@ public class AuthController(AuthService authService) : ControllerBase
     public async Task<Wrapper> SignIn([FromBody] SignInDto dto) =>
         (await authService.SignInAsync(dto), 200);
 
-    [HttpPost("verification/{email}")]
+    [HttpPost("send-otp/{email}")]
     public async Task<Wrapper> SendOtp(string email) =>
         (await authService.SendVerificationCode(email), 200);
 
