@@ -8,7 +8,7 @@ namespace Core.Services;
 [Injectable]
 public class UserService(AppDbContext context)
 {
-    public async Task<object> GetMeAsync(long userId)
+    public async Task<object> GetUserAsync(long userId)
     {
         var user = await context.Users
             .Select(x => new
