@@ -1,4 +1,5 @@
-﻿using Core.Services;
+﻿using Core.Enums;
+using Core.Services;
 using Microsoft.AspNetCore.Mvc;
 using ResultWrapper.Library;
 using WebCore.Controller;
@@ -16,4 +17,8 @@ public class UserController(UserService userService) : AuthorizedController
     [HttpGet("me")]
     public async Task<Wrapper> GetMe() =>
         (await userService.GetUserAsync(this.UserId), 200);
+    
+    [HttpGet("{userId:long}/assign-role")]
+    public Wrapper AssignRole(long userId, EnumRole role) =>
+        (userService.AssignUserToRole(userId, role), 200);
 }
