@@ -65,6 +65,19 @@ public static class ApplicationConfigurationExtensions
 
         app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
+
+        app.UseStaticFiles(new StaticFileOptions()
+        {
+            RequestPath = "/file",
+            HttpsCompression = HttpsCompressionMode.Compress,
+            ServeUnknownFileTypes = true,
+            OnPrepareResponse = (context) =>
+            {
+                context.Context.Response.Headers.Append("Cache-Control", $"public,max-age={2 * 24 * 60 * 60}");
+            }
+        });
+
+
         app.UseHealthChecks("/healthy");
         app.UseAuthorization();
         app.UseCustom404Page("");
