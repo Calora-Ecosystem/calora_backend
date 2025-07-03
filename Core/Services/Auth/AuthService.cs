@@ -69,7 +69,6 @@ public class AuthService(
 
         Device? device = null;
 
-
         await dbContext.Transactional(async () =>
         {
             device = await deviceService.CreateOrUpdateDeviceAndGet(user.Id, dto.DeviceInfo);
