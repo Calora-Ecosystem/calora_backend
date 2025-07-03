@@ -1,3 +1,4 @@
+using BRB.Core.File;
 using Core;
 using Core.Brokers.DbContext;
 using WebCore;
@@ -8,7 +9,10 @@ builder.ConfigureDefaults("WebApi");
 
 builder
     .AddCore()
-    .AddDefaultConfiguredDbContext<AppDbContext>();
+    .AddDefaultConfiguredDbContext<AppDbContext>()
+    .Services
+    .AddFileService()
+    ;
 
 var app = builder.Build();
 

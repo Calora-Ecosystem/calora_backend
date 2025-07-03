@@ -8,19 +8,21 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="BRB.Core.File" Version="2.3.1" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.12"/>
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2"/>
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.6"/>
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="..\.dockerignore">
-        <Link>.dockerignore</Link>
-      </Content>
+        <Content Include="..\.dockerignore">
+            <Link>.dockerignore</Link>
+        </Content>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Core\Core.csproj" />
-      <ProjectReference Include="..\WebCore\WebCore.csproj" />
+        <ProjectReference Include="..\Core\Core.csproj"/>
+        <ProjectReference Include="..\WebCore\WebCore.csproj"/>
     </ItemGroup>
 
 </Project>
