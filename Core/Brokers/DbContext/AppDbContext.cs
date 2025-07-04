@@ -1,6 +1,7 @@
 ﻿using BRB.Core.EF.DbContext;
 using Core.Entities;
 using Core.Entities.Auth;
+using Core.Entities.Refs;
 using Microsoft.EntityFrameworkCore;
 
 namespace Core.Brokers.DbContext;
@@ -13,6 +14,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<UserExtra> UserExtras { get; set; }
     public DbSet<UserNorm> UserNorms { get; set; }
     public DbSet<UserDaily> UserDailies { get; set; }
+    public DbSet<Purpose> Purposes { get; set; }
 
     public AppDbContext()
     {
