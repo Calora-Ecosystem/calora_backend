@@ -37,7 +37,7 @@ public class AuthService(
         if (userExists)
             throw new AlreadyExistsException("User already exists");
 
-        var user = new User()
+        var user = new Entities.Auth.User()
         {
             Email = dto.Email
         };
@@ -99,7 +99,7 @@ public class AuthService(
             throw new NotFoundException("User not found"));
     }
 
-    public async Task<object> SendVerificationCode(User user)
+    public async Task<object> SendVerificationCode(Entities.Auth.User user)
     {
         var expireDate = DateTime.Now.AddMinutes(2);
         var code = Guid.NewGuid().ToString();
