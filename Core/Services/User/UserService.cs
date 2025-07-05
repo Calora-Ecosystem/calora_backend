@@ -213,10 +213,7 @@ public class UserService(AppDbContext context)
             .FirstOrDefaultAsync(x =>
                 x.UserId == userId &&
                 x.Metric == metric &&
-                x.Date.Date == date.Date);
-
-        if (existing is null)
-            throw new KeyNotFoundException("UserDaily not found.");
+                x.Date.Date == date.Date) ?? throw new NotFoundException("User daily record not found.");
 
         existing.Value = dto.Value;
         await context.SaveChangesAsync();
