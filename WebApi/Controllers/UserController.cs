@@ -98,7 +98,7 @@ public class UserController(UserService userService) : AuthorizedController
         return (new { Message = "User daily record deleted successfully." }, 200);
     }
 
-    [HttpGet("{userId:long}/assign-role")]
+    [HttpGet("{userId:long:min(1)}/assign-role")]
     public Wrapper AssignRole(long userId, EnumRole role) =>
         (userService.AssignUserToRole(userId, role), 200);
 }
