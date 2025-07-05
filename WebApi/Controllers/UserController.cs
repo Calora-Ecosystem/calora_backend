@@ -8,7 +8,7 @@ using WebCore.Controller;
 namespace WebApi.Controllers;
 
 [ApiController]
-[Route("user")]
+[Route("users")]
 public class UserController(UserService userService) : AuthorizedController
 {
     [HttpGet("{userId:long:min(1)}")]
