@@ -12,6 +12,8 @@ using Core.Constants;
 using Core.Entities.Auth;
 using Core.Enums;
 using Core.Services.Auth.Contracts;
+using Core.Services.Notification;
+using Core.Services.Notification.Contracts;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -25,11 +27,11 @@ namespace Core.Services.Auth;
 [Injectable]
 public class AuthService(
     AppDbContext dbContext,
-    EmailClient emailClient,
     IMemoryCache memoryCache,
     IWebHostEnvironment environment,
     DeviceService deviceService,
-    IOptions<AuthConfig> authConfig)
+    IOptions<AuthConfig> authConfig,
+    NotificationService notificationService)
 {
     public async Task<object> RegisterAsync(RegisterDto dto)
     {
@@ -111,7 +113,12 @@ public class AuthService(
 
         try
         {
-            await emailClient.SendMailAsync(user.Email, MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp));
+            await notificationService.SendMailAsync(new EmailNotificationDto()
+            {
+                UserId = user.Id,
+                Title = "Verification Code",
+                Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
+            });
         }
         catch (Exception e)
         {
