@@ -1,6 +1,7 @@
 ﻿using BRB.Core.EF.DbContext;
 using Core.Entities;
 using Core.Entities.Auth;
+using Core.Entities.FoodEntites;
 using Core.Entities.Notification;
 using Core.Entities.Refs;
 using Microsoft.EntityFrameworkCore;
@@ -13,9 +14,18 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<Device> Devices { get; set; }
     public DbSet<SignLog> SignLogs { get; set; }
     public DbSet<UserExtra> UserExtras { get; set; }
-    public DbSet<UserNorm> UserNorms { get; set; }
+    public DbSet<UserNormGeneral> UserNorms { get; set; }
     public DbSet<UserDaily> UserDailies { get; set; }
     public DbSet<Reminder> Reminders { get; set; }
+
+    #region Food
+
+    public DbSet<DailyMenu> DailyMenus { get; set; }
+    public DbSet<Food> Foods { get; set; }
+    public DbSet<FoodCategory> FoodCategories { get; set; }
+    public DbSet<FoodMetrics> FoodMetrics { get; set; }
+
+    #endregion
 
     #region References
 

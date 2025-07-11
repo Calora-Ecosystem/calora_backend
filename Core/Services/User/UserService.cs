@@ -133,7 +133,7 @@ public class UserService(AppDbContext context)
         if (existing is not null)
             throw new InvalidOperationException("This metric is available for this user");
 
-        var userNorm = new UserNorm
+        var userNorm = new UserNormGeneral
         {
             UserId = userId,
             Metric = dto.Metric,
