@@ -1,6 +1,7 @@
 ﻿using BRB.Core.EF.DbContext;
 using Core.Entities;
 using Core.Entities.Auth;
+using Core.Entities.Notification;
 using Core.Entities.Refs;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,7 +15,14 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<UserExtra> UserExtras { get; set; }
     public DbSet<UserNorm> UserNorms { get; set; }
     public DbSet<UserDaily> UserDailies { get; set; }
+    public DbSet<Reminder> Reminders { get; set; }
+
+    #region References
+
     public DbSet<Purpose> Purposes { get; set; }
+    public DbSet<Moment> Moments { get; set; }
+
+    #endregion
 
     public AppDbContext()
     {
