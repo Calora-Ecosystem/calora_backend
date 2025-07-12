@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using BRB.Core.Common.Models.Base;
+using Core.Entities.FoodEntites;
 using Core.Entities.Refs;
 using Core.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -21,4 +22,5 @@ public class UserExtra : ModelBase<long>
     public List<Purpose> Purposes { get; set; } = null!; //many2many
     public string? Photo { get; set; }
     [MaxLength(100)] public string Name { get; set; } = null!;
+    public IQueryable<Food> FavouriteFoods { get; set; } = null!; //many2many
 }

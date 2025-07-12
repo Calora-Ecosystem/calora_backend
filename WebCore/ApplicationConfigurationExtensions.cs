@@ -185,10 +185,16 @@ public static class ApplicationConfigurationExtensions
                     }
                 }
             });
+            
+            var filePath = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetEntryAssembly()?.GetName().Name}.xml");
+            if (File.Exists(filePath))
+                options.IncludeXmlComments(filePath);
         });
 
         builder.Services.Configure<ApiBehaviorOptions>(options => { options.SuppressModelStateInvalidFilter = true; });
         builder.Services.AddCookiePolicy(options => { options.Secure = CookieSecurePolicy.Always; });
+        
+        
 
         return builder;
     }

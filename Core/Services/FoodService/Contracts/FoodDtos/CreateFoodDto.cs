@@ -1,4 +1,5 @@
-﻿using BRB.Core.Common.Models;
+﻿using System.ComponentModel.DataAnnotations;
+using BRB.Core.Common.Models;
 using Core.Enums;
 
 namespace Core.Services.FoodService.Contracts.FoodDtos;
@@ -9,6 +10,8 @@ public class CreateFoodDto
     public MultiLanguageField Name { get; set; } = null!;
     public string? CoverUrl { get; set; }
     public long? UserId { get; set; }
+    [MaxLength(500)]
+    public string? Description { get; set; }
     public List<FoodMetricDto> Metrics { get; set; } = default!;
 }
 

@@ -3,6 +3,7 @@ using BRB.Core.Common.Models;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.FoodEntites;
+using Core.Enums;
 using Core.Services.FoodService.Contracts.Category;
 using Core.Services.FoodService.Contracts.FoodDtos;
 using Microsoft.EntityFrameworkCore;
@@ -69,6 +70,25 @@ public class FoodService(AppDbContext dbContext)
             .GetByDataQueryAsync(q);
     }
 
+    public async Task<Wrapper> GetFavouriteFoods(long userId, DataQueryRequest q)
+    {
+        return await dbContext
+            .UserExtras
+            .Where(x => x.UserId == userId)
+            .SelectMany(x => x.FavouriteFoods)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.CategoryId,
+                CategoryName = x.Category.Name,
+                x.CoverUrl,
+                Metrics = x.Metrics.Select(foodMetrics => new { foodMetrics.Metric, foodMetrics.Value }),
+                IsUserFood = x.UserId.HasValue
+            })
+            .GetByDataQueryAsync(q);
+    }
+
     public async Task<Food> CreateFood(CreateFoodDto dto)
     {
         await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId);
@@ -79,6 +99,7 @@ public class FoodService(AppDbContext dbContext)
             CategoryId = dto.CategoryId,
             CoverUrl = dto.CoverUrl,
             Name = dto.Name,
+            Description = dto.Description
         }).Entity;
 
         dbContext.FoodMetrics.AddRange(
@@ -202,6 +223,56 @@ public class FoodService(AppDbContext dbContext)
     {
         return await dbContext.DailyMenus.Where(x => x.Id == itemId && x.UserId == userId)
             .ExecuteDeleteAsync();
+    }
+
+    #endregion
+
+    #region Stat
+
+    public async Task<object> Summary(long userId, DateTime? date)
+    {
+        var kcalNorm = await dbContext.UserNormsGeneral
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == EnumMetrics.Kcal);
+
+        date = date?.Date ?? DateTime.Now.Date;
+
+        var nutrients = await dbContext.DailyMenus
+            .Where(x => x.UserId == userId && x.Date == date)
+            .GroupBy(x => x.Menu)
+            .ToDictionaryAsync(x => x.Key, x => new
+            {
+                Menu = x.Key,
+                Kcal = x.Sum(dailyMenu => dailyMenu.Food.Metrics
+                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Kcal).Value),
+                Fat = x.Sum(dailyMenu => dailyMenu.Food.Metrics
+                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Fat).Value),
+                Protein = x.Sum(dailyMenu => dailyMenu.Food.Metrics
+                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Protein).Value),
+                Carb = x.Sum(dailyMenu => dailyMenu.Food.Metrics
+                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value),
+            });
+
+        var nutrientsNorm = await dbContext.UserNormByMenus
+            .Where(x => x.UserId == userId)
+            .GroupBy(x => x.Menu)
+            .ToDictionaryAsync(x => x.Key, x => new
+            {
+                Menu = x.Key,
+                Kcal = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Kcal).Value,
+                Fat = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Fat).Value,
+                Protein = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Protein).Value,
+                Carb = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value,
+            });
+
+
+        return new
+        {
+            KcalNorm = kcalNorm,
+            NutrientsNorm = nutrientsNorm,
+            Nutrients = nutrients,
+            SumKcal = nutrients.Values.Sum(x => x.Kcal),
+            Date = date
+        };
     }
 
     #endregion

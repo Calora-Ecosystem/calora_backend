@@ -2,10 +2,25 @@
 
 public enum EnumMetrics
 {
-    Protein = 1, //oqsil
-    Fat, // yog'
-    Carb, //Uglevod
-    Kcal, //kkal
+    /// <summary>
+    /// oqsil
+    /// </summary>
+    Protein = 1,
+
+    /// <summary>
+    /// yog'
+    /// </summary>
+    Fat,
+
+    /// <summary>
+    /// Uglevod
+    /// </summary>
+    Carb,
+
+    /// <summary>
+    /// kkal
+    /// </summary>
+    Kcal,
     Water,
     Step,
     Weight

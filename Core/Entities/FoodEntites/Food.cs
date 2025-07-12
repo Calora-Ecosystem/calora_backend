@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using BRB.Core.Common.Models;
 using BRB.Core.Common.Models.Base;
 using Core.Entities.Auth;
@@ -15,6 +16,7 @@ public class Food : ModelBase<long>
     [ForeignKey(nameof(FoodCategory))] public long CategoryId { get; set; }
     public MultiLanguageField Name { get; set; } = null!;
     public string? CoverUrl { get; set; }
+    [MaxLength(500)] public string? Description { get; set; } = null!;
 
     public FoodCategory Category { get; set; } = default!;
 

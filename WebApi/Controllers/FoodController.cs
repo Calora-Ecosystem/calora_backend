@@ -20,6 +20,10 @@ public class FoodController(FoodService service) : AuthorizedController
     public async Task<Wrapper> GetAllFoods([FromQuery] DataQueryRequest q) =>
         await service.GetAllFoods(this.HasAuthorized ? this.UserId : null, q);
 
+    [HttpGet("favourites")]
+    public async Task<Wrapper> GetFavouriteFoods([FromQuery] DataQueryRequest q) =>
+        await service.GetFavouriteFoods(this.UserId, q);
+
     [HttpPost]
     public async Task<Wrapper> CreateFood(CreateFoodDto dto) => (await service.CreateFood(dto), 200);
 
@@ -72,6 +76,18 @@ public class FoodController(FoodService service) : AuthorizedController
 
     [HttpDelete("menu/{itemId:long:min(1)}")]
     public async Task<Wrapper> RemoveMenuItem(long itemId) => (await service.RemoveMenuItem(this.UserId, itemId), 200);
+
+    #endregion
+
+    #region Summary
+
+    /// <summary>
+    /// User nutrition summary
+    /// </summary>
+    /// <param name="date">if is null, now</param>
+    /// <returns></returns>
+    [HttpGet("summary")]
+    public async Task<Wrapper> Summary(DateTime? date) => (await service.Summary(this.UserId, date), 200);
 
     #endregion
 }

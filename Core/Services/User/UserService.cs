@@ -110,10 +110,10 @@ public class UserService(AppDbContext context)
     }
     #endregion
 
-    #region UserNorms
+    #region UserNormsGeneral
     public async Task<object> GetNorm(long userId)
     {
-        var norms = await context.UserNorms
+        var norms = await context.UserNormsGeneral
             .Where(x => x.UserId == userId)
             .Select(x => new
             {
@@ -127,7 +127,7 @@ public class UserService(AppDbContext context)
 
     public async Task CreateNorm(long userId, CreateUserNormDto dto)
     {
-        var existing = await context.UserNorms
+        var existing = await context.UserNormsGeneral
             .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == dto.Metric);
 
         if (existing is not null)
@@ -140,13 +140,13 @@ public class UserService(AppDbContext context)
             Value = dto.Value
         };
 
-        await context.UserNorms.AddAsync(userNorm);
+        await context.UserNormsGeneral.AddAsync(userNorm);
         await context.SaveChangesAsync();
     }
 
     public async Task UpdateNorm(long userId, EnumMetrics metric, UpdateUserNormDto dto)
     {
-        var existing = await context.UserNorms
+        var existing = await context.UserNormsGeneral
             .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == metric);
 
         if (existing is null)
@@ -159,11 +159,11 @@ public class UserService(AppDbContext context)
 
     public async Task DeleteNorm(long userId, EnumMetrics metric)
     {
-        var existing = await context.UserNorms
+        var existing = await context.UserNormsGeneral
             .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == metric)
             ?? throw new NotFoundException("User or metric not found.");
 
-        context.UserNorms.Remove(existing);
+        context.UserNormsGeneral.Remove(existing);
         await context.SaveChangesAsync();
     }
     #endregion
