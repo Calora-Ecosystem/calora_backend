@@ -58,6 +58,7 @@ public static class ApplicationConfigurationExtensions
             {
                 options.ConfigObject.AdditionalItems.Add("persistAuthorization", true);
                 options.DocExpansion(DocExpansion.None);
+                options.EnableDeepLinking();
             });
         }
 
