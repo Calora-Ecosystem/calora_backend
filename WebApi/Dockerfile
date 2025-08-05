@@ -5,7 +5,6 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS publish
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY . .
-RUN dotnet nuget add source /src/packages -n local_source
 WORKDIR "/src/WebApi"
 RUN dotnet publish "WebApi.csproj" -c $BUILD_CONFIGURATION -o /publish /p:UseAppHost=false
 
