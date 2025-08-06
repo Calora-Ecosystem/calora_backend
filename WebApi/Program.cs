@@ -13,7 +13,7 @@ builder
     .Services
     .AddFileService()
     ;
-
+builder.Services.AddHttpClient();
 
 #if !DEBUG
 builder.AddSwaggerServer("/api/");
