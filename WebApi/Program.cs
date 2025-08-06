@@ -14,6 +14,11 @@ builder
     .AddFileService()
     ;
 
+
+#if !DEBUG
+builder.AddSwaggerServer("/api/");
+#endif
+
 var app = builder.Build();
 
 app.ConfigureDefaults();
