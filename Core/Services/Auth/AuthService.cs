@@ -41,7 +41,9 @@ public class AuthService(
 
         var user = new Entities.Auth.User()
         {
-            Email = dto.Email
+            Name = dto.Name,
+            Email = dto.Email,
+            Roles = [nameof(EnumRole.User)]
         };
 
         user = dbContext.Users.Add(user).Entity;
@@ -66,7 +68,7 @@ public class AuthService(
             throw new NotFoundException("Otp didn't match");
 
         var user = await dbContext.Users
-                       .FirstOrDefaultAsync(x => x.Email == dto.Email) ??
+                       .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email,dto.Email)) ??
                    throw new NotFoundException("User not found");
 
         Device? device = null;
@@ -77,7 +79,7 @@ public class AuthService(
             await LogSignInfo(user.Id, device.Id);
         });
 
-        var accessToken = MakeJwtFromUser(user.Id, device!.Id);
+        var accessToken = await MakeJwtFromUser(user.Id, device!.Id);
         var refreshToken = PasswordHelper.Encrypt(Guid.NewGuid().ToString());
 
         user.RToken = refreshToken;
@@ -96,7 +98,7 @@ public class AuthService(
 
     public async Task<object> SendVerificationCode(string email)
     {
-        return this.SendVerificationCode(
+        return await this.SendVerificationCode(
             await dbContext.Users.FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, email)) ??
             throw new NotFoundException("User not found"));
     }
@@ -146,6 +148,7 @@ public class AuthService(
         claims.Add(new Claim(ClaimTypes.Role, string.Join(",", user.Roles)));
         claims.Add(new Claim(ClaimTypes.Email, user.Email));
         claims.Add(new Claim(CustomClaims.DeviceId, deviceId.ToString()));
+        claims.Add(new Claim(CustomClaims.UserId, user.Id.ToString()));
 
         var token = new JwtSecurityToken(authConfig.Value.Issuer,
             authConfig.Value.Audience,

@@ -14,7 +14,8 @@ public static class CoreConfiguration
 {
     public static WebApplicationBuilder AddCore(this WebApplicationBuilder builder)
     {
-        builder.Services.ConfigureServicesFromTypeAssembly<AuthService>();
+        builder.Services
+            .ConfigureServicesFromTypeAssembly<AuthService>();
 
         builder.Services.AddEmailClient();
 
@@ -40,7 +41,8 @@ public static class CoreConfiguration
                 optionsBuilder
                     .UseNpgsql(
                         dataSourceBuilder.Build(),
-                        options => { }).UseSnakeCaseNamingConvention();
+                        options => { options.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery); })
+                    .UseSnakeCaseNamingConvention();
             });
         else
             builder.Services.AddDbContext<T>(optionsBuilder =>

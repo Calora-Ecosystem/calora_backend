@@ -1,14 +1,18 @@
-﻿using Core.Enums;
+﻿using Core;
+using Core.Enums;
 using Core.Services.User;
 using Core.Services.User.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResultWrapper.Library;
 using WebCore.Controller;
+using WebCore.Enum;
 
 namespace WebApi.Controllers;
 
 [ApiController]
 [Route("users")]
+[RoleAuthorize(EnumRole.User)]
 public class UserController(UserService userService) : AuthorizedController
 {
     [HttpGet("{userId:long:min(1)}")]
@@ -20,6 +24,7 @@ public class UserController(UserService userService) : AuthorizedController
         (await userService.GetUserAsync(this.UserId), 200);
 
     #region Extras
+
     [HttpGet("extras")]
     public async Task<Wrapper> GetExtras() =>
         (await userService.GetExtra(this.UserId), 200);
@@ -44,12 +49,14 @@ public class UserController(UserService userService) : AuthorizedController
         await userService.DeleteExtra(this.UserId);
         return (new { Message = "User extra deleted successfully." }, 200);
     }
+
     #endregion
 
     #region Norms
+
     [HttpGet("norms")]
     public async Task<Wrapper> GetNorms() =>
-    (await userService.GetNorm(this.UserId), 200);
+        (await userService.GetNorm(this.UserId), 200);
 
     [HttpPost("norms")]
     public async Task<Wrapper> AddNorm([FromBody] CreateUserNormDto userNorm)
@@ -70,7 +77,8 @@ public class UserController(UserService userService) : AuthorizedController
     {
         await userService.DeleteNorm(this.UserId, metric);
         return (new { Message = "User norm deleted successfully." }, 200);
-    } 
+    }
+
     #endregion
 
     [HttpGet("dailies")]
@@ -85,7 +93,8 @@ public class UserController(UserService userService) : AuthorizedController
     }
 
     [HttpPut("dailies/{date}")]
-    public async Task<Wrapper> UpdateDaily([FromRoute] EnumMetrics metric, [FromRoute] DateTime date, [FromBody] UpdateUserDailyDto userDaily)
+    public async Task<Wrapper> UpdateDaily([FromRoute] EnumMetrics metric, [FromRoute] DateTime date,
+        [FromBody] UpdateUserDailyDto userDaily)
     {
         await userService.UpdateDaily(this.UserId, metric, date, userDaily);
         return (new { Message = "User daily record updated successfully." }, 200);
@@ -99,6 +108,7 @@ public class UserController(UserService userService) : AuthorizedController
     }
 
     [HttpGet("{userId:long:min(1)}/assign-role")]
+    [Authorize(Policy = nameof(EnumAuthPolicies.SuperAdmin))]
     public Wrapper AssignRole(long userId, EnumRole role) =>
         (userService.AssignUserToRole(userId, role), 200);
 }

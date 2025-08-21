@@ -1,5 +1,4 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using BRB.Core.Common.Exceptions;
+﻿using BRB.Core.Common.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebCore.Helpers;
@@ -25,7 +24,7 @@ public abstract class AuthorizedController : ControllerBase
                if (_userId.HasValue)
                     return _userId.Value;
 
-               _userId = this.HttpContext.ParseRequired<long>(JwtRegisteredClaimNames.Sid);
+               _userId = this.HttpContext.ParseRequired<long>("user-id");
 
                return _userId.Value;
           }
