@@ -1,6 +1,7 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Helpers;
@@ -145,7 +146,8 @@ public class AuthService(
 
         var claims = new List<Claim>();
 
-        claims.Add(new Claim(ClaimTypes.Role, string.Join(",", user.Roles)));
+        
+        user.Roles.ForEach(role => claims.Add(new Claim(ClaimTypes.Role, role)));;
         claims.Add(new Claim(ClaimTypes.Email, user.Email));
         claims.Add(new Claim(CustomClaims.DeviceId, deviceId.ToString()));
         claims.Add(new Claim(CustomClaims.UserId, user.Id.ToString()));
