@@ -39,7 +39,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     {
     }
 
-    public AppDbContext(DbContextOptions<AppDbContext> options)
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
 

@@ -1,5 +1,6 @@
-﻿using System.Text;
-using BRB.Core.File;
+﻿using BRB.Core.File;
+using Core;
+using Core.Enums;
 using Core.Services.File.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,12 +13,14 @@ using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Processing;
 using WebCore.Controller;
+using WebCore.Enum;
 
 namespace WebApi.Controllers;
 
 /// <inheritdoc />
 [ApiController]
 [Route("/file")]
+[RoleAuthorize(EnumRole.User)]
 public class FileController(FileService fileService) : AuthorizedController
 {
     /// <summary>
@@ -60,7 +63,7 @@ public class FileController(FileService fileService) : AuthorizedController
 
         var fileStream = new MemoryStream();
         await image.SaveAsync(fileStream, imageFormat, CancellationToken.None);
-        
+
         fileStream.Position = 0;
 
         return fileService.ConvertToUrl(await fileService.SaveFileAsync(file.FileName, fileStream));

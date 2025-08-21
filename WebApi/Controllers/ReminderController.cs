@@ -1,15 +1,19 @@
 ﻿using BRB.Core.Common.Models;
+using Core;
+using Core.Enums;
 using Core.Services.Notification;
 using Core.Services.Notification.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Validations.Rules;
 using ResultWrapper.Library;
 using WebCore.Controller;
+using WebCore.Enum;
 
 namespace WebApi.Controllers;
 
 [Route(("reminder"))]
 [ApiController]
+[RoleAuthorize(EnumRole.User)]
 public class ReminderController(ReminderService service) : AuthorizedController
 {
     [HttpGet]

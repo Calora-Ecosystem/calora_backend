@@ -8,10 +8,10 @@ namespace Core.Entities.Auth;
 [Index(nameof(Email))]
 public class User : ModelBase<long>
 {
+    [MaxLength(300)] public string Name { get; set; } = null!;
     [MaxLength(100)] public string Email { get; set; } = null!;
     [MaxLength(64)] public string? Password { get; set; } = null!;
-    [MaxLength(50)]
-    public string? RToken { get; set; }
+    [MaxLength(50)] public string? RToken { get; set; }
     public DateTime RTokenExpireAt { get; set; }
     [Column(TypeName = "jsonb")] public List<string> Roles { get; set; } = null!;
 }

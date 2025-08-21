@@ -15,8 +15,9 @@ public class DeviceService(AppDbContext dbContext)
             .FirstOrDefaultAsync(x => x.UserId == userId && x.Key == deviceDto.Key)) ?? new Device()
         {
             Key = deviceDto.Key,
+            UserId = userId
         };
-
+        
         device.Name = deviceDto.Name;
         device.FcmToken = deviceDto.FcmToken;
 

@@ -1,5 +1,6 @@
 ﻿using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
+using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.FoodEntites;
@@ -11,6 +12,7 @@ using ResultWrapper.Library;
 
 namespace Core.Services.FoodService;
 
+[Injectable]
 public class FoodService(AppDbContext dbContext)
 {
     #region Category

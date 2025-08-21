@@ -13,7 +13,7 @@ public class EmailClient(
     public async Task SendMailAsync(
         string email, string body, string subject = "", bool isHtml = false)
     {
-        var from = new MailAddress(_config.Login, _config.Name);
+        var from = new MailAddress(_config.Username, _config.From);
         var to = new MailAddress(email);
         var mail = new MailMessage(from, to)
         {
@@ -23,7 +23,7 @@ public class EmailClient(
         };
 
         using var smtpClient = new SmtpClient(_config.Host, _config.Port);
-        smtpClient.Credentials = new NetworkCredential(_config.Login, _config.Password);
+        smtpClient.Credentials = new NetworkCredential(_config.Username, _config.Password);
         smtpClient.EnableSsl = true;
 
         await smtpClient.SendMailAsync(mail);

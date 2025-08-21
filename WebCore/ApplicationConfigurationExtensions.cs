@@ -1,8 +1,7 @@
 using System.Reflection;
-using System.Reflection.Metadata;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
-using BRB.Core.Common.Extensions;
 using BRB.Core.Web.Fallback;
 using BRB.Core.Web.Filters;
 using BRB.Core.Web.Middlewares;
@@ -10,10 +9,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Npgsql;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
@@ -81,6 +78,7 @@ public static class ApplicationConfigurationExtensions
 
         app.UseHealthChecks("/healthy");
         app.UseAuthorization();
+        // app.UseAuthentication();
         app.UseCustom404Page("");
         app.MapControllers();
 
@@ -186,7 +184,7 @@ public static class ApplicationConfigurationExtensions
                     }
                 }
             });
-            
+
             var filePath = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetEntryAssembly()?.GetName().Name}.xml");
             if (File.Exists(filePath))
                 options.IncludeXmlComments(filePath);
@@ -194,8 +192,7 @@ public static class ApplicationConfigurationExtensions
 
         builder.Services.Configure<ApiBehaviorOptions>(options => { options.SuppressModelStateInvalidFilter = true; });
         builder.Services.AddCookiePolicy(options => { options.Secure = CookieSecurePolicy.Always; });
-        
-        
+
 
         return builder;
     }
@@ -265,6 +262,7 @@ public static class ApplicationConfigurationExtensions
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero,
                     SaveSigninToken = true,
+                    RoleClaimType = ClaimTypes.Role,
                     IssuerSigningKey =
                         new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Auth:SecretKey"]!)),
                 };
@@ -285,23 +283,19 @@ public static class ApplicationConfigurationExtensions
             });
 
 
-        // builder.Services.AddAuthorization(options =>
-        // {
-        //     //ToDo: add policies for needs
-        //     options.AddPolicy(Roles.Admin,
-        //         policyBuilder =>
-        //         {
-        //             policyBuilder.RequireAuthenticatedUser();
-        //             policyBuilder.RequireRole(Roles.Admin);
-        //         });
-        //     
-        //     options.AddPolicy(Roles.Client,
-        //         policyBuilder =>
-        //         {
-        //             policyBuilder.RequireAuthenticatedUser();
-        //             policyBuilder.RequireRole(Roles.Client, Roles.Admin);
-        //         });
-        // });
+        // builder.Services.AddAuthorizationBuilder()
+        //     .AddPolicy(nameof(EnumAuthPolicies.User), policyBuilder =>
+        //     {
+        //         policyBuilder.AddAuthenticationSchemes("Bearer");
+        //         policyBuilder.RequireAuthenticatedUser();
+        //         policyBuilder.RequireRole("SuperAdmin", "User");
+        //     })
+        //     .AddPolicy(nameof(EnumAuthPolicies.SuperAdmin), policyBuilder =>
+        //     {
+        //         policyBuilder.AddAuthenticationSchemes("Bearer");
+        //         policyBuilder.RequireAuthenticatedUser();
+        //         policyBuilder.RequireRole("SuperAdmin");
+        //     });
 
 
         return builder;

@@ -1,4 +1,6 @@
 ﻿using BRB.Core.Common.Models;
+using Core;
+using Core.Enums;
 using Core.Services.FoodService;
 using Core.Services.FoodService.Contracts.Category;
 using Core.Services.FoodService.Contracts.FoodDtos;
@@ -11,6 +13,7 @@ namespace WebApi.Controllers;
 
 [ApiController]
 [Route("food")]
+[RoleAuthorize(EnumRole.SuperAdmin)]
 public class FoodController(FoodService service) : AuthorizedController
 {
     #region Food
@@ -38,6 +41,7 @@ public class FoodController(FoodService service) : AuthorizedController
     /// <returns></returns>
     /// ToDo: Check for USER role
     [HttpDelete("user-food/{foodId:long:min(1)}")]
+    [RoleAuthorize(EnumRole.User)]
     public async Task<Wrapper> RemoveUserFood(long foodId) => (await service.RemoveUserFood(foodId, this.UserId), 200);
 
     /// <summary>
