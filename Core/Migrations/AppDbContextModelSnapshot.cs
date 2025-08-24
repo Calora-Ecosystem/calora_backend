@@ -431,7 +431,7 @@ namespace Core.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<TimeSpan>("Before")
+                    b.Property<TimeSpan>("Time")
                         .HasColumnType("interval")
                         .HasColumnName("before");
 
@@ -670,7 +670,7 @@ namespace Core.Migrations
             modelBuilder.Entity("Core.Entities.FoodEntites.FoodMetrics", b =>
                 {
                     b.HasOne("Core.Entities.FoodEntites.Food", "Food")
-                        .WithMany("Metrics")
+                        .WithMany("Metric")
                         .HasForeignKey("FoodId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
@@ -736,7 +736,7 @@ namespace Core.Migrations
 
             modelBuilder.Entity("Core.Entities.FoodEntites.Food", b =>
                 {
-                    b.Navigation("Metrics");
+                    b.Navigation("Metric");
                 });
 #pragma warning restore 612, 618
         }

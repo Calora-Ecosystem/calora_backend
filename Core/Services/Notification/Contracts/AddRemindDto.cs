@@ -1,7 +1,10 @@
-﻿namespace Core.Services.Notification.Contracts;
+﻿using Core.Enums;
+
+namespace Core.Services.Notification.Contracts;
 
 public class AddRemindDto
 {
-    public long MomentId { get; set; }
-    public int BeforeInMinutes { get; set; }
+    public TimeOnly Time { get; set; }
+    public EnumMomentType Type { get; set; }
+    public EnumMenu? Menu { get; set; }
 }

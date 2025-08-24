@@ -11,10 +11,12 @@ public class CreateUserExtraDto
     public EnumGender Gender { get; set; }
     public DateTime BirthDate { get; set; }
     public string? Photo { get; set; }
+    public EnumLanguage Language { get; set; }
     public List<long> PurposeIds { get; set; } = new();
 }
 
 public class UpdateUserExtraDto : CreateUserExtraDto
 {
     public long Id { get; set; }
+    public EnumActivityLevel Level { get; set; }
 }

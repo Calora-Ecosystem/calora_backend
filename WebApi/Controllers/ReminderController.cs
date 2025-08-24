@@ -32,14 +32,14 @@ public class ReminderController(ReminderService service) : AuthorizedController
     public async Task<Wrapper> Remove([FromRoute] long id) =>
         (await service.Remove(this.UserId, id), 200);
 
-    [HttpGet("moments")]
-    public async Task<Wrapper> GetAllMoments([FromQuery] DataQueryRequest q) =>
-        await service.GetAllMoments(q);
-
-    [HttpPost("moments")]
-    public async Task<Wrapper> CreateMoment(CreateMomentDto dto) => (await service.CreateMoment(dto), 200);
-
-    [HttpDelete("moments/{id:long:min(1)}")]
-    public async Task<Wrapper> RemoveMoment([FromRoute] long id) =>
-        (await service.RemoveMoment(id), 200);
+    // [HttpGet("moments")]
+    // public async Workout<Wrapper> GetAllMoments([FromQuery] DataQueryRequest q) =>
+    //     await service.GetAllMoments(q);
+    //
+    // [HttpPost("moments")]
+    // public async Workout<Wrapper> CreateMoment(CreateMomentDto dto) => (await service.CreateMoment(dto), 200);
+    //
+    // [HttpDelete("moments/{id:long:min(1)}")]
+    // public async Workout<Wrapper> RemoveMoment([FromRoute] long id) =>
+    //     (await service.RemoveMoment(id), 200);
 }
