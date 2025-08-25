@@ -1,0 +1,158 @@
+using BRB.Core.Common.Exceptions;
+using BRB.Core.Common.Models;
+using BRB.Core.EF.Attributes;
+using BRB.Core.EF.Extensions;
+using Core.Brokers.DbContext;
+using Core.Entities.Course;
+using Core.Entities.Course.Enum;
+using Core.Enums;
+using Core.Services.Course.Workout.Contracts;
+using Microsoft.EntityFrameworkCore;
+using ResultWrapper.Library;
+
+namespace Core.Services.Course.Workout;
+
+[Injectable]
+public class WorkoutService(AppDbContext dbContext)
+{
+    public async Task<Wrapper> GetAll(long userId, DataQueryRequest query, long? courseId = null)
+    {
+        var q = dbContext.Workouts.AsQueryable();
+
+        if (courseId is not null)
+            q = q.Where(x => x.CourseId == courseId);
+
+        return await q
+            .Select(x => new
+            {
+                x.Id,
+                x.CourseId,
+                x.Title,
+                x.HasRest,
+                TotalItems = x.Exercises.Count(),
+                DoneItems = dbContext.Exercises
+                    .Join(dbContext.StepHistories,
+                        e => e.Id,
+                        h => h.EntityId,
+                        (e, h) => new { e, h })
+                    .Any(joined =>
+                        joined.e.WorkoutId == x.Id &&
+                        joined.h.UserId == userId &&
+                        joined.h.Type == EnumHistoryEntityType.Workout),
+                TotalDurationInMin = x.Exercises.Sum(exercise => exercise.Duration.TotalMinutes),
+                TotalMetrics = x.Exercises.SelectMany(exercise => exercise.Metrics)
+                    .GroupBy(metric => metric.Metric)
+                    .Select(metrics => new
+                    {
+                        Metric = metrics.Key,
+                        Sum = metrics.Sum(metric => metric.Value)
+                    }),
+            })
+            .GetByDataQueryAsync(query);
+    }
+
+    public async Task<long> CrateOrUpdate(CreateOrUpdateWorkoutDto dto)
+    {
+        if (!dbContext.Courses.Any(x => x.Id == dto.CourseId && x.Type == EnumCourseType.Workout))
+            throw new NotFoundException("Course not found");
+
+        var workout = dto.Id.HasValue
+            ? await dbContext.Workouts.GetByIdOrThrowsNotFoundException(dto.Id.Value)
+            : new Entities.Course.Workout();
+
+        workout.CourseId = dto.CourseId;
+        workout.Title = dto.Title;
+        workout.HasRest = dto.HasRest;
+
+        workout = dbContext.Update(workout).Entity;
+        await dbContext.SaveChangesAsync();
+
+        return workout.Id;
+    }
+
+    public async Task Remove(long id)
+    {
+        var workout = await dbContext.Workouts.GetByIdOrThrowsNotFoundException(id);
+
+        dbContext.Remove(workout);
+        await dbContext.SaveChangesAsync();
+    }
+
+    #region Exercise
+
+    public async Task<Wrapper> GetAllExercises(long userId, long workoutId, DataQueryRequest query)
+    {
+        return await dbContext
+            .Exercises
+            .Where(x => x.WorkoutId == workoutId)
+            .Select(x => new
+            {
+                x.Id,
+                x.WorkoutId,
+                x.Title,
+                x.Description,
+                x.Assets,
+                x.Duration,
+                IsDone = dbContext.StepHistories.Any(sh =>
+                    sh.EntityId == sh.Id && sh.UserId == userId && sh.Type == EnumHistoryEntityType.Exercise),
+            })
+            .GetByDataQueryAsync(query);
+    }
+
+    public async Task<long> CrateOrUpdateExercise(CreateOrUpdateExerciseDto dto)
+    {
+        await dbContext.Workouts.ExistsOrThrowsNotFoundException(dto.WorkoutId);
+
+        var exercise = dto.Id.HasValue
+            ? await dbContext.Exercises.GetByIdOrThrowsNotFoundException(dto.Id.Value)
+            : new Exercise();
+
+        exercise.WorkoutId = dto.WorkoutId;
+        exercise.Title = dto.Title;
+        exercise.Description = dto.Description;
+        exercise.Assets = dto.Assets;
+        exercise.Duration = dto.Duration;
+
+        await dbContext.Transactional(async () =>
+        {
+            exercise = dbContext.Update(exercise).Entity;
+            await dbContext.SaveChangesAsync();
+
+            await dbContext.ExerciseMetrics.Where(x => x.ExerciseId == exercise.Id).ExecuteDeleteAsync();
+
+            dbContext.ExerciseMetrics.AddRange(dto.Metrics.Select(x => new ExerciseMetric()
+            {
+                ExerciseId = exercise.Id,
+                Metric = x.Metric,
+                Value = x.Value,
+            }));
+
+            await dbContext.SaveChangesAsync();
+        });
+
+        return exercise.Id;
+    }
+
+    public async Task ResetWorkout(long userId, long workoutId)
+    {
+        var ids = await dbContext.Exercises.Where(x => x.WorkoutId == workoutId)
+            .Select(x => x.Id).ToListAsync();
+
+        ids.Add(workoutId);
+
+        await dbContext.StepHistories
+            .Where(x => x.UserId == userId && ids.Contains(x.EntityId) &&
+                        (x.Type == EnumHistoryEntityType.Workout || x.Type == EnumHistoryEntityType.Exercise))
+            .ExecuteDeleteAsync();
+    }
+
+    public async Task RemoveExercise(long id)
+    {
+        var exercise = dbContext.Exercises.GetByIdOrThrowsNotFoundException(id);
+
+        dbContext.Remove(exercise);
+        await dbContext.SaveChangesAsync();
+    }
+
+    #endregion
+}

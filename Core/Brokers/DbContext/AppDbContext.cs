@@ -1,6 +1,7 @@
 ﻿using BRB.Core.EF.DbContext;
 using Core.Entities;
 using Core.Entities.Auth;
+using Core.Entities.Course;
 using Core.Entities.FoodEntites;
 using Core.Entities.Notification;
 using Core.Entities.Refs;
@@ -10,6 +11,8 @@ namespace Core.Brokers.DbContext;
 
 public class AppDbContext : DefaultConfiguredDbContext
 {
+    #region User
+
     public DbSet<User> Users { get; set; }
     public DbSet<Device> Devices { get; set; }
     public DbSet<SignLog> SignLogs { get; set; }
@@ -18,6 +21,8 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<UserNormByMenu> UserNormByMenus { get; set; }
     public DbSet<UserDaily> UserDailies { get; set; }
     public DbSet<Reminder> Reminders { get; set; }
+
+    #endregion
 
     #region Food
 
@@ -28,10 +33,20 @@ public class AppDbContext : DefaultConfiguredDbContext
 
     #endregion
 
+    #region Course
+
+    public DbSet<Course> Courses { get; set; }
+    public DbSet<StepHistory> StepHistories { get; set; }
+    public DbSet<Exercise> Exercises { get; set; }
+    public DbSet<ExerciseMetric> ExerciseMetrics { get; set; }
+    public DbSet<Lesson> Lessons { get; set; }
+    public DbSet<Workout> Workouts { get; set; }
+
+    #endregion
+
     #region References
 
     public DbSet<Purpose> Purposes { get; set; }
-    public DbSet<Moment> Moments { get; set; }
 
     #endregion
 

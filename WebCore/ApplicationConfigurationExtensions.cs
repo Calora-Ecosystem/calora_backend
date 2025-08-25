@@ -8,6 +8,7 @@ using BRB.Core.Web.Middlewares;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -184,6 +185,29 @@ public static class ApplicationConfigurationExtensions
                     }
                 }
             });
+
+            options.TagActionsBy(api =>
+            {
+                if (api.GroupName != null)
+                {
+                    return
+                    [
+                        api.GroupName
+                    ];
+                }
+
+                if (api.ActionDescriptor is ControllerActionDescriptor controllerActionDescriptor)
+                {
+                    return
+                    [
+                        controllerActionDescriptor.ControllerName
+                    ];
+                }
+
+                throw new InvalidOperationException("Unable to determine tag for endpoint.");
+            });
+            
+            options.DocInclusionPredicate((name, api) => true);
 
             var filePath = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetEntryAssembly()?.GetName().Name}.xml");
             if (File.Exists(filePath))

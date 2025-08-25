@@ -5,6 +5,7 @@ using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Notification;
 using Core.Entities.Refs;
+using Core.Enums;
 using Core.Services.Notification.Contracts;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
@@ -21,26 +22,27 @@ public class ReminderService(AppDbContext dbContext)
             .Select(x => new
             {
                 x.Id,
-                x.MomentId,
-                MomenName = x.Moment.Name,
-                x.Before,
+                x.Type,
+                x.Menu,
+                x.Time,
             })
             .GetByDataQueryAsync(q);
     }
 
     public async Task<Reminder> AddReminder(long userId, AddRemindDto dto)
     {
-        await dbContext.Moments.ExistsOrThrowsNotFoundException(dto.MomentId);
-
         var reminder =
-            await dbContext.Reminders.FirstOrDefaultAsync(x => x.UserId == userId && x.MomentId == dto.MomentId) ??
+            await dbContext.Reminders.FirstOrDefaultAsync(x => x.UserId == userId && x.Type == dto.Type &&
+                                                               (dto.Type != EnumMomentType.Food ||
+                                                                x.Menu == dto.Menu)) ??
             new Reminder()
             {
                 UserId = userId,
-                MomentId = dto.MomentId
+                Type = dto.Type,
+                Menu = dto.Menu
             };
 
-        reminder.Before = TimeSpan.FromMinutes(dto.BeforeInMinutes);
+        reminder.Time = dto.Time;
 
         reminder = dbContext.Update(reminder).Entity;
 
@@ -57,32 +59,32 @@ public class ReminderService(AppDbContext dbContext)
             .ExecuteDeleteAsync();
     }
 
-    public async Task<Wrapper> GetAllMoments(DataQueryRequest q)
-    {
-        return await dbContext.Moments.Select(x => new { x.Id, x.Name }).GetByDataQueryAsync(q);
-    }
-
-    public async Task<int> RemoveMoment(long momentId)
-    {
-        return await dbContext.Moments.Where(x => x.Id == momentId).ExecuteDeleteAsync();
-    }
-
-    public async Task<Moment> CreateMoment(CreateMomentDto dto)
-    {
-        var exists =
-            await dbContext.Moments.AnyAsync(x => x.Time.Hour == dto.Time.Hour && x.Time.Minute == dto.Time.Minute);
-
-        if (exists)
-            throw new AlreadyExistsException("Moment already exists");
-
-        var moment = dbContext.Moments.Add(new Moment()
-        {
-            Name = dto.Name,
-            Time = dto.Time,
-        }).Entity;
-
-        await dbContext.SaveChangesAsync();
-
-        return moment;
-    }
+    // public async Workout<Wrapper> GetAllMoments(DataQueryRequest q)
+    // {
+    //     return await dbContext.Moments.Select(x => new { x.Id, x.Name }).GetByDataQueryAsync(q);
+    // }
+    //
+    // public async Workout<int> RemoveMoment(long momentId)
+    // {
+    //     return await dbContext.Moments.Where(x => x.Id == momentId).ExecuteDeleteAsync();
+    // }
+    //
+    // public async Workout<Moment> CreateMoment(CreateMomentDto dto)
+    // {
+    //     // var exists =
+    //     //     await dbContext.Moments.AnyAsync(x => x.Time.Hour == dto.Time.Hour && x.Time.Minute == dto.Time.Minute);
+    //     //
+    //     // if (exists)
+    //     //     throw new AlreadyExistsException("Moment already exists");
+    //
+    //     var moment = dbContext.Moments.Add(new Moment()
+    //     {
+    //         Name = dto.Name,
+    //         Time = dto.Time,
+    //     }).Entity;
+    //
+    //     await dbContext.SaveChangesAsync();
+    //
+    //     return moment;
+    // }
 }
