@@ -5,6 +5,7 @@ using BRB.Core.Common.Models;
 using Core.Brokers.DbContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Core.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250825150606_AddCourseEntities")]
+    partial class AddCourseEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -461,13 +464,6 @@ namespace Core.Migrations
 
             modelBuilder.Entity("Core.Entities.Course.StepHistory", b =>
                 {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
@@ -475,6 +471,10 @@ namespace Core.Migrations
                     b.Property<long>("EntityId")
                         .HasColumnType("bigint")
                         .HasColumnName("entity_id");
+
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer")
@@ -487,9 +487,6 @@ namespace Core.Migrations
                     b.Property<long>("UserId")
                         .HasColumnType("bigint")
                         .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_course_histories");
 
                     b.HasIndex("UserId", "EntityId", "Type")
                         .HasDatabaseName("ix_course_histories_user_id_entity_id_type");

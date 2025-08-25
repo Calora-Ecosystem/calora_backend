@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Core.Entities.Course;
 
-[Keyless]
 [Index(nameof(UserId), nameof(EntityId), nameof(Type))]
 public class StepHistory : AuditableModelBase<long>
 {

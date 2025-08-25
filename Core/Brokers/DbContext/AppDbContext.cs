@@ -36,7 +36,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     #region Course
 
     public DbSet<Course> Courses { get; set; }
-    public DbSet<StepHistory> CourseHistories { get; set; }
+    public DbSet<StepHistory> StepHistories { get; set; }
     public DbSet<Exercise> Exercises { get; set; }
     public DbSet<ExerciseMetric> ExerciseMetrics { get; set; }
     public DbSet<Lesson> Lessons { get; set; }

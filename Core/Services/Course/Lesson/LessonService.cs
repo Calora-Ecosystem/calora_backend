@@ -10,10 +10,13 @@ namespace Core.Services.Course.Lesson;
 [Injectable]
 public class LessonService(AppDbContext dbContext)
 {
-    public async Task<Wrapper> GetAll(DataQueryRequest query)
+    public async Task<Wrapper> GetAll(DataQueryRequest query, long? courseId = null)
     {
-        return await dbContext
-            .Lessons
+        var q = dbContext.Lessons.AsQueryable();
+        if (courseId is not null)
+            q = q.Where(x => x.CourseId == courseId);
+
+        return await q
             .Select(x => new
             {
                 x.Id,
