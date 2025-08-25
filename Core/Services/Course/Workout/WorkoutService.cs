@@ -1,9 +1,11 @@
+using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Course;
 using Core.Entities.Course.Enum;
+using Core.Enums;
 using Core.Services.Course.Workout.Contracts;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
@@ -49,8 +51,11 @@ public class WorkoutService(AppDbContext dbContext)
             .GetByDataQueryAsync(query);
     }
 
-    public async Task CrateOrUpdate(CreateOrUpdateWorkoutDto dto)
+    public async Task<long> CrateOrUpdate(CreateOrUpdateWorkoutDto dto)
     {
+        if (!dbContext.Courses.Any(x => x.Id == dto.CourseId && x.Type == EnumCourseType.Workout))
+            throw new NotFoundException("Course not found");
+
         var workout = dto.Id.HasValue
             ? await dbContext.Workouts.GetByIdOrThrowsNotFoundException(dto.Id.Value)
             : new Entities.Course.Workout();
@@ -59,8 +64,10 @@ public class WorkoutService(AppDbContext dbContext)
         workout.Title = dto.Title;
         workout.HasRest = dto.HasRest;
 
-        dbContext.Update(workout);
+        workout = dbContext.Update(workout).Entity;
         await dbContext.SaveChangesAsync();
+
+        return workout.Id;
     }
 
     public async Task Remove(long id)
@@ -92,8 +99,10 @@ public class WorkoutService(AppDbContext dbContext)
             .GetByDataQueryAsync(query);
     }
 
-    public async Task CrateOrUpdateExercise(CreateOrUpdateExerciseDto dto)
+    public async Task<long> CrateOrUpdateExercise(CreateOrUpdateExerciseDto dto)
     {
+        await dbContext.Workouts.ExistsOrThrowsNotFoundException(dto.WorkoutId);
+
         var exercise = dto.Id.HasValue
             ? await dbContext.Exercises.GetByIdOrThrowsNotFoundException(dto.Id.Value)
             : new Exercise();
@@ -106,7 +115,7 @@ public class WorkoutService(AppDbContext dbContext)
 
         await dbContext.Transactional(async () =>
         {
-            dbContext.Update(exercise);
+            exercise = dbContext.Update(exercise).Entity;
             await dbContext.SaveChangesAsync();
 
             await dbContext.ExerciseMetrics.Where(x => x.ExerciseId == exercise.Id).ExecuteDeleteAsync();
@@ -120,6 +129,8 @@ public class WorkoutService(AppDbContext dbContext)
 
             await dbContext.SaveChangesAsync();
         });
+
+        return exercise.Id;
     }
 
     public async Task ResetWorkout(long userId, long workoutId)

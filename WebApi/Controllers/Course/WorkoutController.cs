@@ -25,11 +25,7 @@ public class WorkoutController(WorkoutService service, CourseService courseServi
         await service.GetAll(this.UserId, q, courseId);
 
     [HttpPost]
-    public async Task<Wrapper> CreateOrUpdate(CreateOrUpdateWorkoutDto dto)
-    {
-        await service.CrateOrUpdate(dto);
-        return 200;
-    }
+    public async Task<Wrapper> CreateOrUpdate(CreateOrUpdateWorkoutDto dto) => (await service.CrateOrUpdate(dto), 200);
 
     [HttpPut("finish/{workoutId:long:min(1)}")]
     public async Task<Wrapper> Finish(long workoutId)

@@ -22,12 +22,8 @@ public class LessonController(LessonService service, CourseService courseService
         await service.GetAll(q, courseId);
 
     [HttpPost]
-    public async Task<Wrapper> CreateOrUpdate(CreateOrUpdateLessonDto dto)
-    {
-        await service.CrateOrUpdate(dto);
-        return 200;
-    }
-    
+    public async Task<Wrapper> CreateOrUpdate(CreateOrUpdateLessonDto dto) => (await service.CrateOrUpdate(dto), 200);
+
     [HttpPut("finish/{lessonId:long:min(1)}")]
     public async Task<Wrapper> Finish(long lessonId)
     {

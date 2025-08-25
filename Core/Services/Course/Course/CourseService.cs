@@ -29,7 +29,7 @@ public class CourseService(AppDbContext context)
             .GetByDataQueryAsync(query);
     }
 
-    public async Task CreateOrUpdate(CreateOrUpdateCourseDto dto)
+    public async Task<long> CreateOrUpdate(CreateOrUpdateCourseDto dto)
     {
         var course = dto.Id.HasValue
             ? await context.Courses.GetByIdOrThrowsNotFoundException(dto.Id.Value)
@@ -40,9 +40,12 @@ public class CourseService(AppDbContext context)
         course.Title = dto.Title;
         course.Description = dto.Description;
         course.Price = dto.Price;
+        course.Assets = dto.Assets;
 
-        context.Update(course);
+        course = context.Update(course).Entity;
         await context.SaveChangesAsync();
+
+        return course.Id;
     }
 
     public async Task Remove(long id)

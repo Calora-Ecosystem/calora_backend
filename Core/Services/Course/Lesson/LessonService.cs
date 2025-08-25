@@ -1,7 +1,9 @@
+using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
+using Core.Enums;
 using Core.Services.Course.Lesson.Contracts;
 using ResultWrapper.Library;
 
@@ -29,8 +31,11 @@ public class LessonService(AppDbContext dbContext)
             .GetByDataQueryAsync(query);
     }
 
-    public async Task CrateOrUpdate(CreateOrUpdateLessonDto dto)
+    public async Task<long> CrateOrUpdate(CreateOrUpdateLessonDto dto)
     {
+        if (!dbContext.Courses.Any(x => x.Id == dto.CourseId && x.Type == EnumCourseType.Lesson))
+            throw new NotFoundException("Course not found");
+        
         var lesson = dto.Id.HasValue
             ? await dbContext.Lessons.GetByIdOrThrowsNotFoundException(dto.Id.Value)
             : new Entities.Course.Lesson();
@@ -42,8 +47,10 @@ public class LessonService(AppDbContext dbContext)
         lesson.Title = dto.Title;
         lesson.Description = dto.Description;
 
-        dbContext.Update(lesson);
+        lesson = dbContext.Update(lesson).Entity;
         await dbContext.SaveChangesAsync();
+        
+        return lesson.Id;
     }
 
     public async Task Remove(long id)

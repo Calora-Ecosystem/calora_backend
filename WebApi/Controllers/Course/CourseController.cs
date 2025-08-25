@@ -18,11 +18,7 @@ public class CourseController(CourseService service) : AuthorizedController
     public async Task<Wrapper> GetAll([FromQuery] GetCourseQueryRequest q) => await service.GetAll(q);
 
     [HttpPost]
-    public async Task<Wrapper> CreateOrUpdate(CreateOrUpdateCourseDto dto)
-    {
-        await service.CreateOrUpdate(dto);
-        return 200;
-    }
+    public async Task<Wrapper> CreateOrUpdate(CreateOrUpdateCourseDto dto) => (await service.CreateOrUpdate(dto), 200);
 
     [HttpDelete("{courseId:long:min(1)}")]
     public async Task<Wrapper> Remove(long courseId)
