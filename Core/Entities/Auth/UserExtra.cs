@@ -21,6 +21,8 @@ public class UserExtra : ModelBase<long>
     public User User { get; set; } = null!;
     public List<Purpose> Purposes { get; set; } = null!; //many2many
     public string? Photo { get; set; }
+    public EnumActivityLevel ActivityLevel { get; set; } = EnumActivityLevel.Medium;
+    public EnumLanguage Language { get; set; } = EnumLanguage.Uzbek;
     [MaxLength(100)] public string Name { get; set; } = null!;
     public IQueryable<Food> FavouriteFoods { get; set; } = null!; //many2many
 }

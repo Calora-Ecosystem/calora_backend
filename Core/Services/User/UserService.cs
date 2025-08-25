@@ -66,6 +66,7 @@ public class UserService(AppDbContext context)
             BirthDate = dto.BirthDate,
             Photo = dto.Photo,
             Name = dto.Name,
+            Language = dto.Language,
             Purposes = purposes
         };
 
@@ -92,6 +93,7 @@ public class UserService(AppDbContext context)
             BirthDate = dto.BirthDate,
             Photo = dto.Photo,
             Name = dto.Name,
+            Language = dto.Language,
             Purposes = purposes
         };
 
