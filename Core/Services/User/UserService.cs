@@ -28,22 +28,23 @@ public class UserService(AppDbContext context)
     }
 
     #region UserExtras
+
     public async Task<object> GetExtra(long userId)
     {
         var extra = await context.UserExtras
-            .Select(x => new
-            {
-                x.UserId,
-                x.Weight,
-                x.Height,
-                x.Bmi,
-                x.Gender,
-                x.BirthDate,
-                x.Photo,
-                x.Name
-            })
-            .FirstOrDefaultAsync(x => x.UserId == userId)
-                ?? throw new NotFoundException("User not found.");
+                        .Select(x => new
+                        {
+                            x.UserId,
+                            x.Weight,
+                            x.Height,
+                            x.Bmi,
+                            x.Gender,
+                            x.BirthDate,
+                            x.Photo,
+                            x.Name
+                        })
+                        .FirstOrDefaultAsync(x => x.UserId == userId)
+                    ?? throw new NotFoundException("User not found.");
 
         return extra;
     }
@@ -104,15 +105,17 @@ public class UserService(AppDbContext context)
     public async Task DeleteExtra(long userId)
     {
         var existing = await context.UserExtras
-            .FirstOrDefaultAsync(x => x.UserId == userId)
-            ?? throw new NotFoundException("User not found.");
+                           .FirstOrDefaultAsync(x => x.UserId == userId)
+                       ?? throw new NotFoundException("User not found.");
 
         context.UserExtras.Remove(existing);
         await context.SaveChangesAsync();
     }
+
     #endregion
 
     #region UserNormsGeneral
+
     public async Task<object> GetNorm(long userId)
     {
         var norms = await context.UserNormsGeneral
@@ -127,50 +130,33 @@ public class UserService(AppDbContext context)
         return norms;
     }
 
-    public async Task CreateNorm(long userId, CreateUserNormDto dto)
+    public async Task CreateOrUpdateNorm(long userId, CreateUserNormDto dto)
     {
         var existing = await context.UserNormsGeneral
-            .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == dto.Metric);
-
-        if (existing is not null)
-            throw new InvalidOperationException("This metric is available for this user");
-
-        var userNorm = new UserNormGeneral
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == dto.Metric) ?? new UserNormGeneral()
         {
             UserId = userId,
             Metric = dto.Metric,
-            Value = dto.Value
         };
 
-        await context.UserNormsGeneral.AddAsync(userNorm);
-        await context.SaveChangesAsync();
-    }
-
-    public async Task UpdateNorm(long userId, EnumMetrics metric, UpdateUserNormDto dto)
-    {
-        var existing = await context.UserNormsGeneral
-            .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == metric);
-
-        if (existing is null)
-            throw new KeyNotFoundException("UserNorm not found.");
-
-        existing.Value = dto.Value;
-
+        context.UserNormsGeneral.Update(existing);
         await context.SaveChangesAsync();
     }
 
     public async Task DeleteNorm(long userId, EnumMetrics metric)
     {
         var existing = await context.UserNormsGeneral
-            .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == metric)
-            ?? throw new NotFoundException("User or metric not found.");
+                           .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == metric)
+                       ?? throw new NotFoundException("User or metric not found.");
 
         context.UserNormsGeneral.Remove(existing);
         await context.SaveChangesAsync();
     }
+
     #endregion
 
     #region UserDailies
+
     public async Task<object> GetDaily(long userId)
     {
         var dailies = await context.UserDailies
@@ -186,53 +172,50 @@ public class UserService(AppDbContext context)
         return dailies;
     }
 
-    public async Task CreateDaily(long userId, CreateUserDailyDto dto)
+    public async Task CreateOrUpdateDaily(long userId, CreateUserDailyDto dto)
     {
         var existing = await context.UserDailies
             .FirstOrDefaultAsync(x =>
                 x.UserId == userId &&
                 x.Metric == dto.Metric &&
-                x.Date.Date == dto.Date.Date);
-
-        if (existing is not null)
-            throw new InvalidOperationException("Daily record already exists for this user and metric on the specified date.");
-
-        var userDaily = new UserDaily
+                x.Date.Date == dto.Date.Date) ?? new UserDaily()
         {
             UserId = userId,
             Metric = dto.Metric,
-            Date = dto.Date,
-            Value = dto.Value
+            Date = dto.Date.Date,
         };
 
-        await context.UserDailies.AddAsync(userDaily);
-        await context.SaveChangesAsync();
-    }
-
-    public async Task UpdateDaily(long userId, EnumMetrics metric, DateTime date, UpdateUserDailyDto dto)
-    {
-        var existing = await context.UserDailies
-            .FirstOrDefaultAsync(x =>
-                x.UserId == userId &&
-                x.Metric == metric &&
-                x.Date.Date == date.Date) ?? throw new NotFoundException("User daily record not found.");
-
         existing.Value = dto.Value;
+
+        context.UserDailies.Update(existing);
         await context.SaveChangesAsync();
     }
+
+    // public async Task UpdateDaily(long userId, EnumMetrics metric, DateTime date, UpdateUserDailyDto dto)
+    // {
+    //     var existing = await context.UserDailies
+    //         .FirstOrDefaultAsync(x =>
+    //             x.UserId == userId &&
+    //             x.Metric == metric &&
+    //             x.Date.Date == date.Date) ?? throw new NotFoundException("User daily record not found.");
+    //
+    //     existing.Value = dto.Value;
+    //     await context.SaveChangesAsync();
+    // }
 
     public async Task DeleteDaily(long userId, EnumMetrics metric, DateTime date)
     {
         var existing = await context.UserDailies
-            .FirstOrDefaultAsync(x =>
-                x.UserId == userId &&
-                x.Metric == metric &&
-                x.Date.Date == date)
-            ?? throw new NotFoundException("User or daily record not found.");
+                           .FirstOrDefaultAsync(x =>
+                               x.UserId == userId &&
+                               x.Metric == metric &&
+                               x.Date.Date == date)
+                       ?? throw new NotFoundException("User or daily record not found.");
 
         context.UserDailies.Remove(existing);
         await context.SaveChangesAsync();
     }
+
     #endregion
 
     public async Task AssignUserToRole(long userId, EnumRole role)

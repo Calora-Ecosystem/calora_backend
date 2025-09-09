@@ -58,6 +58,7 @@ public class FoodController(FoodService service) : AuthorizedController
     #region Category
 
     [HttpGet("categories")]
+    [RoleAuthorize(EnumRole.User)]
     public async Task<Wrapper> GetAllCategories([FromQuery] DataQueryRequest q) => await service.GetAllCategory(q);
 
     [HttpPost("categories")]
@@ -71,6 +72,7 @@ public class FoodController(FoodService service) : AuthorizedController
     #region Menu
 
     [HttpGet("menu")]
+    [RoleAuthorize(EnumRole.User)]
     public async Task<Wrapper> GetMenuFoods([FromQuery] DataQueryRequest q) =>
         await service.GetMenuFoods(this.UserId, q);
 
@@ -91,6 +93,7 @@ public class FoodController(FoodService service) : AuthorizedController
     /// <param name="date">if is null, now</param>
     /// <returns></returns>
     [HttpGet("summary")]
+    [RoleAuthorize(EnumRole.User)]
     public async Task<Wrapper> Summary(DateTime? date) => (await service.Summary(this.UserId, date), 200);
 
     #endregion
