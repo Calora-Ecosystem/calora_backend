@@ -61,15 +61,8 @@ public class UserController(UserService userService) : AuthorizedController
     [HttpPost("norms")]
     public async Task<Wrapper> AddNorm([FromBody] CreateUserNormDto userNorm)
     {
-        await userService.CreateNorm(this.UserId, userNorm);
+        await userService.CreateOrUpdateNorm(this.UserId, userNorm);
         return (new { Message = "User norm added successfully." }, 201);
-    }
-
-    [HttpPut("norms/{metric}")]
-    public async Task<Wrapper> UpdateNorm([FromRoute] EnumMetrics metric, [FromBody] UpdateUserNormDto userNorm)
-    {
-        await userService.UpdateNorm(this.UserId, metric, userNorm);
-        return (new { Message = "User norm updated successfully." }, 200);
     }
 
     [HttpDelete("norms/{metric}")]
@@ -88,17 +81,17 @@ public class UserController(UserService userService) : AuthorizedController
     [HttpPost("dailies")]
     public async Task<Wrapper> AddDaily([FromBody] CreateUserDailyDto userDaily)
     {
-        await userService.CreateDaily(this.UserId, userDaily);
+        await userService.CreateOrUpdateDaily(this.UserId, userDaily);
         return (new { Message = "User daily record added successfully." }, 201);
     }
 
-    [HttpPut("dailies/{date}")]
-    public async Task<Wrapper> UpdateDaily([FromRoute] EnumMetrics metric, [FromRoute] DateTime date,
-        [FromBody] UpdateUserDailyDto userDaily)
-    {
-        await userService.UpdateDaily(this.UserId, metric, date, userDaily);
-        return (new { Message = "User daily record updated successfully." }, 200);
-    }
+    // [HttpPut("dailies/{date}")]
+    // public async Task<Wrapper> UpdateDaily([FromRoute] EnumMetrics metric, [FromRoute] DateTime date,
+    //     [FromBody] UpdateUserDailyDto userDaily)
+    // {
+    //     await userService.UpdateDaily(this.UserId, metric, date, userDaily);
+    //     return (new { Message = "User daily record updated successfully." }, 200);
+    // }
 
     [HttpDelete("dailies/{date}")]
     public async Task<Wrapper> DeleteDaily([FromRoute] EnumMetrics metric, [FromRoute] DateTime date)
