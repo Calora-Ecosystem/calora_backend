@@ -270,6 +270,7 @@ group by ung.user_id
 
         return await context
             .UserDailies
+            .AsNoTracking()
             .Where(x => x.Metric == EnumMetrics.Step && x.Date >= from && x.Date <= to)
             .GroupBy(x => x.User, (user, dailies) => new
             {
@@ -285,6 +286,7 @@ group by ung.user_id
                         }
                         : null
                 },
+                Foots = dailies.Sum(x => x.Value),
                 Distance =
                     (user.Extra != null ? user.Extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/ : 0.6 /*avarage m*/) *
                     dailies.Sum(x => x.Value),
@@ -295,6 +297,7 @@ group by ung.user_id
                       Math.Pow(dailies.Sum(x => x.Value), 2)
                     : 0
             })
+            .AsSplitQuery()
             .GetByDataQueryAsync(q);
     }
 
