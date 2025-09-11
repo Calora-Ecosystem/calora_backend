@@ -14,4 +14,6 @@ public class User : ModelBase<long>
     [MaxLength(50)] public string? RToken { get; set; }
     public DateTime RTokenExpireAt { get; set; }
     [Column(TypeName = "jsonb")] public List<string> Roles { get; set; } = null!;
+
+    public UserExtra? Extra { get; set; } = null!;
 }

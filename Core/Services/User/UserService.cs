@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Npgsql;
 using ResultWrapper.Library;
+using Index = System.Index;
 
 namespace Core.Services.User;
 
@@ -234,7 +235,7 @@ public class UserService(AppDbContext context)
             .FromSql(@$"
 select sub.user_id , sub.sum, sub.count, ROW_NUMBER() OVER (ORDER BY sub.sum desc, sub.count desc) as index from (
 select ung.user_id, sum(ung.value), count(ung.id) from user_norms_general ung 
-where ung.""date"" >= {from} and ung.""date"" <= {to}
+where ung.""date"" >= {from} and ung.""date"" <= {to} and metric = {EnumMetrics.Step}
 group by ung.user_id
 ) sub
 ")
@@ -259,6 +260,41 @@ group by ung.user_id
                     x.Index
                 }
             )
+            .GetByDataQueryAsync(q);
+    }
+
+    public async Task<Wrapper> CalculateStepMetrics(DateTime? from, DateTime? to, DataQueryRequest q)
+    {
+        from ??= DateTime.Now.Date;
+        to ??= DateTime.Now.Date.AddDays(1);
+
+        return await context
+            .UserDailies
+            .Where(x => x.Metric == EnumMetrics.Step && x.Date >= from && x.Date <= to)
+            .GroupBy(x => x.User, (user, dailies) => new
+            {
+                User = new
+                {
+                    user.Id,
+                    user.Name,
+                    user.Email,
+                    Extra = user.Extra != null
+                        ? new
+                        {
+                            user.Extra.Photo,
+                        }
+                        : null
+                },
+                Distance =
+                    (user.Extra != null ? user.Extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/ : 0.6 /*avarage m*/) *
+                    dailies.Sum(x => x.Value),
+                Kcal = user.Extra != null
+                    ? user.Extra.Weight *
+                      (user.Extra != null ? user.Extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/ : 0.6 /*avarage m*/
+                      ) *
+                      Math.Pow(dailies.Sum(x => x.Value), 2)
+                    : 0
+            })
             .GetByDataQueryAsync(q);
     }
 

@@ -109,6 +109,10 @@ public class UserController(UserService userService) : AuthorizedController
     public Task<Wrapper> GetStepStat([FromQuery] DateTime? from, [FromQuery] DateTime? to,
         [FromQuery] DataQueryRequest q) => userService.StepStat(from, to, q);
 
+    [HttpGet("steps/metrics")]
+    public Task<Wrapper> CalculateStepMetrics([FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] DataQueryRequest q) => userService.CalculateStepMetrics(from, to, q);
+
     [HttpGet("{userId:long:min(1)}/assign-role")]
     [Authorize(Policy = nameof(EnumAuthPolicies.SuperAdmin))]
     public Wrapper AssignRole(long userId, EnumRole role) =>
