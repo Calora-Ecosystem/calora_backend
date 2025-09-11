@@ -41,6 +41,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<ExerciseMetric> ExerciseMetrics { get; set; }
     public DbSet<Lesson> Lessons { get; set; }
     public DbSet<Workout> Workouts { get; set; }
+    public DbSet<UserStepStat> UserStepStats { get; set; }
 
     #endregion
 
@@ -64,5 +65,8 @@ public class AppDbContext : DefaultConfiguredDbContext
 
         modelBuilder.Entity<UserExtra>().HasMany(x => x.Purposes).WithMany();
         modelBuilder.Entity<UserExtra>().HasMany(x => x.FavouriteFoods).WithMany();
+
+        modelBuilder.Entity<UserStepStat>()
+            .HasNoKey();
     }
 }

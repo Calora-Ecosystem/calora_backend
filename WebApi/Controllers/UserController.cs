@@ -1,4 +1,5 @@
-﻿using Core;
+﻿using BRB.Core.Common.Models;
+using Core;
 using Core.Enums;
 using Core.Services.User;
 using Core.Services.User.Contracts;
@@ -74,9 +75,11 @@ public class UserController(UserService userService) : AuthorizedController
 
     #endregion
 
+    #region Daily
+
     [HttpGet("dailies")]
-    public async Task<Wrapper> GetDailies() =>
-        (await userService.GetDaily(this.UserId), 200);
+    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q) =>
+        await userService.GetDaily(this.UserId, q);
 
     [HttpPost("dailies")]
     public async Task<Wrapper> AddDaily([FromBody] CreateUserDailyDto userDaily)
@@ -99,6 +102,16 @@ public class UserController(UserService userService) : AuthorizedController
         await userService.DeleteDaily(this.UserId, metric, date);
         return (new { Message = "User daily record deleted successfully." }, 200);
     }
+
+    #endregion
+
+    [HttpGet("steps/stat")]
+    public Task<Wrapper> GetStepStat([FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] DataQueryRequest q) => userService.StepStat(from, to, q);
+
+    [HttpGet("steps/metrics")]
+    public Task<Wrapper> CalculateStepMetrics([FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] DataQueryRequest q) => userService.CalculateStepMetrics(from, to, q);
 
     [HttpGet("{userId:long:min(1)}/assign-role")]
     [Authorize(Policy = nameof(EnumAuthPolicies.SuperAdmin))]

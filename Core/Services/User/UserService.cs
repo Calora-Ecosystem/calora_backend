@@ -1,11 +1,17 @@
 ﻿using BRB.Core.Common.Exceptions;
+using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Auth;
 using Core.Enums;
 using Core.Services.User.Contracts;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Npgsql;
+using ResultWrapper.Library;
+using Index = System.Index;
 
 namespace Core.Services.User;
 
@@ -139,6 +145,8 @@ public class UserService(AppDbContext context)
             Metric = dto.Metric,
         };
 
+        existing.Value = dto.Value;
+
         context.UserNormsGeneral.Update(existing);
         await context.SaveChangesAsync();
     }
@@ -157,9 +165,9 @@ public class UserService(AppDbContext context)
 
     #region UserDailies
 
-    public async Task<object> GetDaily(long userId)
+    public async Task<Wrapper> GetDaily(long userId, DataQueryRequest q)
     {
-        var dailies = await context.UserDailies
+        return await context.UserDailies
             .Where(x => x.UserId == userId)
             .Select(x => new
             {
@@ -167,9 +175,7 @@ public class UserService(AppDbContext context)
                 x.Metric,
                 x.Value
             })
-            .ToListAsync();
-
-        return dailies;
+            .GetByDataQueryAsync(q);
     }
 
     public async Task CreateOrUpdateDaily(long userId, CreateUserDailyDto dto)
@@ -214,6 +220,85 @@ public class UserService(AppDbContext context)
 
         context.UserDailies.Remove(existing);
         await context.SaveChangesAsync();
+    }
+
+    #endregion
+
+    #region Step
+
+    public async Task<Wrapper> StepStat(DateTime? from, DateTime? to, DataQueryRequest q)
+    {
+        from ??= DateTime.Now.Date;
+        to ??= DateTime.Now.Date.AddDays(1);
+
+        return await context.UserStepStats
+            .FromSql(@$"
+select sub.user_id , sub.sum, sub.count, ROW_NUMBER() OVER (ORDER BY sub.sum desc, sub.count desc) as index from (
+select ung.user_id, sum(ung.value), count(ung.id) from user_norms_general ung 
+where ung.""date"" >= {from} and ung.""date"" <= {to} and metric = {EnumMetrics.Step}
+group by ung.user_id
+) sub
+")
+            .LeftJoin2(context.UserExtras, stat => stat.UserId, extra => extra.UserId, (x, extra) =>
+                new
+                {
+                    User = new
+                    {
+                        x.User.Id,
+                        x.User.Name,
+                        x.User.Email,
+                        Extra = extra != null
+                            ? new
+                            {
+                                extra.Photo,
+                                extra.ActivityLevel
+                            }
+                            : null
+                    },
+                    x.Sum,
+                    x.Count,
+                    x.Index
+                }
+            )
+            .GetByDataQueryAsync(q);
+    }
+
+    public async Task<Wrapper> CalculateStepMetrics(DateTime? from, DateTime? to, DataQueryRequest q)
+    {
+        from ??= DateTime.Now.Date;
+        to ??= DateTime.Now.Date.AddDays(1);
+
+        return await context
+            .UserDailies
+            .AsNoTracking()
+            .Where(x => x.Metric == EnumMetrics.Step && x.Date >= from && x.Date <= to)
+            .GroupBy(x => x.User, (user, dailies) => new
+            {
+                User = new
+                {
+                    user.Id,
+                    user.Name,
+                    user.Email,
+                    Extra = user.Extra != null
+                        ? new
+                        {
+                            user.Extra.Photo,
+                        }
+                        : null
+                },
+                Foots = dailies.Sum(x => x.Value),
+                Distance =
+                    (user.Extra != null ? user.Extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/ : 0.6 /*avarage m*/) *
+                    dailies.Sum(x => x.Value),
+                Kcal = user.Extra != null
+                    ? user.Extra.Weight *
+                      (user.Extra != null ? user.Extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/ : 0.6 /*avarage m*/
+                      ) *
+                      Math.Pow(dailies.Sum(x => x.Value), 2)
+                    : 0
+            })
+            .AsSplitQuery()
+            .GetByDataQueryAsync(q);
     }
 
     #endregion
