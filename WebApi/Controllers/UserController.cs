@@ -78,8 +78,8 @@ public class UserController(UserService userService) : AuthorizedController
     #region Daily
 
     [HttpGet("dailies")]
-    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q) =>
-        await userService.GetDaily(this.UserId, q);
+    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery] EnumMetrics metrics) =>
+        await userService.GetDaily(this.UserId, metrics, q);
 
     [HttpPost("dailies")]
     public async Task<Wrapper> AddDaily([FromBody] CreateUserDailyDto userDaily)

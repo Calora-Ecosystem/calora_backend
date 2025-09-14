@@ -165,10 +165,15 @@ public class UserService(AppDbContext context)
 
     #region UserDailies
 
-    public async Task<Wrapper> GetDaily(long userId, DataQueryRequest q)
+    public async Task<Wrapper> GetDaily(long userId, EnumMetrics? metrics, DataQueryRequest q)
     {
-        return await context.UserDailies
-            .Where(x => x.UserId == userId)
+        var query = context.UserDailies
+            .Where(x => x.UserId == userId);
+
+        if (metrics is not null)
+            query = query.Where(x => x.Metric == metrics);
+            
+        return await query
             .Select(x => new
             {
                 x.Date,
