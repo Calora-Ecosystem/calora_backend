@@ -14,9 +14,3 @@ public class CreateUserExtraDto
     public EnumLanguage Language { get; set; }
     public List<long> PurposeIds { get; set; } = new();
 }
-
-public class UpdateUserExtraDto : CreateUserExtraDto
-{
-    public long Id { get; set; }
-    public EnumActivityLevel Level { get; set; }
-}

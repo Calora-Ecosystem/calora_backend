@@ -17,16 +17,19 @@ namespace WebApi.Controllers;
 public class UserController(UserService userService) : AuthorizedController
 {
     [HttpGet("{userId:long:min(1)}")]
+    [ProducesResponseType<WrapperGeneric<GetUserDto>>(200)]
     public async Task<Wrapper> GetById(long userId) =>
         (await userService.GetUserAsync(userId), 200);
 
     [HttpGet("me")]
+    [ProducesResponseType<WrapperGeneric<GetUserDto>>(200)]
     public async Task<Wrapper> GetMe() =>
         (await userService.GetUserAsync(this.UserId), 200);
 
     #region Extras
 
     [HttpGet("extras")]
+    [ProducesResponseType<WrapperGeneric<GetUserExtraDto>>(200)]
     public async Task<Wrapper> GetExtras() =>
         (await userService.GetExtra(this.UserId), 200);
 
@@ -56,6 +59,7 @@ public class UserController(UserService userService) : AuthorizedController
     #region Norms
 
     [HttpGet("norms")]
+    [ProducesResponseType<GetNormDto>(200)]
     public async Task<Wrapper> GetNorms() =>
         (await userService.GetNorm(this.UserId), 200);
 
@@ -78,6 +82,7 @@ public class UserController(UserService userService) : AuthorizedController
     #region Daily
 
     [HttpGet("dailies")]
+    [ProducesResponseType<WrapperGeneric<GetDailyDto>>(200)]
     public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery] EnumMetrics metrics) =>
         await userService.GetDaily(this.UserId, metrics, q);
 
@@ -106,10 +111,12 @@ public class UserController(UserService userService) : AuthorizedController
     #endregion
 
     [HttpGet("steps/stat")]
+    [ProducesResponseType<WrapperGeneric<GetStepStatDto>>(200)]
     public Task<Wrapper> GetStepStat([FromQuery] DateTime? from, [FromQuery] DateTime? to,
         [FromQuery] DataQueryRequest q) => userService.StepStat(from, to, q);
 
     [HttpGet("steps/metrics")]
+    [ProducesResponseType<WrapperGeneric<GetStepMetricsDto>>(200)]
     public Task<Wrapper> CalculateStepMetrics([FromQuery] DateTime? from, [FromQuery] DateTime? to,
         [FromQuery] DataQueryRequest q) => userService.CalculateStepMetrics(from, to, q);
 

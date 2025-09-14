@@ -7,6 +7,8 @@ using Core.Entities.FoodEntites;
 using Core.Enums;
 using Core.Services.FoodService.Contracts.Category;
 using Core.Services.FoodService.Contracts.FoodDtos;
+using Core.Services.User;
+using Core.Services.User.Contracts;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
 
@@ -66,7 +68,7 @@ public class FoodService(AppDbContext dbContext)
                 x.CategoryId,
                 CategoryName = x.Category.Name,
                 x.CoverUrl,
-                Metrics = x.Metrics.Select(foodMetrics => new { foodMetrics.Metric, foodMetrics.Value }),
+                Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 IsUserFood = x.UserId.HasValue
             })
             .GetByDataQueryAsync(q);
@@ -85,7 +87,7 @@ public class FoodService(AppDbContext dbContext)
                 x.CategoryId,
                 CategoryName = x.Category.Name,
                 x.CoverUrl,
-                Metrics = x.Metrics.Select(foodMetrics => new { foodMetrics.Metric, foodMetrics.Value }),
+                Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 IsUserFood = x.UserId.HasValue
             })
             .GetByDataQueryAsync(q);

@@ -8,8 +8,3 @@ public class CreateUserDailyDto
     public double Value { get; set; }
     public DateTime Date { get; set; }
 }
-
-public class UpdateUserDailyDto
-{
-    public double Value { get; set; }
-}
