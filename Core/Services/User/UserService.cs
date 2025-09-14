@@ -6,12 +6,8 @@ using Core.Brokers.DbContext;
 using Core.Entities.Auth;
 using Core.Enums;
 using Core.Services.User.Contracts;
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Npgsql;
 using ResultWrapper.Library;
-using Index = System.Index;
 
 namespace Core.Services.User;
 
@@ -21,12 +17,7 @@ public class UserService(AppDbContext context)
     public async Task<object> GetUserAsync(long userId)
     {
         var user = await context.Users
-                       .Select(x => new
-                       {
-                           x.Id,
-                           x.Email,
-                           x.Roles
-                       })
+                       .Select(x => new GetUserDto(x.Id, x.Email, x.Roles))
                        .FirstOrDefaultAsync(x => x.Id == userId)
                    ?? throw new NotFoundException("User not found.");
 
@@ -38,17 +29,7 @@ public class UserService(AppDbContext context)
     public async Task<object> GetExtra(long userId)
     {
         var extra = await context.UserExtras
-                        .Select(x => new
-                        {
-                            x.UserId,
-                            x.Weight,
-                            x.Height,
-                            x.Bmi,
-                            x.Gender,
-                            x.BirthDate,
-                            x.Photo,
-                            x.Name
-                        })
+                        .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.Height, x.Bmi, x.Gender, x.BirthDate, x.Photo, x.Name))
                         .FirstOrDefaultAsync(x => x.UserId == userId)
                     ?? throw new NotFoundException("User not found.");
 
@@ -126,11 +107,7 @@ public class UserService(AppDbContext context)
     {
         var norms = await context.UserNormsGeneral
             .Where(x => x.UserId == userId)
-            .Select(x => new
-            {
-                x.Metric,
-                x.Value
-            })
+            .Select(x => new GetNormDto(x.Metric, x.Value))
             .ToListAsync();
 
         return norms;
@@ -172,14 +149,9 @@ public class UserService(AppDbContext context)
 
         if (metrics is not null)
             query = query.Where(x => x.Metric == metrics);
-            
+
         return await query
-            .Select(x => new
-            {
-                x.Date,
-                x.Metric,
-                x.Value
-            })
+            .Select(x => new GetDailyDto(x.Date, x.Metric, x.Value))
             .GetByDataQueryAsync(q);
     }
 
@@ -245,25 +217,18 @@ group by ung.user_id
 ) sub
 ")
             .LeftJoin2(context.UserExtras, stat => stat.UserId, extra => extra.UserId, (x, extra) =>
-                new
-                {
-                    User = new
-                    {
-                        x.User.Id,
-                        x.User.Name,
-                        x.User.Email,
-                        Extra = extra != null
-                            ? new
-                            {
-                                extra.Photo,
-                                extra.ActivityLevel
-                            }
-                            : null
-                    },
-                    x.Sum,
-                    x.Count,
-                    x.Index
-                }
+                new GetStepStatDto(new UserDto(
+                    x.User.Id,
+                    x.User.Name,
+                    x.User.Email,
+                    extra != null
+                        ? new ExtraDto
+                        (
+                            extra.Photo,
+                            extra.ActivityLevel
+                        )
+                        : null
+                ), x.Sum, x.Count, x.Index)
             )
             .GetByDataQueryAsync(q);
     }
@@ -277,31 +242,25 @@ group by ung.user_id
             .UserDailies
             .AsNoTracking()
             .Where(x => x.Metric == EnumMetrics.Step && x.Date >= from && x.Date <= to)
-            .GroupBy(x => x.User, (user, dailies) => new
-            {
-                User = new
-                {
+            .GroupBy(x => x.User, (user, dailies) => new GetStepMetricsDto(new UserDto(
                     user.Id,
                     user.Name,
                     user.Email,
-                    Extra = user.Extra != null
-                        ? new
-                        {
-                            user.Extra.Photo,
-                        }
+                    user.Extra != null
+                        ? new ExtraDto
+                        (
+                            user.Extra!.Photo,
+                            user.Extra!.ActivityLevel
+                        )
                         : null
-                },
-                Foots = dailies.Sum(x => x.Value),
-                Distance =
-                    (user.Extra != null ? user.Extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/ : 0.6 /*avarage m*/) *
-                    dailies.Sum(x => x.Value),
-                Kcal = user.Extra != null
+                ), dailies.Sum(x => x.Value),
+                (user.Extra != null ? user.Extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/ : 0.6 /*avarage m*/) *
+                dailies.Sum(x => x.Value), user.Extra != null
                     ? user.Extra.Weight *
                       (user.Extra != null ? user.Extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/ : 0.6 /*avarage m*/
                       ) *
                       Math.Pow(dailies.Sum(x => x.Value), 2)
-                    : 0
-            })
+                    : 0))
             .AsSplitQuery()
             .GetByDataQueryAsync(q);
     }
