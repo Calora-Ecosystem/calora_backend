@@ -12,5 +12,6 @@ public class CreateUserExtraDto
     public DateTime BirthDate { get; set; }
     public string? Photo { get; set; }
     public EnumLanguage Language { get; set; }
+    public EnumActivityLevel ActivityLevel { get; set; }
     public List<long> PurposeIds { get; set; } = new();
 }

@@ -4,6 +4,7 @@ using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Auth;
+using Core.Entities.Refs;
 using Core.Enums;
 using Core.Services.User.Contracts;
 using Microsoft.EntityFrameworkCore;
@@ -31,7 +32,7 @@ public class UserService(AppDbContext context)
     {
         var extra = await context.UserExtras
                         .Where(x => x.UserId == userId)
-                        .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.Height, x.Bmi, x.Gender, x.BirthDate, x.Photo, x.Name))
+                        .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.Height, x.Bmi, x.Gender, x.BirthDate, x.Photo, x.Name, x.ActivityLevel))
                         .FirstOrDefaultAsync()
                     ?? throw new NotFoundException("User not found.");
 
@@ -57,7 +58,8 @@ public class UserService(AppDbContext context)
             Photo = dto.Photo,
             Name = dto.Name,
             Language = dto.Language,
-            Purposes = purposes
+            Purposes = purposes,
+            ActivityLevel = dto.ActivityLevel
         };
 
         await context.UserExtras.AddAsync(userExtra);
@@ -84,7 +86,8 @@ public class UserService(AppDbContext context)
             Photo = dto.Photo,
             Name = dto.Name,
             Language = dto.Language,
-            Purposes = purposes
+            Purposes = purposes,
+            ActivityLevel = dto.ActivityLevel
         };
 
         context.UserExtras.Update(userExtra);
