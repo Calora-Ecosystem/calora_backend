@@ -17,8 +17,9 @@ public class UserService(AppDbContext context)
     public async Task<object> GetUserAsync(long userId)
     {
         var user = await context.Users
+                       .Where(x => x.Id == userId)
                        .Select(x => new GetUserDto(x.Id, x.Email, x.Roles))
-                       .FirstOrDefaultAsync(x => x.Id == userId)
+                       .FirstOrDefaultAsync()
                    ?? throw new NotFoundException("User not found.");
 
         return user;
