@@ -30,8 +30,9 @@ public class UserService(AppDbContext context)
     public async Task<object> GetExtra(long userId)
     {
         var extra = await context.UserExtras
+                        .Where(x => x.UserId == userId)
                         .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.Height, x.Bmi, x.Gender, x.BirthDate, x.Photo, x.Name))
-                        .FirstOrDefaultAsync(x => x.UserId == userId)
+                        .FirstOrDefaultAsync()
                     ?? throw new NotFoundException("User not found.");
 
         return extra;
