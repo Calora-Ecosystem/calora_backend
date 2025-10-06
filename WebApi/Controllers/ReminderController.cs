@@ -17,6 +17,7 @@ namespace WebApi.Controllers;
 public class ReminderController(ReminderService service) : AuthorizedController
 {
     [HttpGet]
+    [ProducesResponseType(typeof(WrapperGeneric<GetReminderDto>), 200)]
     public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q) =>
         await service.GetAllByUserId(this.UserId, q);
 

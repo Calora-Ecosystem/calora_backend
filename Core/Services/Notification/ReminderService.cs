@@ -19,13 +19,7 @@ public class ReminderService(AppDbContext dbContext)
     {
         return await dbContext.Reminders
             .Where(x => x.UserId == userId)
-            .Select(x => new
-            {
-                x.Id,
-                x.Type,
-                x.Menu,
-                x.Time,
-            })
+            .Select(x => new GetReminderDto(x.Id, x.Type, x.Menu, x.Time))
             .GetByDataQueryAsync(q);
     }
 
