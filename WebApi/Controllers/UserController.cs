@@ -76,7 +76,7 @@ public class UserController(UserService userService) : AuthorizedController
 
     [HttpGet("dailies")]
     [ProducesResponseType<WrapperGeneric<GetDailyDto>>(200)]
-    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery] EnumMetrics metrics) =>
+    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery] EnumMetrics? metrics = null) =>
         await userService.GetDaily(this.UserId, metrics, q);
 
     [HttpPost("dailies")]
@@ -111,7 +111,8 @@ public class UserController(UserService userService) : AuthorizedController
     [HttpGet("steps/metrics")]
     [ProducesResponseType<WrapperGeneric<GetStepMetricsDto>>(200)]
     public Task<Wrapper> CalculateStepMetrics([FromQuery] DateTime? from, [FromQuery] DateTime? to,
-        [FromQuery] DataQueryRequest q) => userService.CalculateStepMetrics(from, to, q);
+        [FromQuery] DataQueryRequest q, [FromQuery] long? userId = null) =>
+        userService.CalculateStepMetrics(userId ?? this.UserId, from, to, q);
 
     [HttpGet("{userId:long:min(1)}/assign-role")]
     [Authorize(Policy = nameof(EnumAuthPolicies.SuperAdmin))]
