@@ -13,5 +13,5 @@ public class CreateUserExtraDto
     public string? Photo { get; set; }
     public EnumLanguage Language { get; set; }
     public EnumActivityLevel ActivityLevel { get; set; }
-    public List<long> PurposeIds { get; set; } = new();
+    public EnumPurpose Purpose { get; set; }
 }

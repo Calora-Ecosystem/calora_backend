@@ -2,6 +2,7 @@
 
 namespace Core.Entities.Auth;
 
+[NotMapped]
 public class UserStepStat
 {
     [ForeignKey(nameof(UserId))] public long UserId { get; set; }

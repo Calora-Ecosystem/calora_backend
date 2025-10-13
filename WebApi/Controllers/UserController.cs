@@ -40,14 +40,6 @@ public class UserController(UserService userService) : AuthorizedController
         return (new { Message = "User extra added successfully." }, 201);
     }
 
-    [HttpPut("extras"), ApiExplorerSettings(IgnoreApi = true), Obsolete]
-    public async Task<Wrapper> UpdateExtra([FromBody] UpdateUserExtraDto userExtra)
-    {
-        return 200;
-        // await userService.UpdateExtra(this.UserId, userExtra);
-        // return (new { Message = "User extra updated successfully." }, 200);
-    }
-
     [HttpDelete("extras")]
     public async Task<Wrapper> DeleteExtra()
     {

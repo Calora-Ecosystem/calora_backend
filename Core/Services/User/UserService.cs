@@ -48,53 +48,62 @@ public class UserService(AppDbContext context)
             UserId = userId
         };
 
-        var purposes = await context.Purposes
-            .Where(p => dto.PurposeIds.Contains(p.Id))
-            .ToListAsync();
-
-        extra.UserId = userId;
-        extra.Weight = dto.Weight;
-        extra.Height = dto.Height;
-        extra.Bmi = dto.Bmi;
-        extra.Gender = dto.Gender;
-        extra.BirthDate = dto.BirthDate;
-        extra.Photo = dto.Photo;
-        extra.Name = dto.Name;
-        extra.Language = dto.Language;
-        extra.Purposes = purposes;
-        extra.ActivityLevel = dto.ActivityLevel;
-
-        context.UserExtras.Update(extra);
-        await context.SaveChangesAsync();
-    }
-
-    public async Task UpdateExtra(long userId, UpdateUserExtraDto dto)
-    {
-        ArgumentNullException.ThrowIfNull(dto);
-
-        var purposes = await context.Purposes
-            .Where(p => dto.PurposeIds.Contains(p.Id))
-            .ToListAsync();
-
-        var userExtra = new UserExtra
+        await context.Transactional(async () =>
         {
-            Id = dto.Id,
-            UserId = userId,
-            Weight = dto.Weight,
-            Height = dto.Height,
-            Bmi = dto.Bmi,
-            Gender = dto.Gender,
-            BirthDate = dto.BirthDate,
-            Photo = dto.Photo,
-            Name = dto.Name,
-            Language = dto.Language,
-            Purposes = purposes,
-            ActivityLevel = dto.ActivityLevel
-        };
+            extra.UserId = userId;
+            extra.Weight = dto.Weight;
+            extra.Height = dto.Height;
+            extra.Bmi = dto.Bmi;
+            extra.Gender = dto.Gender;
+            extra.BirthDate = dto.BirthDate;
+            extra.Photo = dto.Photo;
+            extra.Name = dto.Name;
+            extra.Language = dto.Language;
+            extra.Purpose = dto.Purpose;
+            extra.ActivityLevel = dto.ActivityLevel;
 
-        context.UserExtras.Update(userExtra);
-        await context.SaveChangesAsync();
+            await CreateOrUpdateNorm(userId, new CreateUserNormDto()
+            {
+                Metric = EnumMetrics.Step,
+                Value = dto.Purpose switch
+                {
+                    EnumPurpose.WeightLoss => 8_000,
+                    _ => 6_000
+                }
+            });
+
+            context.UserExtras.Update(extra);
+            await context.SaveChangesAsync();
+        });
     }
+
+    // public async Task UpdateExtra(long userId, UpdateUserExtraDto dto)
+    // {
+    //     ArgumentNullException.ThrowIfNull(dto);
+    //
+    //     // var purposes = await context.Purposes
+    //     //     .Where(p => dto.PurposeIds.Contains(p.Id))
+    //     //     .ToListAsync();
+    //     //
+    //     // var userExtra = new UserExtra
+    //     // {
+    //     //     Id = dto.Id,
+    //     //     UserId = userId,
+    //     //     Weight = dto.Weight,
+    //     //     Height = dto.Height,
+    //     //     Bmi = dto.Bmi,
+    //     //     Gender = dto.Gender,
+    //     //     BirthDate = dto.BirthDate,
+    //     //     Photo = dto.Photo,
+    //     //     Name = dto.Name,
+    //     //     Language = dto.Language,
+    //     //     Purposes = purposes,
+    //     //     ActivityLevel = dto.ActivityLevel
+    //     // };
+    //     //
+    //     // context.UserExtras.Update(userExtra);
+    //     // await context.SaveChangesAsync();
+    // }
 
     public async Task DeleteExtra(long userId)
     {

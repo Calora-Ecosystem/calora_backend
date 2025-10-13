@@ -19,7 +19,7 @@ public class UserExtra : ModelBase<long>
     public DateTime BirthDate { get; set; }
 
     public User User { get; set; } = null!;
-    public List<Purpose> Purposes { get; set; } = null!; //many2many
+    public EnumPurpose Purpose { get; set; }
     public string? Photo { get; set; }
     public EnumActivityLevel ActivityLevel { get; set; } = EnumActivityLevel.Medium;
     public EnumLanguage Language { get; set; } = EnumLanguage.Uzbek;
