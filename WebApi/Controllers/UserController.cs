@@ -36,15 +36,16 @@ public class UserController(UserService userService) : AuthorizedController
     [HttpPost("extras")]
     public async Task<Wrapper> AddExtra([FromBody] CreateUserExtraDto userExtra)
     {
-        await userService.CreateExtra(this.UserId, userExtra);
+        await userService.CreateOrUpdateExtra(this.UserId, userExtra);
         return (new { Message = "User extra added successfully." }, 201);
     }
 
-    [HttpPut("extras")]
+    [HttpPut("extras"), ApiExplorerSettings(IgnoreApi = true), Obsolete]
     public async Task<Wrapper> UpdateExtra([FromBody] UpdateUserExtraDto userExtra)
     {
-        await userService.UpdateExtra(this.UserId, userExtra);
-        return (new { Message = "User extra updated successfully." }, 200);
+        return 200;
+        // await userService.UpdateExtra(this.UserId, userExtra);
+        // return (new { Message = "User extra updated successfully." }, 200);
     }
 
     [HttpDelete("extras")]
@@ -60,8 +61,8 @@ public class UserController(UserService userService) : AuthorizedController
 
     [HttpGet("norms")]
     [ProducesResponseType<GetNormDto>(200)]
-    public async Task<Wrapper> GetNorms() =>
-        (await userService.GetNorm(this.UserId), 200);
+    public async Task<Wrapper> GetNorms([FromQuery] DataQueryRequest q, [FromQuery] EnumMetrics? metrics = null) =>
+        await userService.GetNorm(this.UserId, q, metrics);
 
     [HttpPost("norms")]
     public async Task<Wrapper> AddNorm([FromBody] CreateUserNormDto userNorm)

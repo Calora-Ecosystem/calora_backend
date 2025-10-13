@@ -3,7 +3,7 @@
 namespace Core.Services.User.Contracts;
 
 public class CreateUserExtraDto
-{  
+{
     public string Name { get; set; } = null!;
     public double Weight { get; set; }
     public double Height { get; set; }
