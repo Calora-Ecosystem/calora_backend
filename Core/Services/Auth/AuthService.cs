@@ -42,7 +42,7 @@ public class AuthService(
 
         var user = new Entities.Auth.User()
         {
-            Name = dto.Name,
+            Name = "Anonymous",
             Email = dto.Email,
             Roles = [nameof(EnumRole.User)]
         };
@@ -69,8 +69,15 @@ public class AuthService(
             throw new NotFoundException("Otp didn't match");
 
         var user = await dbContext.Users
-                       .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email,dto.Email)) ??
-                   throw new NotFoundException("User not found");
+            .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, dto.Email)) ?? new Entities.Auth.User()
+        {
+            Name = "Anonymous",
+            Email = dto.Email,
+            Roles = [nameof(EnumRole.User)]
+        };
+
+        user = dbContext.Users.Update(user).Entity;
+        await dbContext.SaveChangesAsync();
 
         Device? device = null;
 

@@ -16,9 +16,15 @@ namespace WebApi.Controllers;
 public class AuthController(AuthService authService) : ControllerBase
 {
     [HttpPost("registration")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     public async Task<Wrapper> Register([FromBody] RegisterDto dto) =>
         (await authService.RegisterAsync(dto), 200);
-
+    
+    /// <summary>
+    /// Also create new user with verified email
+    /// </summary>
+    /// <param name="dto"></param>
+    /// <returns></returns>
     [HttpPost("sign-in")]
     public async Task<Wrapper> SignIn([FromBody] SignInDto dto) =>
         (await authService.SignInAsync(dto), 200);
