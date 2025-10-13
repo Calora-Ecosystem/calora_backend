@@ -250,7 +250,7 @@ group by ung.user_id
             .GetByDataQueryAsync(q);
     }
 
-    public async Task<Wrapper> CalculateStepMetrics(DateTime? from, DateTime? to, DataQueryRequest q)
+    public async Task<Wrapper> CalculateStepMetrics(long userId, DateTime? from, DateTime? to, DataQueryRequest q)
     {
         from ??= DateTime.Now.Date;
         to ??= DateTime.Now.Date.AddDays(1);
@@ -258,8 +258,9 @@ group by ung.user_id
         return await context
             .UserDailies
             .AsNoTracking()
+            .Where(x => x.UserId == userId)
             .Where(x => x.Metric == EnumMetrics.Step && x.Date >= from && x.Date <= to)
-            .GroupBy(x => x.User, (user, dailies) => new GetStepMetricsDto(new UserDto(
+            .GroupBy(x => x.User, (user, dailies) => new GetStepMetricsDto(user.Id, new UserDto(
                     user.Id,
                     user.Name,
                     user.Email,
