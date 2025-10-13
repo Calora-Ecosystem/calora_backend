@@ -32,67 +32,78 @@ public class UserService(AppDbContext context)
     {
         var extra = await context.UserExtras
                         .Where(x => x.UserId == userId)
-                        .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.Height, x.Bmi, x.Gender, x.BirthDate, x.Photo, x.Name, x.ActivityLevel))
+                        .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.Height, x.Bmi, x.Gender, x.BirthDate,
+                            x.Photo, x.Name, x.ActivityLevel))
                         .FirstOrDefaultAsync()
                     ?? throw new NotFoundException("User not found.");
 
         return extra;
     }
 
-    public async Task CreateExtra(long userId, CreateUserExtraDto dto)
+    public async Task CreateOrUpdateExtra(long userId, CreateUserExtraDto dto)
     {
-        ArgumentNullException.ThrowIfNull(dto);
-
-        var purposes = await context.Purposes
-            .Where(p => dto.PurposeIds.Contains(p.Id))
-            .ToListAsync();
-
-        var userExtra = new UserExtra
+        var extra = await context.UserExtras
+            .FirstOrDefaultAsync(x => x.UserId == userId) ?? new UserExtra()
         {
-            UserId = userId,
-            Weight = dto.Weight,
-            Height = dto.Height,
-            Bmi = dto.Bmi,
-            Gender = dto.Gender,
-            BirthDate = dto.BirthDate,
-            Photo = dto.Photo,
-            Name = dto.Name,
-            Language = dto.Language,
-            Purposes = purposes,
-            ActivityLevel = dto.ActivityLevel
+            UserId = userId
         };
 
-        await context.UserExtras.AddAsync(userExtra);
-        await context.SaveChangesAsync();
-    }
-
-    public async Task UpdateExtra(long userId, UpdateUserExtraDto dto)
-    {
-        ArgumentNullException.ThrowIfNull(dto);
-
-        var purposes = await context.Purposes
-            .Where(p => dto.PurposeIds.Contains(p.Id))
-            .ToListAsync();
-
-        var userExtra = new UserExtra
+        await context.Transactional(async () =>
         {
-            Id = dto.Id,
-            UserId = userId,
-            Weight = dto.Weight,
-            Height = dto.Height,
-            Bmi = dto.Bmi,
-            Gender = dto.Gender,
-            BirthDate = dto.BirthDate,
-            Photo = dto.Photo,
-            Name = dto.Name,
-            Language = dto.Language,
-            Purposes = purposes,
-            ActivityLevel = dto.ActivityLevel
-        };
+            extra.UserId = userId;
+            extra.Weight = dto.Weight;
+            extra.Height = dto.Height;
+            extra.Bmi = dto.Bmi;
+            extra.Gender = dto.Gender;
+            extra.BirthDate = dto.BirthDate;
+            extra.Photo = dto.Photo;
+            extra.Name = dto.Name;
+            extra.Language = dto.Language;
+            extra.Purpose = dto.Purpose;
+            extra.ActivityLevel = dto.ActivityLevel;
 
-        context.UserExtras.Update(userExtra);
-        await context.SaveChangesAsync();
+            await CreateOrUpdateNorm(userId, new CreateUserNormDto()
+            {
+                Metric = EnumMetrics.Step,
+                Value = dto.Purpose switch
+                {
+                    EnumPurpose.WeightLoss => 8_000,
+                    _ => 6_000
+                }
+            });
+
+            context.UserExtras.Update(extra);
+            await context.SaveChangesAsync();
+        });
     }
+
+    // public async Task UpdateExtra(long userId, UpdateUserExtraDto dto)
+    // {
+    //     ArgumentNullException.ThrowIfNull(dto);
+    //
+    //     // var purposes = await context.Purposes
+    //     //     .Where(p => dto.PurposeIds.Contains(p.Id))
+    //     //     .ToListAsync();
+    //     //
+    //     // var userExtra = new UserExtra
+    //     // {
+    //     //     Id = dto.Id,
+    //     //     UserId = userId,
+    //     //     Weight = dto.Weight,
+    //     //     Height = dto.Height,
+    //     //     Bmi = dto.Bmi,
+    //     //     Gender = dto.Gender,
+    //     //     BirthDate = dto.BirthDate,
+    //     //     Photo = dto.Photo,
+    //     //     Name = dto.Name,
+    //     //     Language = dto.Language,
+    //     //     Purposes = purposes,
+    //     //     ActivityLevel = dto.ActivityLevel
+    //     // };
+    //     //
+    //     // context.UserExtras.Update(userExtra);
+    //     // await context.SaveChangesAsync();
+    // }
 
     public async Task DeleteExtra(long userId)
     {
@@ -108,12 +119,13 @@ public class UserService(AppDbContext context)
 
     #region UserNormsGeneral
 
-    public async Task<object> GetNorm(long userId)
+    public async Task<Wrapper> GetNorm(long userId, DataQueryRequest q, EnumMetrics? metrics = null)
     {
         var norms = await context.UserNormsGeneral
             .Where(x => x.UserId == userId)
-            .Select(x => new GetNormDto(x.Metric, x.Value))
-            .ToListAsync();
+            .Where(x => metrics == null || x.Metric == metrics)
+            .Select(x => new GetNormDto(x.UserId, x.Metric, x.Value))
+            .GetByDataQueryAsync(q);
 
         return norms;
     }

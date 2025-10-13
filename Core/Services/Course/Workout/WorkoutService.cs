@@ -31,7 +31,7 @@ public class WorkoutService(AppDbContext dbContext)
                 x.HasRest,
                 TotalItems = x.Exercises.Count(),
                 DoneItems = dbContext.Exercises
-                    .Join(dbContext.StepHistories,
+                    .Join(dbContext.CourseItemStates,
                         e => e.Id,
                         h => h.EntityId,
                         (e, h) => new { e, h })
@@ -93,7 +93,7 @@ public class WorkoutService(AppDbContext dbContext)
                 x.Description,
                 x.Assets,
                 x.Duration,
-                IsDone = dbContext.StepHistories.Any(sh =>
+                IsDone = dbContext.CourseItemStates.Any(sh =>
                     sh.EntityId == sh.Id && sh.UserId == userId && sh.Type == EnumHistoryEntityType.Exercise),
             })
             .GetByDataQueryAsync(query);
@@ -140,7 +140,7 @@ public class WorkoutService(AppDbContext dbContext)
 
         ids.Add(workoutId);
 
-        await dbContext.StepHistories
+        await dbContext.CourseItemStates
             .Where(x => x.UserId == userId && ids.Contains(x.EntityId) &&
                         (x.Type == EnumHistoryEntityType.Workout || x.Type == EnumHistoryEntityType.Exercise))
             .ExecuteDeleteAsync();

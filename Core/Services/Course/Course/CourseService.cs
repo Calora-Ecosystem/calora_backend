@@ -77,9 +77,9 @@ public class CourseService(AppDbContext context)
                 throw new ArgumentOutOfRangeException(nameof(type), type, null);
         }
 
-        var entity = await context.StepHistories.FirstOrDefaultAsync(x =>
+        var entity = await context.CourseItemStates.FirstOrDefaultAsync(x =>
                          x.UserId == userId && x.EntityId == entityId && x.Type == type) ??
-                     new StepHistory()
+                     new CourseItemState()
                      {
                          EntityId = entityId,
                          UserId = userId,
