@@ -17,7 +17,9 @@ public class UserExtra : ModelBase<long>
     public double Bmi { get; set; }
     public EnumGender Gender { get; set; }
     public DateTime BirthDate { get; set; }
-
+    
+    [NotMapped]
+    public int Age => DateTime.Now.Year - BirthDate.Year;
     public User User { get; set; } = null!;
     public EnumPurpose Purpose { get; set; }
     public string? Photo { get; set; }
