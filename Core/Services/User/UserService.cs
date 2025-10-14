@@ -73,6 +73,12 @@ public class UserService(AppDbContext context)
             });
 
             context.UserExtras.Update(extra);
+            
+            var user = await context.Users.GetByIdOrThrowsNotFoundException(userId);
+            
+            user.Name = extra.Name;
+            context.Update(user);
+            
             await context.SaveChangesAsync();
         });
     }

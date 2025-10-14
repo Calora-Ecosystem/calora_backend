@@ -104,14 +104,12 @@ public class AuthService(
         };
     }
 
-    public async Task<object> SendVerificationCode(string email)
+    public async Task<object> SendVerificationCode(Entities.Auth.User user)
     {
-        return await this.SendVerificationCode(
-            await dbContext.Users.FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, email)) ??
-            throw new NotFoundException("User not found"));
+        return await this.SendVerificationCode(user.Email);
     }
 
-    public async Task<object> SendVerificationCode(Entities.Auth.User user)
+    public async Task<object> SendVerificationCode(string email)
     {
         var expireDate = DateTime.Now.AddMinutes(2);
         var code = Guid.NewGuid().ToString();
@@ -123,9 +121,9 @@ public class AuthService(
 
         try
         {
-            await notificationService.SendMailAsync(new EmailNotificationDto()
+            await notificationService.SendMailAsync(new EmailNotificationWithoutUserDto()
             {
-                UserId = user.Id,
+                Email = email,
                 Title = "Verification Code",
                 Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
             });

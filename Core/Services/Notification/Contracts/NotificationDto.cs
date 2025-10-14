@@ -16,6 +16,12 @@ public class EmailNotificationDto : NotificationWithUserDto
     public string Email { get; set; } = null!;
 }
 
+
+public class EmailNotificationWithoutUserDto : NotificationDto
+{
+    public string Email { get; set; } = null!;
+}
+
 public class BatchEmailNotificationDto : NotificationDto
 {
     public IReadOnlyCollection<long> UserIds { get; set; } = null!;
