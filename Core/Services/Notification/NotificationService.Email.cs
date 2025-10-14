@@ -17,6 +17,14 @@ public partial class NotificationService
         await emailClient.SendMailAsync(user!.Email, notification.Description, notification.Title);
     }
     
+    public async Task SendMailAsync(EmailNotificationWithoutUserDto notification)
+    {
+        if (notification.Description is null)
+            throw new ArgumentNullException(nameof(notification.Description));
+        
+        await emailClient.SendMailAsync(notification.Email, notification.Description, notification.Title);
+    }
+    
     public async Task SendMailAsync(BatchEmailNotificationDto notification)
     {
         if (notification.Description is null)
