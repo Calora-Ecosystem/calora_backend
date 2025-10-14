@@ -72,13 +72,37 @@ public class UserService(AppDbContext context)
                 }
             });
 
+            await CreateOrUpdateNorm(userId, new CreateUserNormDto()
+            {
+                Metric = EnumMetrics.Water,
+                Value = dto.Purpose switch
+                {
+                    EnumPurpose.WeightLoss => extra.Weight * 30,
+                    EnumPurpose.SaveCurrent => extra.Weight * 30,
+                    _ => extra.Weight * 35
+                }
+            });
+
+            var tdee = CalculateTdee(extra);
+
+            await CreateOrUpdateNorm(userId, new CreateUserNormDto()
+            {
+                Metric = EnumMetrics.Kcal,
+                Value = dto.Purpose switch
+                {
+                    EnumPurpose.WeightLoss => tdee - 500,
+                    EnumPurpose.SaveCurrent => tdee,
+                    _ => tdee + 300
+                }
+            });
+
             context.UserExtras.Update(extra);
-            
+
             var user = await context.Users.GetByIdOrThrowsNotFoundException(userId);
-            
+
             user.Name = extra.Name;
             context.Update(user);
-            
+
             await context.SaveChangesAsync();
         });
     }
@@ -287,6 +311,29 @@ group by ung.user_id
                     : 0))
             .AsSplitQuery()
             .GetByDataQueryAsync(q);
+    }
+
+    #endregion
+
+    #region Calculations
+
+    public double CalculateTdee(UserExtra extra)
+    {
+        var bmr = extra.Gender switch
+        {
+            EnumGender.Male => 10 * extra.Weight + 6.25 * extra.Height - 5 * extra.Age + 5,
+            _ => 10 * extra.Weight + 6.25 * extra.Height - 5 * extra.Age - 161
+        };
+
+        const double activityValueDistancePerLevel = 1.75;
+        const double activityValueMin = 1.2;
+
+        var activityValue = (extra.ActivityLevel - EnumActivityLevel.Minimal) * activityValueDistancePerLevel +
+                            activityValueMin;
+
+        var tdee = activityValue * bmr;
+
+        return tdee;
     }
 
     #endregion
