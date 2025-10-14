@@ -76,6 +76,8 @@ public class AuthService(
             Roles = [nameof(EnumRole.User)]
         };
 
+        var hasNewUser = user.Id == 0;
+
         user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
 
@@ -100,7 +102,8 @@ public class AuthService(
         {
             AccessToken = accessToken,
             RefreshToken = user.RToken,
-            RefreshTokenExpireAt = user.RTokenExpireAt
+            RefreshTokenExpireAt = user.RTokenExpireAt,
+            hasNewUser,
         };
     }
 

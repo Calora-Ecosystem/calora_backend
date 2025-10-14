@@ -53,7 +53,7 @@ public class UserService(AppDbContext context)
             extra.UserId = userId;
             extra.Weight = dto.Weight;
             extra.Height = dto.Height;
-            extra.Bmi = dto.Bmi;
+            extra.Bmi = dto.Weight / Math.Pow(dto.Height / 100, 2);
             extra.Gender = dto.Gender;
             extra.BirthDate = dto.BirthDate;
             extra.Photo = dto.Photo;
