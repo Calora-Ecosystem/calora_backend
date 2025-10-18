@@ -17,9 +17,9 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<Device> Devices { get; set; }
     public DbSet<SignLog> SignLogs { get; set; }
     public DbSet<UserExtra> UserExtras { get; set; }
-    public DbSet<UserNormGeneral> UserNormsGeneral { get; set; }
-    public DbSet<UserNormByMenu> UserNormByMenus { get; set; }
+    public DbSet<UserNormGeneral> UserNorms { get; set; }
     public DbSet<UserDaily> UserDailies { get; set; }
+    public DbSet<UserNormByMenu> UserNormByMenus { get; set; }
     public DbSet<Reminder> Reminders { get; set; }
 
     #endregion
@@ -68,7 +68,17 @@ public class AppDbContext : DefaultConfiguredDbContext
         modelBuilder.Entity<UserStepStat>()
             .HasNoKey();
 
-        modelBuilder.Entity<UserNormGeneral>()
-            .UseTpcMappingStrategy();
+        modelBuilder.Ignore<UserNormGeneral>();
+
+        modelBuilder
+            .Entity<UserNormGeneral>()
+            .UseTpcMappingStrategy()
+            .ToTable("user_norms")
+            .HasNoDiscriminator();
+
+        modelBuilder
+            .Entity<UserDaily>()
+            .ToTable("user_dailies")
+            .HasNoDiscriminator();
     }
 }

@@ -151,7 +151,8 @@ public class UserService(AppDbContext context)
 
     public async Task<Wrapper> GetNorm(long userId, DataQueryRequest q, EnumMetrics? metrics = null)
     {
-        var norms = await context.Set<UserNormGeneral>()
+        var norms = await context.UserNorms
+            .AsNoTracking()
             .Where(x => x.UserId == userId)
             .Where(x => metrics == null || x.Metric == metrics)
             .Select(x => new GetNormDto(x.UserId, x.Metric, x.Value))
@@ -162,7 +163,7 @@ public class UserService(AppDbContext context)
 
     public async Task CreateOrUpdateNorm(long userId, CreateUserNormDto dto)
     {
-        var existing = await context.UserNormsGeneral
+        var existing = await context.UserNorms
             .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == dto.Metric) ?? new UserNormGeneral()
         {
             UserId = userId,
@@ -171,17 +172,17 @@ public class UserService(AppDbContext context)
 
         existing.Value = dto.Value;
 
-        context.UserNormsGeneral.Update(existing);
+        context.UserNorms.Update(existing);
         await context.SaveChangesAsync();
     }
 
     public async Task DeleteNorm(long userId, EnumMetrics metric)
     {
-        var existing = await context.UserNormsGeneral
+        var existing = await context.UserNorms
                            .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == metric)
                        ?? throw new NotFoundException("User or metric not found.");
 
-        context.UserNormsGeneral.Remove(existing);
+        context.UserNorms.Remove(existing);
         await context.SaveChangesAsync();
     }
 
@@ -192,6 +193,7 @@ public class UserService(AppDbContext context)
     public async Task<Wrapper> GetDaily(long userId, EnumMetrics? metrics, DataQueryRequest q)
     {
         var query = context.UserDailies
+            .AsNoTracking()
             .Where(x => x.UserId == userId);
 
         if (metrics is not null)
@@ -288,8 +290,7 @@ group by ung.user_id
         from ??= DateTime.Now.Date;
         to ??= DateTime.Now.Date.AddDays(1);
 
-        return await context
-            .UserDailies
+        return await context.UserDailies
             .AsNoTracking()
             .Where(x => x.UserId == userId)
             .Where(x => x.Metric == EnumMetrics.Step && x.Date >= from && x.Date <= to)
