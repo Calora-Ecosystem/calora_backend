@@ -151,7 +151,7 @@ public class UserService(AppDbContext context)
 
     public async Task<Wrapper> GetNorm(long userId, DataQueryRequest q, EnumMetrics? metrics = null)
     {
-        var norms = await context.UserNormsGeneral
+        var norms = await context.Set<UserNormGeneral>()
             .Where(x => x.UserId == userId)
             .Where(x => metrics == null || x.Metric == metrics)
             .Select(x => new GetNormDto(x.UserId, x.Metric, x.Value))
