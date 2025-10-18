@@ -67,5 +67,8 @@ public class AppDbContext : DefaultConfiguredDbContext
 
         modelBuilder.Entity<UserStepStat>()
             .HasNoKey();
+
+        modelBuilder.Entity<UserNormGeneral>()
+            .UseTpcMappingStrategy();
     }
 }
