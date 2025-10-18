@@ -198,7 +198,10 @@ public class UserService(AppDbContext context)
             query = query.Where(x => x.Metric == metrics);
 
         return await query
-            .Select(x => new GetDailyDto(x.Date, x.Metric, x.Value))
+            .Select(x => new GetDailyDto
+            {
+                Date = x.Date, Metric = x.Metric, Value = x.Value
+            })
             .GetByDataQueryAsync(q);
     }
 
