@@ -3,6 +3,7 @@ using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
+using Core.Entities.Auth;
 using Core.Entities.FoodEntites;
 using Core.Enums;
 using Core.Services.FoodService.Contracts.Category;
@@ -235,12 +236,14 @@ public class FoodService(AppDbContext dbContext)
 
     public async Task<object> Summary(long userId, DateTime? date)
     {
-        var kcalNorm = await dbContext.UserNormsGeneral
+        var kcalNorm = await dbContext.UserNorms
+            .AsNoTracking()
             .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == EnumMetrics.Kcal);
 
         date = date?.Date ?? DateTime.Now.Date;
 
         var nutrients = await dbContext.DailyMenus
+            .AsNoTracking()
             .Where(x => x.UserId == userId && x.Date == date)
             .GroupBy(x => x.Menu)
             .ToDictionaryAsync(x => x.Key, x => new
@@ -257,6 +260,7 @@ public class FoodService(AppDbContext dbContext)
             });
 
         var nutrientsNorm = await dbContext.UserNormByMenus
+            .AsNoTracking()
             .Where(x => x.UserId == userId)
             .GroupBy(x => x.Menu)
             .ToDictionaryAsync(x => x.Key, x => new

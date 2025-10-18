@@ -5,6 +5,7 @@ using BRB.Core.Common.Models;
 using Core.Brokers.DbContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Core.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251018174033_AlterTableNorms")]
+    partial class AlterTableNorms
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -23,8 +26,6 @@ namespace Core.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.HasSequence("UserNormGeneralSequence");
 
             modelBuilder.Entity("Core.Entities.Auth.Device", b =>
                 {
@@ -267,10 +268,9 @@ namespace Core.Migrations
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("nextval('\"UserNormGeneralSequence\"')");
+                        .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseSequence(b.Property<long>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<int>("Metric")
                         .HasColumnType("integer")
@@ -286,11 +286,12 @@ namespace Core.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_user_norms_user_id");
 
                     b.ToTable("user_norms", (string)null);
 
-                    b.UseTpcMappingStrategy();
+                    b.UseTphMappingStrategy();
                 });
 
             modelBuilder.Entity("Core.Entities.Auth.UserStepStat", b =>
@@ -827,7 +828,8 @@ namespace Core.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_user_norms_users_user_id");
 
                     b.Navigation("User");
                 });

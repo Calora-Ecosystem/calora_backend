@@ -5,6 +5,7 @@ using BRB.Core.Common.Models;
 using Core.Brokers.DbContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Core.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251018171335_UseTphMappingForUserNorms'")]
+    partial class UseTphMappingForUserNorms
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -23,8 +26,6 @@ namespace Core.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.HasSequence("UserNormGeneralSequence");
 
             modelBuilder.Entity("Core.Entities.Auth.Device", b =>
                 {
@@ -228,6 +229,46 @@ namespace Core.Migrations
                     b.ToTable("user_extras", (string)null);
                 });
 
+            modelBuilder.Entity("Core.Entities.Auth.UserNormBase", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Discriminator")
+                        .IsRequired()
+                        .HasMaxLength(21)
+                        .HasColumnType("character varying(21)")
+                        .HasColumnName("discriminator");
+
+                    b.Property<int>("Metric")
+                        .HasColumnType("integer")
+                        .HasColumnName("metric");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.Property<double>("Value")
+                        .HasColumnType("double precision")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_norms");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_user_norms_user_id");
+
+                    b.ToTable("user_norms", (string)null);
+
+                    b.HasDiscriminator<string>("Discriminator").HasValue("UserNormBase");
+
+                    b.UseTphMappingStrategy();
+                });
+
             modelBuilder.Entity("Core.Entities.Auth.UserNormByMenu", b =>
                 {
                     b.Property<long>("Id")
@@ -260,37 +301,6 @@ namespace Core.Migrations
                         .HasDatabaseName("ix_user_norm_by_menus_user_id");
 
                     b.ToTable("user_norm_by_menus", (string)null);
-                });
-
-            modelBuilder.Entity("Core.Entities.Auth.UserNormGeneral", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("nextval('\"UserNormGeneralSequence\"')");
-
-                    NpgsqlPropertyBuilderExtensions.UseSequence(b.Property<long>("Id"));
-
-                    b.Property<int>("Metric")
-                        .HasColumnType("integer")
-                        .HasColumnName("metric");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("user_id");
-
-                    b.Property<double>("Value")
-                        .HasColumnType("double precision")
-                        .HasColumnName("value");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("user_norms", (string)null);
-
-                    b.UseTpcMappingStrategy();
                 });
 
             modelBuilder.Entity("Core.Entities.Auth.UserStepStat", b =>
@@ -771,6 +781,13 @@ namespace Core.Migrations
                     b.ToTable("food_user_extra", (string)null);
                 });
 
+            modelBuilder.Entity("Core.Entities.Auth.UserNormGeneral", b =>
+                {
+                    b.HasBaseType("Core.Entities.Auth.UserNormBase");
+
+                    b.HasDiscriminator().HasValue("UserNormGeneral");
+                });
+
             modelBuilder.Entity("Core.Entities.Auth.UserDaily", b =>
                 {
                     b.HasBaseType("Core.Entities.Auth.UserNormGeneral");
@@ -780,9 +797,9 @@ namespace Core.Migrations
                         .HasColumnName("date");
 
                     b.HasIndex("Date")
-                        .HasDatabaseName("ix_user_dailies_date");
+                        .HasDatabaseName("ix_user_norms_date");
 
-                    b.ToTable("user_dailies", (string)null);
+                    b.HasDiscriminator().HasValue("UserDaily");
                 });
 
             modelBuilder.Entity("Core.Entities.Auth.Device", b =>
@@ -809,6 +826,18 @@ namespace Core.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Core.Entities.Auth.UserNormBase", b =>
+                {
+                    b.HasOne("Core.Entities.Auth.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_norms_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Core.Entities.Auth.UserNormByMenu", b =>
                 {
                     b.HasOne("Core.Entities.Auth.User", "User")
@@ -817,17 +846,6 @@ namespace Core.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_user_norm_by_menus_users_user_id");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Core.Entities.Auth.UserNormGeneral", b =>
-                {
-                    b.HasOne("Core.Entities.Auth.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("User");
                 });
