@@ -263,25 +263,30 @@ public class UserService(AppDbContext context)
         return await context.UserStepStats
             .FromSql(@$"
 select sub.user_id , sub.sum, sub.count, ROW_NUMBER() OVER (ORDER BY sub.sum desc, sub.count desc) as index from (
-select ung.user_id, sum(ung.value), count(ung.id) from user_norms_general ung 
+select ung.user_id, sum(ung.value), count(ung.id) from user_dailies ung 
 where ung.""date"" >= {from} and ung.""date"" <= {to} and metric = {EnumMetrics.Step}
 group by ung.user_id
-) sub
+) sub 
 ")
             .LeftJoin2(context.UserExtras, stat => stat.UserId, extra => extra.UserId, (x, extra) =>
-                new GetStepStatDto(new UserDto(
-                    x.User.Id,
-                    x.User.Name,
-                    x.User.Email,
-                    extra != null
-                        ? new ExtraDto
-                        (
-                            extra.Photo,
-                            extra.ActivityLevel
-                        )
-                        : null
-                ), x.Sum, x.Count, x.Index)
+                new GetStepStatDto()
+                {
+                    User = new UserDto(
+                        x.User.Id,
+                        x.User.Name,
+                        x.User.Email,
+                        extra != null
+                            ? new ExtraDto
+                            (
+                                extra.Photo,
+                                extra.ActivityLevel
+                            )
+                            : null
+                    ),
+                    Sum = x.Sum, Count = x.Count, Index = x.Index
+                }
             )
+            .OrderBy(x => x.Index)
             .GetByDataQueryAsync(q);
     }
 
