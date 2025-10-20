@@ -1,4 +1,5 @@
-﻿using BRB.Core.Common.Models;
+﻿using BRB.Core.Common.Extensions;
+using BRB.Core.Common.Models;
 using Core;
 using Core.Enums;
 using Core.Services.User;
@@ -83,6 +84,13 @@ public class UserController(UserService userService) : AuthorizedController
     public async Task<Wrapper> AddDaily([FromBody] CreateUserDailyDto userDaily)
     {
         await userService.CreateOrUpdateDaily(this.UserId, userDaily);
+        return (new { Message = "User daily record added successfully." }, 201);
+    }
+    
+    [HttpPost("dailies/batch")]
+    public async Task<Wrapper> AddDailyBatch([FromBody] List<CreateUserDailyDto> userDaily)
+    {
+        await userDaily.ForEachAsync(AddDaily);
         return (new { Message = "User daily record added successfully." }, 201);
     }
 
