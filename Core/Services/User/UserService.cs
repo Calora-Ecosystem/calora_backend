@@ -190,7 +190,7 @@ public class UserService(AppDbContext context)
 
     #region UserDailies
 
-    public async Task<Wrapper> GetDaily(long userId, DataQueryRequest q, EnumMetrics? metrics = null,
+    public async Task<Wrapper> GetDaily(long userId, DataQueryRequest q, EnumMetrics metrics,
         DateTime? from = null, DateTime? to = null)
     {
         from ??= DateTime.Now.Date;
@@ -198,10 +198,8 @@ public class UserService(AppDbContext context)
 
         var query = context.UserDailies
             .AsNoTracking()
-            .Where(x => x.UserId == userId);
-
-        if (metrics is not null)
-            query = query.Where(x => x.Metric == metrics);
+            .Where(x => x.UserId == userId)
+            .Where(x => x.Metric == metrics);
 
         var byDate = await query
             .Select(x => new GetDailyDto
@@ -216,7 +214,7 @@ public class UserService(AppDbContext context)
             ? value
             : new GetDailyDto()
             {
-                Metric = metrics ?? EnumMetrics.Step,
+                Metric = metrics,
                 Value = 0,
                 Date = from.Value.AddDays(i)
             }).ToArray();
