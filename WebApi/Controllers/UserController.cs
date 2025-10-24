@@ -77,8 +77,8 @@ public class UserController(UserService userService) : AuthorizedController
 
     [HttpGet("dailies")]
     [ProducesResponseType<WrapperGeneric<GetDailyDto>>(200)]
-    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery] EnumMetrics? metrics = null) =>
-        await userService.GetDaily(this.UserId, metrics, q);
+    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery] EnumMetrics? metrics = null, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null) =>
+        await userService.GetDaily(this.UserId, q, metrics, from, to);
 
     [HttpPost("dailies")]
     public async Task<Wrapper> AddDaily([FromBody] CreateUserDailyDto userDaily)
