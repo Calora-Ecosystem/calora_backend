@@ -199,7 +199,7 @@ public class UserService(AppDbContext context)
         var query = context.UserDailies
             .AsNoTracking()
             .Where(x => x.UserId == userId)
-            .Where(x => x.Metric == metrics);
+            .Where(x => x.Metric == metrics && x.Date >= from && x.Date <= to);
 
         var byDate = await query
             .Select(x => new GetDailyDto
@@ -210,7 +210,7 @@ public class UserService(AppDbContext context)
             .Sort(q)
             .ToDictionaryAsync(x => x.Date, x => x);
 
-        var result = Enumerable.Range(0, (to - from).Value.Days).Select((x, i) => byDate.TryGetValue(from.Value.AddDays(i), out var value)
+        var result = Enumerable.Range(0, (to - from).Value.Days + 1).Select((x, i) => byDate.TryGetValue(from.Value.AddDays(i), out var value)
             ? value
             : new GetDailyDto()
             {
