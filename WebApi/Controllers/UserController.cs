@@ -1,4 +1,5 @@
-﻿using BRB.Core.Common.Extensions;
+﻿using System.ComponentModel.DataAnnotations;
+using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Models;
 using Core;
 using Core.Enums;
@@ -77,9 +78,9 @@ public class UserController(UserService userService) : AuthorizedController
 
     [HttpGet("dailies")]
     [ProducesResponseType<WrapperGeneric<GetDailyDto>>(200)]
-    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery] EnumMetrics metrics,
+    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery, Required] EnumMetrics metrics, long? userId,
         [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null) =>
-        await userService.GetDaily(this.UserId, q, metrics, from, to);
+        await userService.GetDaily(userId ?? UserId, q, metrics, from, to);
 
     [HttpPost("dailies")]
     public async Task<Wrapper> AddDaily([FromBody] CreateUserDailyDto userDaily)
