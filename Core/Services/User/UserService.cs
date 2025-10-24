@@ -305,36 +305,24 @@ group by ung.user_id
             .GetByDataQueryAsync(q);
     }
 
-    public async Task<Wrapper> CalculateStepMetrics(long userId, DateTime? from, DateTime? to, DataQueryRequest q)
+    public async Task<GetStepMetricsDto> CalculateStepMetrics(long userId, DateTime? from, DateTime? to)
     {
         from ??= DateTime.Now.Date;
         to ??= DateTime.Now.Date.AddDays(1);
 
-        return await context.UserDailies
+        var extra = await context.UserExtras
+            .FirstOrDefaultAsync(x => x.UserId == userId) ?? throw new NotFoundException("User extra not found");
+
+        var totalFoots = double.Round(await context.UserDailies
             .AsNoTracking()
             .Where(x => x.UserId == userId)
             .Where(x => x.Metric == EnumMetrics.Step && x.Date >= from && x.Date <= to)
-            .GroupBy(x => x.User, (user, dailies) => new GetStepMetricsDto(user.Id, new UserDto(
-                    user.Id,
-                    user.Name,
-                    user.Email,
-                    user.Extra != null
-                        ? new ExtraDto
-                        (
-                            user.Extra!.Photo,
-                            user.Extra!.ActivityLevel
-                        )
-                        : null
-                ), dailies.Sum(x => x.Value),
-                (user.Extra != null ? user.Extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/ : 0.6 /*avarage m*/) *
-                dailies.Sum(x => x.Value), user.Extra != null
-                    ? user.Extra.Weight *
-                      (user.Extra != null ? user.Extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/ : 0.6 /*avarage m*/
-                      ) *
-                      Math.Pow(dailies.Sum(x => x.Value), 2)
-                    : 0))
-            .AsSplitQuery()
-            .GetByDataQueryAsync(q);
+            .SumAsync(x => x.Value), 1);
+
+        var distance = double.Round((extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/) * totalFoots, 1);
+        var kcal = double.Round(extra.Weight * distance / 1000 * (extra.Gender == EnumGender.Male ? 1.06 : 0.98), 1);
+
+        return new GetStepMetricsDto(userId, totalFoots, distance, kcal);
     }
 
     #endregion

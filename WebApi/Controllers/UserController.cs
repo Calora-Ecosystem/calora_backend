@@ -77,7 +77,8 @@ public class UserController(UserService userService) : AuthorizedController
 
     [HttpGet("dailies")]
     [ProducesResponseType<WrapperGeneric<GetDailyDto>>(200)]
-    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery] EnumMetrics metrics, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null) =>
+    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery] EnumMetrics metrics,
+        [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null) =>
         await userService.GetDaily(this.UserId, q, metrics, from, to);
 
     [HttpPost("dailies")]
@@ -86,7 +87,7 @@ public class UserController(UserService userService) : AuthorizedController
         await userService.CreateOrUpdateDaily(this.UserId, userDaily);
         return (new { Message = "User daily record added successfully." }, 201);
     }
-    
+
     [HttpPost("dailies/batch")]
     public async Task<Wrapper> AddDailyBatch([FromBody] List<CreateUserDailyDto> userDaily)
     {
@@ -118,9 +119,9 @@ public class UserController(UserService userService) : AuthorizedController
 
     [HttpGet("steps/metrics")]
     [ProducesResponseType<WrapperGeneric<GetStepMetricsDto>>(200)]
-    public Task<Wrapper> CalculateStepMetrics([FromQuery] DateTime? from, [FromQuery] DateTime? to,
-        [FromQuery] DataQueryRequest q, [FromQuery] long? userId = null) =>
-        userService.CalculateStepMetrics(userId ?? this.UserId, from, to, q);
+    public async Task<Wrapper> CalculateStepMetrics([FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] long? userId = null) =>
+        (await userService.CalculateStepMetrics(userId ?? this.UserId, from, to), 200);
 
     [HttpGet("{userId:long:min(1)}/assign-role")]
     [Authorize(Policy = nameof(EnumAuthPolicies.SuperAdmin))]
