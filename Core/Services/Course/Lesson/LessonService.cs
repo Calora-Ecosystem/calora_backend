@@ -19,14 +19,12 @@ public class LessonService(AppDbContext dbContext)
             q = q.Where(x => x.CourseId == courseId);
 
         return await q
-            .Select(x => new
+            .Select(x => new GetLessonDto
             {
-                x.Id,
-                x.CourseId,
-                x.Duration,
-                x.IsFree,
-                x.Title,
-                x.Description
+                Id = x.Id, CourseId = x.CourseId, Duration = x.Duration,
+                IsFree = x.IsFree,
+                Title = x.Title,
+                Description = x.Description
             })
             .GetByDataQueryAsync(query);
     }

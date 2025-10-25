@@ -18,10 +18,12 @@ namespace WebApi.Controllers.Course;
 public class ExerciseController(WorkoutService service, CourseService courseService) : AuthorizedController
 {
     [HttpGet]
+    [ProducesResponseType(typeof(WrapperGeneric<GetExerciseDto>), 200)]
     public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q, long workoutId) =>
         await service.GetAllExercises(this.UserId, workoutId, q);
 
     [HttpPost]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> CreateOrUpdate(CreateOrUpdateExerciseDto dto) =>
         (await service.CrateOrUpdateExercise(dto), 200);
 
@@ -33,6 +35,7 @@ public class ExerciseController(WorkoutService service, CourseService courseServ
     }
 
     [HttpDelete("{exerciseId:long:min(1)}")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> Remove(long exerciseId)
     {
         await service.Remove(exerciseId);

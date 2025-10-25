@@ -1,3 +1,4 @@
+using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
@@ -17,14 +18,12 @@ public class CourseService(AppDbContext context)
     {
         return await context.Courses
             .Where(x => x.Gender == query.Gender || x.Gender == null)
-            .Select(x => new
+            .Select(x => new GetCourseDto
             {
-                x.Id,
-                x.Title,
-                x.Description,
-                x.Gender,
-                x.Type,
-                Total = x.Type == EnumCourseType.Lesson ? x.Lessons.Count() : x.Workouts.Count(),
+                Id = x.Id, Title = x.Title, Description = x.Description,
+                Gender = x.Gender,
+                Type = x.Type,
+                Total = x.Type == EnumCourseType.Lesson ? x.Lessons.Count() : x.Workouts.Count()
             })
             .GetByDataQueryAsync(query);
     }

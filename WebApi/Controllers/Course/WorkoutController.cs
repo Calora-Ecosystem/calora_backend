@@ -18,13 +18,16 @@ namespace WebApi.Controllers.Course;
 public class WorkoutController(WorkoutService service, CourseService courseService) : AuthorizedController
 {
     [HttpGet]
+    [ProducesResponseType(typeof(WrapperGeneric<GetWorkoutDto>), 200)]
     public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q) => await service.GetAll(this.UserId, q);
 
-    [HttpGet("/{courseId:long:min(1)}/workouts")]
-    public async Task<Wrapper> GetAllByCourseId([FromQuery] DataQueryRequest q, [FromRoute] long courseId) =>
-        await service.GetAll(this.UserId, q, courseId);
+    // [HttpGet("/{courseId:long:min(1)}/workouts")]
+    // [ProducesResponseType(typeof(WrapperGeneric<GetWorkoutDto>), 200)]
+    // public async Task<Wrapper> GetAllByCourseId([FromQuery] DataQueryRequest q, [FromRoute] long courseId) =>
+    //     await service.GetAll(this.UserId, q, courseId);
 
     [HttpPost]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> CreateOrUpdate(CreateOrUpdateWorkoutDto dto) => (await service.CrateOrUpdate(dto), 200);
 
     [HttpPut("finish/{workoutId:long:min(1)}")]
@@ -42,6 +45,7 @@ public class WorkoutController(WorkoutService service, CourseService courseServi
     }
 
     [HttpDelete("{workoutId:long:min(1)}")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> Remove(long workoutId)
     {
         await service.Remove(workoutId);
