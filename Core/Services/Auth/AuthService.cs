@@ -143,6 +143,30 @@ public class AuthService(
         };
     }
 
+    public async Task<object> RefreshToken(long userId, string rToken, long deviceId)
+    {
+        var user = await dbContext.Users.FirstOrDefaultAsync(x =>
+            x.Id == userId
+            && x.RTokenExpireAt > DateTime.Now
+            && x.RToken == rToken) ?? throw new NotFoundException("User or refresh token not found");
+
+        var accessToken = await MakeJwtFromUser(user.Id, deviceId);
+        var refreshToken = PasswordHelper.Encrypt(Guid.NewGuid().ToString());
+
+        user.RToken = refreshToken;
+        user.RTokenExpireAt = DateTime.Now.AddDays(authConfig.Value.RTokenExpireInDays);
+
+        user = dbContext.Users.Update(user).Entity;
+        await dbContext.SaveChangesAsync();
+        
+        return new
+        {
+            AccessToken = accessToken,
+            RefreshToken = user.RToken,
+            RefreshTokenExpireAt = user.RTokenExpireAt,
+        };
+    }
+
     public IEnumerable<string> GetAllRoles()
     {
         return Enum.GetValues<EnumRole>().Select(x => x.ToString());
@@ -154,8 +178,9 @@ public class AuthService(
 
         var claims = new List<Claim>();
 
-        
-        user.Roles.ForEach(role => claims.Add(new Claim(ClaimTypes.Role, role)));;
+
+        user.Roles.ForEach(role => claims.Add(new Claim(ClaimTypes.Role, role)));
+        ;
         claims.Add(new Claim(ClaimTypes.Email, user.Email));
         claims.Add(new Claim(CustomClaims.DeviceId, deviceId.ToString()));
         claims.Add(new Claim(CustomClaims.UserId, user.Id.ToString()));

@@ -1,5 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
+using BRB.Core.Common.Exceptions;
 using Core;
+using Core.Constants;
 using Core.Enums;
 using Core.Services.Auth;
 using Core.Services.Auth.Contracts;
@@ -19,7 +22,7 @@ public class AuthController(AuthService authService) : ControllerBase
     [ApiExplorerSettings(IgnoreApi = true)]
     public async Task<Wrapper> Register([FromBody] RegisterDto dto) =>
         (await authService.RegisterAsync(dto), 200);
-    
+
     /// <summary>
     /// Also create new user with verified email
     /// </summary>
@@ -28,6 +31,19 @@ public class AuthController(AuthService authService) : ControllerBase
     [HttpPost("sign-in")]
     public async Task<Wrapper> SignIn([FromBody] SignInDto dto) =>
         (await authService.SignInAsync(dto), 200);
+
+    [HttpGet("refresh-token")]
+    public async Task<Wrapper>
+        RefreshToken([FromQuery, Required] string rToken) =>
+        (await authService.RefreshToken(
+                !long.TryParse(this.User.FindFirstValue(CustomClaims.UserId), out var userId)
+                    ? throw new BadRequestException("Access token invalid")
+                    : userId,
+                rToken,
+                !long.TryParse(this.User.FindFirstValue(CustomClaims.DeviceId), out var deviceId)
+                    ? throw new BadRequestException("Access token invalid")
+                    : deviceId),
+            200);
 
     [HttpPost("send-otp/{email}")]
     public async Task<Wrapper> SendOtp([EmailAddress] string email) =>
