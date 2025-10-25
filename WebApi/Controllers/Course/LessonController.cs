@@ -18,10 +18,12 @@ namespace WebApi.Controllers.Course;
 public class LessonController(LessonService service, CourseService courseService) : AuthorizedController
 {
     [HttpGet]
+    [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetLessonDto>>), 200)]
     public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q, long? courseId = null) =>
         await service.GetAll(q, courseId);
 
     [HttpPost]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> CreateOrUpdate(CreateOrUpdateLessonDto dto) => (await service.CrateOrUpdate(dto), 200);
 
     [HttpPut("finish/{lessonId:long:min(1)}")]
@@ -32,6 +34,7 @@ public class LessonController(LessonService service, CourseService courseService
     }
 
     [HttpDelete("{lessonId:long:min(1)}")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> Remove(long lessonId)
     {
         await service.Remove(lessonId);

@@ -23,26 +23,28 @@ public class WorkoutService(AppDbContext dbContext)
             q = q.Where(x => x.CourseId == courseId);
 
         return await q
-            .Select(x => new
+            .Select(x => new GetWorkoutDto()
             {
-                x.Id,
-                x.CourseId,
-                x.Title,
-                x.HasRest,
+                Id = x.Id,
+                CourseId = x.CourseId,
+                Title = x.Title, 
+                HasRest = x.HasRest,
                 TotalItems = x.Exercises.Count(),
                 DoneItems = dbContext.Exercises
+                    .Where(exercise => exercise.WorkoutId == exercise.Id)
                     .Join(dbContext.CourseItemStates,
                         e => e.Id,
                         h => h.EntityId,
-                        (e, h) => new { e, h })
-                    .Any(joined =>
-                        joined.e.WorkoutId == x.Id &&
-                        joined.h.UserId == userId &&
-                        joined.h.Type == EnumHistoryEntityType.Workout),
+                        (e, state) => new { e, state })
+                    .Count(joined =>
+                        joined.state.UserId == userId &&
+                        joined.state.Type == EnumHistoryEntityType.Exercise),
                 TotalDurationInMin = x.Exercises.Sum(exercise => exercise.Duration.TotalMinutes),
-                TotalMetrics = x.Exercises.SelectMany(exercise => exercise.Metrics)
+                TotalMetrics = x.Exercises
+                    .Where(exercise => exercise.WorkoutId == x.Id)
+                    .SelectMany(exercise => exercise.Metrics)
                     .GroupBy(metric => metric.Metric)
-                    .Select(metrics => new
+                    .Select(metrics => new GetWorkoutMetricDto
                     {
                         Metric = metrics.Key,
                         Sum = metrics.Sum(metric => metric.Value)
@@ -85,16 +87,14 @@ public class WorkoutService(AppDbContext dbContext)
         return await dbContext
             .Exercises
             .Where(x => x.WorkoutId == workoutId)
-            .Select(x => new
+            .Select(x => new GetExerciseDto
             {
-                x.Id,
-                x.WorkoutId,
-                x.Title,
-                x.Description,
-                x.Assets,
-                x.Duration,
+                Id = x.Id, WorkoutId = x.WorkoutId, Title = x.Title,
+                Description = x.Description,
+                Assets = x.Assets,
+                Duration = x.Duration,
                 IsDone = dbContext.CourseItemStates.Any(sh =>
-                    sh.EntityId == sh.Id && sh.UserId == userId && sh.Type == EnumHistoryEntityType.Exercise),
+                    sh.EntityId == sh.Id && sh.UserId == userId && sh.Type == EnumHistoryEntityType.Exercise)
             })
             .GetByDataQueryAsync(query);
     }
