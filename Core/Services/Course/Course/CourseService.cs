@@ -28,6 +28,7 @@ public class CourseService(AppDbContext context)
                 Total = x.Type == EnumCourseType.Lesson ? x.Lessons.Count() : x.Workouts.Count(),
                 Order = x.Order
             })
+            .OrderBy(x => x.Order)
             .GetByDataQueryAsync(query);
     }
 

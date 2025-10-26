@@ -28,6 +28,7 @@ public class LessonService(AppDbContext dbContext)
                 Description = x.Description,
                 Order = x.Order
             })
+            .OrderBy(x => x.Order)
             .GetByDataQueryAsync(query);
     }
 

@@ -52,6 +52,7 @@ public class WorkoutService(AppDbContext dbContext)
                     }),
                 Order = x.Order
             })
+            .OrderBy(x => x.Order)
             .GetByDataQueryAsync(query);
     }
 
@@ -107,6 +108,7 @@ public class WorkoutService(AppDbContext dbContext)
                     sh.EntityId == sh.Id && sh.UserId == userId && sh.Type == EnumHistoryEntityType.Exercise),
                 Order = x.Order
             })
+            .OrderBy(x => x.Order)
             .GetByDataQueryAsync(query);
     }
 
