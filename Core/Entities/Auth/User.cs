@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Core.Entities.Auth;
 
 [Index(nameof(Email))]
-public class User : ModelBase<long>
+public class User : AuditableModelBase<long>
 {
     [MaxLength(300)] public string Name { get; set; } = null!;
     [MaxLength(100)] public string Email { get; set; } = null!;
