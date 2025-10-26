@@ -14,4 +14,5 @@ public record GetWorkoutDto
     public bool IsDone { get; set; }
     public double TotalDurationInMin { get; set; }
     public IEnumerable<GetWorkoutMetricDto> TotalMetrics { get; set; } = null!;
+    public decimal Order { get; set; }
 }

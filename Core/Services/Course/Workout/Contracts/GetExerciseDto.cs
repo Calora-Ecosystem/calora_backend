@@ -11,4 +11,5 @@ public record GetExerciseDto
     public string[] Assets { get; set; } = null!;
     public TimeSpan Duration { get; set; }
     public bool IsDone { get; set; }
+    public decimal Order { get; set; }
 }

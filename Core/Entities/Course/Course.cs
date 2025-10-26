@@ -1,7 +1,9 @@
 using Core.Enums;
+using Microsoft.EntityFrameworkCore;
 
 namespace Core.Entities.Course;
 
+[Index(nameof(Order))]
 public class Course : BaseItem
 {
     public long Price { get; set; }

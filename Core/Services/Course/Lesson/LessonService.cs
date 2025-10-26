@@ -5,6 +5,7 @@ using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Enums;
 using Core.Services.Course.Lesson.Contracts;
+using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
 
 namespace Core.Services.Course.Lesson;
@@ -24,7 +25,8 @@ public class LessonService(AppDbContext dbContext)
                 Id = x.Id, CourseId = x.CourseId, Duration = x.Duration,
                 IsFree = x.IsFree,
                 Title = x.Title,
-                Description = x.Description
+                Description = x.Description,
+                Order = x.Order
             })
             .GetByDataQueryAsync(query);
     }
@@ -33,21 +35,29 @@ public class LessonService(AppDbContext dbContext)
     {
         if (!dbContext.Courses.Any(x => x.Id == dto.CourseId && x.Type == EnumCourseType.Lesson))
             throw new NotFoundException("Course not found");
-        
+
         var lesson = dto.Id.HasValue
             ? await dbContext.Lessons.GetByIdOrThrowsNotFoundException(dto.Id.Value)
-            : new Entities.Course.Lesson();
+            : new Entities.Course.Lesson()
+            {
+                CourseId = dto.CourseId,
+                Order = await dbContext.Lessons
+                    .Where(x => x.CourseId == dto.CourseId)
+                    .CountAsync() + 1
+            };
 
-        lesson.CourseId = dto.CourseId;
         lesson.IsFree = dto.IsFree;
         lesson.Duration = dto.Duration;
         lesson.Assets = dto.Assets;
         lesson.Title = dto.Title;
         lesson.Description = dto.Description;
 
+        if (dto.Order.HasValue)
+            lesson.Order = dto.Order.Value;
+
         lesson = dbContext.Update(lesson).Entity;
         await dbContext.SaveChangesAsync();
-        
+
         return lesson.Id;
     }
 

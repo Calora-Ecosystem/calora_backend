@@ -1,5 +1,6 @@
 ﻿using BRB.Core.Common.Models;
 using Core;
+using Core.Entities.Course;
 using Core.Entities.Course.Enum;
 using Core.Enums;
 using Core.Services.Course.Course;

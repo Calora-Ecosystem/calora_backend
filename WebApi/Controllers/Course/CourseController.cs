@@ -1,5 +1,7 @@
-﻿using Core;
+﻿using System.ComponentModel.DataAnnotations;
+using Core;
 using Core.Enums;
+using Core.Services.Course.Common;
 using Core.Services.Course.Course;
 using Core.Services.Course.Course.Contracts;
 using Microsoft.AspNetCore.Mvc;
@@ -27,6 +29,15 @@ public class CourseController(CourseService service) : AuthorizedController
     public async Task<Wrapper> Remove(long courseId)
     {
         await service.Remove(courseId);
+        return 200;
+    }
+
+    [HttpPut("reorder/{itemId:long:min(1)}")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> ReorderCourseItem(long itemId, [Required] EnumCourseItemType type, long? beforeItemId,
+        long? afterItemId)
+    {
+        await service.ReorderCourseItem(type, itemId, beforeItemId, afterItemId);
         return 200;
     }
 }
