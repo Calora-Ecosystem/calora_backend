@@ -6,6 +6,7 @@ using Core.Brokers.DbContext;
 using Core.Entities.Course;
 using Core.Entities.Course.Enum;
 using Core.Enums;
+using Core.Services.Course.Common;
 using Core.Services.Course.Workout.Contracts;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
@@ -49,7 +50,9 @@ public class WorkoutService(AppDbContext dbContext)
                         Metric = metrics.Key,
                         Sum = metrics.Sum(metric => metric.Value)
                     }),
+                Order = x.Order
             })
+            .OrderBy(x => x.Order)
             .GetByDataQueryAsync(query);
     }
 
@@ -60,11 +63,19 @@ public class WorkoutService(AppDbContext dbContext)
 
         var workout = dto.Id.HasValue
             ? await dbContext.Workouts.GetByIdOrThrowsNotFoundException(dto.Id.Value)
-            : new Entities.Course.Workout();
+            : new Entities.Course.Workout()
+            {
+                CourseId = dto.CourseId,
+                Order = await dbContext.Workouts
+                    .Where(x => x.CourseId == dto.CourseId)
+                    .CountAsync() + 1
+            };
 
-        workout.CourseId = dto.CourseId;
         workout.Title = dto.Title;
         workout.HasRest = dto.HasRest;
+        
+        if (dto.Order.HasValue)
+            workout.Order = dto.Order.Value;
 
         workout = dbContext.Update(workout).Entity;
         await dbContext.SaveChangesAsync();
@@ -94,8 +105,10 @@ public class WorkoutService(AppDbContext dbContext)
                 Assets = x.Assets,
                 Duration = x.Duration,
                 IsDone = dbContext.CourseItemStates.Any(sh =>
-                    sh.EntityId == sh.Id && sh.UserId == userId && sh.Type == EnumHistoryEntityType.Exercise)
+                    sh.EntityId == sh.Id && sh.UserId == userId && sh.Type == EnumHistoryEntityType.Exercise),
+                Order = x.Order
             })
+            .OrderBy(x => x.Order)
             .GetByDataQueryAsync(query);
     }
 
@@ -112,6 +125,9 @@ public class WorkoutService(AppDbContext dbContext)
         exercise.Description = dto.Description;
         exercise.Assets = dto.Assets;
         exercise.Duration = dto.Duration;
+
+        if (dto.Order.HasValue)
+            exercise.Order = dto.Order.Value;
 
         await dbContext.Transactional(async () =>
         {

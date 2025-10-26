@@ -10,4 +10,5 @@ public record GetLessonDto
     public bool IsFree { get; set; }
     public MultiLanguageField Title { get; set; } = null!;
     public MultiLanguageField Description { get; set; } = null!;
+    public decimal Order { get; set; }
 }

@@ -11,4 +11,5 @@ public record GetCourseDto
     public EnumGender? Gender { get; set; }
     public EnumCourseType Type { get; set; }
     public int Total { get; set; }
+    public decimal Order { get; set; }
 }
