@@ -12,4 +12,5 @@ public record GetCourseDto
     public EnumCourseType Type { get; set; }
     public int Total { get; set; }
     public decimal Order { get; set; }
+    public string[] Assets { get; set; } = null!;
 }
