@@ -49,7 +49,7 @@ public class UserController(UserService userService) : AuthorizedController
         return (new { Message = "User extra deleted successfully." }, 200);
     }
     
-    [HttpGet("metrics")]
+    [HttpGet("metrics-summary")]
     [ProducesResponseType<WrapperGeneric<UserMetricSummaryDto>>(200)]
     public async Task<Wrapper> MetricSummary([FromQuery, Required] EnumMetrics metric) =>
         (await userService.UserMetricsSummary(this.UserId, metric), 200);
