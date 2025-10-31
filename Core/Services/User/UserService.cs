@@ -8,6 +8,8 @@ using Core.Entities.Refs;
 using Core.Enums;
 using Core.Services.User.Contracts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.IdentityModel.Tokens;
 using ResultWrapper.Library;
 
 namespace Core.Services.User;
@@ -59,8 +61,16 @@ public class UserService(AppDbContext context)
             extra.Photo = dto.Photo;
             extra.Name = dto.Name;
             extra.Language = dto.Language;
-            extra.Purpose = dto.Purpose;
             extra.ActivityLevel = dto.ActivityLevel;
+
+            if (dto.Purpose != extra.Purpose)
+            {
+                extra.Purpose = dto.Purpose;
+                await context.UserDailies
+                    .Where(x => x.UserId == userId
+                                && x.Metric == EnumMetrics.Weight)
+                    .ExecuteDeleteAsync();
+            }
 
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
@@ -145,6 +155,29 @@ public class UserService(AppDbContext context)
         await context.SaveChangesAsync();
     }
 
+    public async Task<UserMetricSummaryDto> UserMetricsSummary(long userId, EnumMetrics metric)
+    {
+        return await context.UserNorms
+            .AsSplitQuery()
+            .Where(x => x.UserId == userId)
+            .GroupJoin(context.UserDailies
+                    .Where(x => x.UserId == userId)
+                    .GroupBy(x => x.Metric)
+                    .Select(x => new
+                    {
+                        Metric = x.Key,
+                        Sum = x.Sum(daily => daily.Value)
+                    }), general => general.Metric, arg => arg.Metric,
+                (general, arg2) => new UserMetricSummaryDto
+                    { Metric = general.Metric, Target = general.Value, Progress = !arg2.IsNullOrEmpty() ? arg2.First().Sum : 0 })
+            .FirstOrDefaultAsync(x => x.Metric == metric) ?? new UserMetricSummaryDto()
+        {
+            Metric = metric,
+            Target = 0,
+            Progress = 0
+        };
+    }
+
     #endregion
 
     #region UserNormsGeneral
@@ -210,14 +243,15 @@ public class UserService(AppDbContext context)
             .Sort(q)
             .ToDictionaryAsync(x => x.Date, x => x);
 
-        var result = Enumerable.Range(0, (to - from).Value.Days + 1).Select((x, i) => byDate.TryGetValue(from.Value.AddDays(i), out var value)
-            ? value
-            : new GetDailyDto()
-            {
-                Metric = metrics,
-                Value = 0,
-                Date = from.Value.AddDays(i)
-            }).ToArray();
+        var result = Enumerable.Range(0, (to - from).Value.Days + 1).Select((x, i) =>
+            byDate.TryGetValue(from.Value.AddDays(i), out var value)
+                ? value
+                : new GetDailyDto()
+                {
+                    Metric = metrics,
+                    Value = 0,
+                    Date = from.Value.AddDays(i)
+                }).ToArray();
 
         return (result, result.Length);
     }

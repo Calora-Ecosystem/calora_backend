@@ -11,4 +11,8 @@ public record GetUserExtraDto(
     DateTime BirthDate,
     string? Photo,
     string Name,
-    EnumActivityLevel ActivityLevel);
+    EnumActivityLevel ActivityLevel)
+{
+    public double WeightTarget { get; set; }
+    public double WeightResult { get; set; }
+}
