@@ -13,6 +13,5 @@ public record GetUserExtraDto(
     string Name,
     EnumActivityLevel ActivityLevel)
 {
-    public double WeightTarget { get; set; }
-    public double WeightResult { get; set; }
+    public List<UserProgressSummaryDto> Progress { get; set; } = null!;
 }
