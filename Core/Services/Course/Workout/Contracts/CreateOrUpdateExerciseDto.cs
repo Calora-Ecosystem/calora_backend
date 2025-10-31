@@ -1,3 +1,4 @@
+using Core.Entities.Course;
 using Core.Enums;
 using Core.Services.Course.Common;
 
@@ -7,7 +8,7 @@ public class CreateOrUpdateExerciseDto : BaseCreateOrUpdateDto
 {
     public long WorkoutId { get; set; }
     public TimeSpan Duration { get; set; }
-    public string[] Assets { get; set; } = null!;
+    public Asset[] Assets { get; set; } = null!;
     public List<MetricsUpdateOrCreateDto> Metrics { get; set; } = null!;
 }
 
