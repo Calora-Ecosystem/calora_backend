@@ -3,6 +3,7 @@ using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
+using Core.Entities.Course.Enum;
 using Core.Enums;
 using Core.Services.Course.Lesson.Contracts;
 using Microsoft.EntityFrameworkCore;
@@ -22,11 +23,16 @@ public class LessonService(AppDbContext dbContext)
         return await q
             .Select(x => new GetLessonDto
             {
-                Id = x.Id, CourseId = x.CourseId, Duration = x.Duration,
+                Id = x.Id, 
+                CourseId = x.CourseId, 
+                Duration = x.Duration,
                 IsFree = x.IsFree,
                 Title = x.Title,
                 Description = x.Description,
-                Order = x.Order
+                Order = x.Order,
+                IsFinished = dbContext.CourseItemStates
+                    .Any(courseItemState => courseItemState.EntityId == courseItemState.Id && courseItemState.Type == EnumHistoryEntityType.Lesson),
+                Assets = x.Assets
             })
             .OrderBy(x => x.Order)
             .GetByDataQueryAsync(query);

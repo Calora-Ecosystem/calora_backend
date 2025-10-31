@@ -1,4 +1,5 @@
 using BRB.Core.Common.Models;
+using Core.Entities.Course;
 using Core.Enums;
 
 namespace Core.Services.Course.Course.Contracts;
@@ -12,5 +13,6 @@ public record GetCourseDto
     public EnumCourseType Type { get; set; }
     public int Total { get; set; }
     public decimal Order { get; set; }
-    public string[] Assets { get; set; } = null!;
+    public Asset[] Assets { get; set; } = null!;
+    public long Price { get; set; }
 }
