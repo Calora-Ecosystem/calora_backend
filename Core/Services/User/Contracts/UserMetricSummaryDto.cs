@@ -2,7 +2,7 @@ using Core.Enums;
 
 namespace Core.Services.User.Contracts;
 
-public record UserMetricSummaryDto
+public record UserProgressSummaryDto
 {
     public double Target { get; set; }
     public double Progress { get; set; }

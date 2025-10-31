@@ -38,6 +38,8 @@ public class UserService(AppDbContext context)
                             x.Photo, x.Name, x.ActivityLevel))
                         .FirstOrDefaultAsync()
                     ?? throw new NotFoundException("User not found.");
+        
+        extra.Progress = await UserProgressSummary(userId);
 
         return extra;
     }
@@ -155,7 +157,7 @@ public class UserService(AppDbContext context)
         await context.SaveChangesAsync();
     }
 
-    public async Task<UserMetricSummaryDto> UserMetricsSummary(long userId, EnumMetrics metric)
+    private async Task<List<UserProgressSummaryDto>> UserProgressSummary(long userId)
     {
         return await context.UserNorms
             .AsSplitQuery()
@@ -168,14 +170,9 @@ public class UserService(AppDbContext context)
                         Metric = x.Key,
                         Sum = x.Sum(daily => daily.Value)
                     }), general => general.Metric, arg => arg.Metric,
-                (general, arg2) => new UserMetricSummaryDto
+                (general, arg2) => new UserProgressSummaryDto
                     { Metric = general.Metric, Target = general.Value, Progress = !arg2.IsNullOrEmpty() ? arg2.First().Sum : 0 })
-            .FirstOrDefaultAsync(x => x.Metric == metric) ?? new UserMetricSummaryDto()
-        {
-            Metric = metric,
-            Target = 0,
-            Progress = 0
-        };
+         .ToListAsync();
     }
 
     #endregion
