@@ -11,7 +11,8 @@ public record GetUserExtraDto(
     DateTime BirthDate,
     string? Photo,
     string Name,
-    EnumActivityLevel ActivityLevel)
+    EnumActivityLevel ActivityLevel,
+    EnumPurpose Purpose)
 {
     public List<UserProgressSummaryDto> Progress { get; set; } = null!;
 }
