@@ -35,7 +35,7 @@ public class UserService(AppDbContext context)
         var extra = await context.UserExtras
                         .Where(x => x.UserId == userId)
                         .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.Height, x.Bmi, x.Gender, x.BirthDate,
-                            x.Photo, x.Name, x.ActivityLevel))
+                            x.Photo, x.Name, x.ActivityLevel, x.Purpose))
                         .FirstOrDefaultAsync()
                     ?? throw new NotFoundException("User not found.");
         
@@ -55,7 +55,6 @@ public class UserService(AppDbContext context)
         await context.Transactional(async () =>
         {
             extra.UserId = userId;
-            extra.Weight = dto.Weight;
             extra.Height = dto.Height;
             extra.Bmi = dto.Weight / Math.Pow(dto.Height / 100, 2);
             extra.Gender = dto.Gender;
@@ -72,6 +71,19 @@ public class UserService(AppDbContext context)
                     .Where(x => x.UserId == userId
                                 && x.Metric == EnumMetrics.Weight)
                     .ExecuteDeleteAsync();
+            }
+            else
+            {
+                var progress = Math.Abs(dto.Weight - extra.Weight);
+                await context.UserDailies.AddAsync(new UserDaily()
+                {
+                    Metric = EnumMetrics.Weight,
+                    Date = DateTime.Now.Date,
+                    Value = progress,
+                    UserId = userId
+                });
+                
+                extra.Weight = dto.Weight;
             }
 
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
