@@ -22,7 +22,10 @@ public class CourseService(AppDbContext context)
             .Where(x => x.Gender == query.Gender || x.Gender == null)
             .Select(x => new GetCourseDto
             {
-                Id = x.Id, Title = x.Title, Description = x.Description,
+                Id = x.Id, 
+                Title = x.Title, 
+                Description = x.Description,
+                Info = x.Info,
                 Gender = x.Gender,
                 Type = x.Type,
                 Total = x.Type == EnumCourseType.Lesson ? x.Lessons.Count() : x.Workouts.Count(),
@@ -48,6 +51,7 @@ public class CourseService(AppDbContext context)
         course.Title = dto.Title;
         course.Description = dto.Description;
         course.Price = dto.Price;
+        course.Info = dto.Info;
         course.Assets = dto.Assets;
 
         if (dto.Order.HasValue)
