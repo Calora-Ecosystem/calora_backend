@@ -13,6 +13,7 @@ public class UserExtra : ModelBase<long>
 {
     [ForeignKey(nameof(User))] public long UserId { get; set; }
     public double Weight { get; set; }
+    public double EntryWeight { get; set; }
     public double Height { get; set; }
     public double Bmi { get; set; }
     public EnumGender Gender { get; set; }
