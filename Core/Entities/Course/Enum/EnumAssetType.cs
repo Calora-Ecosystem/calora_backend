@@ -4,6 +4,8 @@ public enum EnumAssetType
 {
     Default = 1,
     CoverImage,
+    MainImage,
+    SubCoverImage,
     Video,
     Lotte
 }
