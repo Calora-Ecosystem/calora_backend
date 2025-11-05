@@ -185,10 +185,15 @@ public class AuthService(
         claims.Add(new Claim(CustomClaims.DeviceId, deviceId.ToString()));
         claims.Add(new Claim(CustomClaims.UserId, user.Id.ToString()));
 
+        var expires = DateTime.Now.AddHours(authConfig.Value.ATokenExpireInHours);
+        
+        if (!environment.IsProduction() && user.Email == "zokirjonashiraliyev@gamil.com")
+            expires = DateTime.Now.AddMinutes(1);
+
         var token = new JwtSecurityToken(authConfig.Value.Issuer,
             authConfig.Value.Audience,
             claims,
-            expires: DateTime.Now.AddHours(authConfig.Value.ATokenExpireInHours),
+            expires: expires,
             signingCredentials: new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authConfig.Value.SecretKey)),
                 SecurityAlgorithms.HmacSha256));
