@@ -34,11 +34,12 @@ public class UserService(AppDbContext context)
     {
         var extra = await context.UserExtras
                         .Where(x => x.UserId == userId)
-                        .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.EntryWeight, x.Height, x.Bmi, x.Gender, x.BirthDate,
+                        .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.EntryWeight, x.Height, x.Bmi, x.Gender,
+                            x.BirthDate,
                             x.Photo, x.Name, x.ActivityLevel, x.Purpose))
                         .FirstOrDefaultAsync()
                     ?? throw new NotFoundException("User not found.");
-        
+
         extra.Progress = await UserProgressSummary(userId);
 
         return extra;
@@ -85,9 +86,11 @@ public class UserService(AppDbContext context)
                     UserId = userId
                 });
             }
-            
+
             extra.Weight = dto.Weight;
 
+            //Calculate user norms
+            //Step
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
                 Metric = EnumMetrics.Step,
@@ -98,6 +101,7 @@ public class UserService(AppDbContext context)
                 }
             });
 
+            //Water
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
                 Metric = EnumMetrics.Water,
@@ -111,6 +115,7 @@ public class UserService(AppDbContext context)
 
             var tdee = CalculateTdee(extra);
 
+            //kcal
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
                 Metric = EnumMetrics.Kcal,
@@ -120,6 +125,64 @@ public class UserService(AppDbContext context)
                     EnumPurpose.SaveCurrent => tdee,
                     _ => tdee + 300
                 }
+            });
+
+            //protein
+            var protein = extra.Gender switch
+            {
+                EnumGender.Male => extra.Purpose switch
+                {
+                    EnumPurpose.WeightLoss => 1.6 * 24.9 * extra.Height,
+                    EnumPurpose.SaveCurrent => 1.8 * 24.9 * extra.Height,
+                    EnumPurpose.MuscleDevelopment => 2 * 24.9 * extra.Height,
+                    _ => 0
+                },
+                EnumGender.Female => extra.Purpose switch
+                {
+                    EnumPurpose.WeightLoss => 1.4 * 24.9 * extra.Height,
+                    EnumPurpose.SaveCurrent => 1.6 * 24.9 * extra.Height,
+                    EnumPurpose.MuscleDevelopment => 1.8 * 24.9 * extra.Height,
+                    _ => 0
+                },
+                _ => 0
+            };
+
+            await CreateOrUpdateNorm(userId, new CreateUserNormDto()
+            {
+                Metric = EnumMetrics.Protein,
+                Value = protein
+            });
+
+            //fat
+            var fat = extra.Gender switch
+            {
+                EnumGender.Male => extra.Purpose switch
+                {
+                    EnumPurpose.WeightLoss => 1 * 24.9 * extra.Height,
+                    EnumPurpose.SaveCurrent => 1.2 * 24.9 * extra.Height,
+                    EnumPurpose.MuscleDevelopment => 1.5 * 24.9 * extra.Height,
+                    _ => 0
+                },
+                EnumGender.Female => extra.Purpose switch
+                {
+                    EnumPurpose.WeightLoss => 0.8 * 24.9 * extra.Height,
+                    EnumPurpose.SaveCurrent => 1.0 * 24.9 * extra.Height,
+                    EnumPurpose.MuscleDevelopment => 1.2 * 24.9 * extra.Height,
+                    _ => 0
+                },
+                _ => 0
+            };
+            await CreateOrUpdateNorm(userId, new CreateUserNormDto()
+            {
+                Metric = EnumMetrics.Fat,
+                Value = fat
+            });
+
+            //carb
+            await CreateOrUpdateNorm(userId, new CreateUserNormDto()
+            {
+                Metric = EnumMetrics.Carb,
+                Value = (tdee - protein * 4 - fat * 9) / 4
             });
 
             context.UserExtras.Update(extra);
@@ -185,8 +248,11 @@ public class UserService(AppDbContext context)
                         Sum = x.Sum(daily => daily.Value)
                     }), general => general.Metric, arg => arg.Metric,
                 (general, arg2) => new UserProgressSummaryDto
-                    { Metric = general.Metric, Target = general.Value, Progress = !arg2.IsNullOrEmpty() ? arg2.First().Sum : 0 })
-         .ToListAsync();
+                {
+                    Metric = general.Metric, Target = general.Value,
+                    Progress = !arg2.IsNullOrEmpty() ? arg2.First().Sum : 0
+                })
+            .ToListAsync();
     }
 
     #endregion
