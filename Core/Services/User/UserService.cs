@@ -127,21 +127,23 @@ public class UserService(AppDbContext context)
                 }
             });
 
+            var heightInM = extra.Height / 100;
+
             //protein
             var protein = extra.Gender switch
             {
                 EnumGender.Male => extra.Purpose switch
                 {
-                    EnumPurpose.WeightLoss => 1.6 * 24.9 * extra.Height,
-                    EnumPurpose.SaveCurrent => 1.8 * 24.9 * extra.Height,
-                    EnumPurpose.MuscleDevelopment => 2 * 24.9 * extra.Height,
+                    EnumPurpose.WeightLoss => 1.6 * 24.9 * heightInM,
+                    EnumPurpose.SaveCurrent => 1.8 * 24.9 * heightInM,
+                    EnumPurpose.MuscleDevelopment => 2 * 24.9 * heightInM,
                     _ => 0
                 },
                 EnumGender.Female => extra.Purpose switch
                 {
-                    EnumPurpose.WeightLoss => 1.4 * 24.9 * extra.Height,
-                    EnumPurpose.SaveCurrent => 1.6 * 24.9 * extra.Height,
-                    EnumPurpose.MuscleDevelopment => 1.8 * 24.9 * extra.Height,
+                    EnumPurpose.WeightLoss => 1.4 * 24.9 * heightInM,
+                    EnumPurpose.SaveCurrent => 1.6 * 24.9 * heightInM,
+                    EnumPurpose.MuscleDevelopment => 1.8 * 24.9 * heightInM,
                     _ => 0
                 },
                 _ => 0
@@ -158,16 +160,16 @@ public class UserService(AppDbContext context)
             {
                 EnumGender.Male => extra.Purpose switch
                 {
-                    EnumPurpose.WeightLoss => 1 * 24.9 * extra.Height,
-                    EnumPurpose.SaveCurrent => 1.2 * 24.9 * extra.Height,
-                    EnumPurpose.MuscleDevelopment => 1.5 * 24.9 * extra.Height,
+                    EnumPurpose.WeightLoss => 1 * 24.9 * heightInM,
+                    EnumPurpose.SaveCurrent => 1.2 * 24.9 * heightInM,
+                    EnumPurpose.MuscleDevelopment => 1.5 * 24.9 * heightInM,
                     _ => 0
                 },
                 EnumGender.Female => extra.Purpose switch
                 {
-                    EnumPurpose.WeightLoss => 0.8 * 24.9 * extra.Height,
-                    EnumPurpose.SaveCurrent => 1.0 * 24.9 * extra.Height,
-                    EnumPurpose.MuscleDevelopment => 1.2 * 24.9 * extra.Height,
+                    EnumPurpose.WeightLoss => 0.8 * 24.9 * heightInM,
+                    EnumPurpose.SaveCurrent => 1.0 * 24.9 * heightInM,
+                    EnumPurpose.MuscleDevelopment => 1.2 * 24.9 * heightInM,
                     _ => 0
                 },
                 _ => 0
