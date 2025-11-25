@@ -1,4 +1,5 @@
 using BRB.Core.File;
+using Calora.Api.Controllers;
 using Core;
 using Core.Brokers.DbContext;
 using WebCore;
@@ -14,7 +15,7 @@ builder
     .AddFileService()
     ;
 builder.Services.AddHttpClient();
-
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 #if !DEBUG
 builder.AddSwaggerServer("/api/");
 #endif
