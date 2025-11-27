@@ -1,4 +1,5 @@
 using BRB.Core.Common.Exceptions;
+using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Models;
 using BRB.Core.Common.Models.Base;
 using BRB.Core.EF.Attributes;
@@ -92,8 +93,8 @@ public class WorkoutService(AppDbContext dbContext)
         await dbContext.SaveChangesAsync();
     }
 
-    public Task<List<ComputationDto>> GetWorkoutComputations(long id) => GetComputations(id, EnumEntityType.Workout);
-    
+    public Task<List<ComputationDto>> GetWorkoutComputations(long id) => GetComputations(id);
+
 
     #region Exercise
 
@@ -173,16 +174,31 @@ public class WorkoutService(AppDbContext dbContext)
         dbContext.Remove(exercise);
         await dbContext.SaveChangesAsync();
     }
-    
-    public Task<List<ComputationDto>> GetExerciseComputations(long id) => GetComputations(id, EnumEntityType.Exercise);
+
+    public async Task<List<ComputationDto>> GetExerciseComputations(long id)
+    {
+        var exercise = await dbContext.Exercises.GetByIdOrThrowsNotFoundException(id);
+        return await GetComputations(exercise.WorkoutId, exercise.Id);
+    }
 
     #endregion
 
-    public Task<List<ComputationDto>> GetComputations(long entityId, EnumEntityType entityType)
+    public async Task<List<ComputationDto>> GetComputations(long workoutId, long? exerciseId = null)
     {
-        return dbContext.Computations
-            .Where(x => x.EntityId == entityId && x.Type == entityType)
-            .Select(x => new ComputationDto()
+        var defaultValues = Enum.GetValues<EnumActivityLevel>().Cast<int>()
+            .ToDictionary(x => (EnumActivityLevel)x, x => new ComputationDto()
+            {
+                ComputationType = EnumComputationType.Count,
+                Type = EnumEntityType.Workout,
+                EntityId = workoutId,
+                Value = 0,
+                Activity = (EnumActivityLevel)x,
+                Id = 0
+            });
+
+        (await dbContext.Computations
+            .Where(x => x.EntityId == workoutId && x.Type == EnumEntityType.Workout)
+            .ToDictionaryAsync(x => x.Level, x => new ComputationDto()
             {
                 Id = x.Id,
                 Activity = x.Level,
@@ -190,18 +206,34 @@ public class WorkoutService(AppDbContext dbContext)
                 EntityId = x.EntityId,
                 Value = x.Value,
                 ComputationType = x.ComputationType
-            })
-            .ToListAsync();
+            })).ForEach(x => defaultValues[x.Key] = x.Value);
+
+        if (exerciseId.HasValue)
+        {
+            (await dbContext.Computations
+                .Where(x => x.EntityId == exerciseId && x.Type == EnumEntityType.Exercise)
+                .ToDictionaryAsync(x => x.Level, x => new ComputationDto()
+                {
+                    Id = x.Id,
+                    Activity = x.Level,
+                    Type = x.Type,
+                    EntityId = x.EntityId,
+                    Value = x.Value,
+                    ComputationType = x.ComputationType
+                })).ForEach(x => defaultValues[x.Key] = x.Value);
+        }
+
+        return defaultValues.Values.OrderBy(x => x.Activity).ToList();
     }
 
     public async Task CreateOrUpdateComputation(ComputationDto dto)
     {
-        ModelBase<long> entity = dto.Type switch
+        await (dto.Type switch
         {
-            EnumEntityType.Exercise => await dbContext.Exercises.GetByIdOrThrowsNotFoundException(dto.EntityId),
-            EnumEntityType.Workout => await dbContext.Workouts.GetByIdOrThrowsNotFoundException(dto.EntityId),
+            EnumEntityType.Exercise => dbContext.Exercises.ExistsOrThrowsNotFoundException(dto.EntityId),
+            EnumEntityType.Workout => dbContext.Workouts.ExistsOrThrowsNotFoundException(dto.EntityId),
             _ => throw new BadRequestException("Invalid type of entity")
-        };
+        });
 
         var computation = dto.Id.HasValue
             ? await dbContext.Computations.GetByIdOrThrowsNotFoundException(dto.Id.Value)
