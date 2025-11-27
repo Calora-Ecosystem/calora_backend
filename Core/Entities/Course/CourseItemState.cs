@@ -9,5 +9,5 @@ public class CourseItemState : AuditableModelBase<long>
 {
     public long EntityId { get; set; }
     public long UserId { get; set; }
-    public EnumHistoryEntityType Type { get; set; }
+    public EnumEntityType Type { get; set; }
 }

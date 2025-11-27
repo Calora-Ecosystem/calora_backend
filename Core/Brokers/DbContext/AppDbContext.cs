@@ -5,6 +5,7 @@ using Core.Entities.Course;
 using Core.Entities.FoodEntites;
 using Core.Entities.Notification;
 using Core.Entities.Refs;
+using Core.Services.Course.Workout.Contracts;
 using Microsoft.EntityFrameworkCore;
 
 namespace Core.Brokers.DbContext;
@@ -42,6 +43,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<Lesson> Lessons { get; set; }
     public DbSet<Workout> Workouts { get; set; }
     public DbSet<UserStepStat> UserStepStats { get; set; }
+    public DbSet<Computation> Computations { get; set; }
 
     #endregion
 
