@@ -30,7 +30,7 @@ public class LessonController(LessonService service, CourseService courseService
     [HttpPut("finish/{lessonId:long:min(1)}")]
     public async Task<Wrapper> Finish(long lessonId)
     {
-        await courseService.FinishEntity(this.UserId, lessonId, EnumHistoryEntityType.Lesson);
+        await courseService.FinishEntity(this.UserId, lessonId, EnumEntityType.Lesson);
         return 200;
     }
 

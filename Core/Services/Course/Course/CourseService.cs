@@ -71,19 +71,19 @@ public class CourseService(AppDbContext context)
         await context.SaveChangesAsync();
     }
 
-    public async Task FinishEntity(long userId, long entityId, EnumHistoryEntityType type)
+    public async Task FinishEntity(long userId, long entityId, EnumEntityType type)
     {
         switch (type)
         {
-            case EnumHistoryEntityType.Lesson:
+            case EnumEntityType.Lesson:
                 await context.Lessons.ExistsOrThrowsNotFoundException(entityId);
                 break;
 
-            case EnumHistoryEntityType.Workout:
+            case EnumEntityType.Workout:
                 await context.Workouts.ExistsOrThrowsNotFoundException(entityId);
                 break;
 
-            case EnumHistoryEntityType.Exercise:
+            case EnumEntityType.Exercise:
                 await context.Exercises.ExistsOrThrowsNotFoundException(entityId);
                 break;
 

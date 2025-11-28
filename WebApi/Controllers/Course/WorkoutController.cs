@@ -22,6 +22,11 @@ public class WorkoutController(WorkoutService service, CourseService courseServi
     [ProducesResponseType(typeof(WrapperGeneric<GetWorkoutDto>), 200)]
     public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q) => await service.GetAll(this.UserId, q);
 
+    [HttpGet("computations")]
+    [ProducesResponseType(typeof(WrapperGeneric<ComputationDto>), 200)]
+    public async Task<Wrapper> GetAllComputations(long workoutId) =>
+        (await service.GetWorkoutComputations(workoutId), 200);
+
     // [HttpGet("/{courseId:long:min(1)}/workouts")]
     // [ProducesResponseType(typeof(WrapperGeneric<GetWorkoutDto>), 200)]
     // public async Task<Wrapper> GetAllByCourseId([FromQuery] DataQueryRequest q, [FromRoute] long courseId) =>
@@ -31,10 +36,18 @@ public class WorkoutController(WorkoutService service, CourseService courseServi
     [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> CreateOrUpdate(CreateOrUpdateWorkoutDto dto) => (await service.CrateOrUpdate(dto), 200);
 
+    [HttpPost("computations")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> CreateOrUpdate(ComputationDto dto)
+    {
+        await service.CreateOrUpdateComputation(dto);
+        return 200;
+    }
+
     [HttpPut("finish/{workoutId:long:min(1)}")]
     public async Task<Wrapper> Finish(long workoutId)
     {
-        await courseService.FinishEntity(this.UserId, workoutId, EnumHistoryEntityType.Workout);
+        await courseService.FinishEntity(this.UserId, workoutId, EnumEntityType.Workout);
         return 200;
     }
 

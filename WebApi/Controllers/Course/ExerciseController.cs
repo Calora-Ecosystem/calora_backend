@@ -21,6 +21,11 @@ public class ExerciseController(WorkoutService service, CourseService courseServ
     [ProducesResponseType(typeof(WrapperGeneric<GetExerciseDto>), 200)]
     public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q, long workoutId) =>
         await service.GetAllExercises(this.UserId, workoutId, q);
+    
+    [HttpGet("computations")]
+    [ProducesResponseType(typeof(WrapperGeneric<ComputationDto>), 200)]
+    public async Task<Wrapper> GetAllComputations(long exerciseId) =>
+        (await service.GetExerciseComputations(exerciseId), 200);
 
     [HttpPost]
     [RoleAuthorize(EnumRole.SuperAdmin)]
@@ -30,7 +35,7 @@ public class ExerciseController(WorkoutService service, CourseService courseServ
     [HttpPut("finish/{exerciseId:long:min(1)}")]
     public async Task<Wrapper> Finish(long exerciseId)
     {
-        await courseService.FinishEntity(this.UserId, exerciseId, EnumHistoryEntityType.Exercise);
+        await courseService.FinishEntity(this.UserId, exerciseId, EnumEntityType.Exercise);
         return 200;
     }
 
