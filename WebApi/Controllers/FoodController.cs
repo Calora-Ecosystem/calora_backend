@@ -84,8 +84,8 @@ public class FoodController(FoodService service) : AuthorizedController
     [HttpGet("menu")]
     [RoleAuthorize(EnumRole.User)]
     [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetMenuFoodsDto>>), 200)]
-    public async Task<Wrapper> GetMenuFoods([FromQuery] DataQueryRequest q, [FromQuery] DateTime? date) =>
-        await service.GetMenuFoods(this.UserId, date, q);
+    public async Task<Wrapper> GetMenuFoods([FromQuery] DataQueryRequest q, [FromQuery] EnumMenu? menu, [FromQuery] DateTime? date) =>
+        await service.GetMenuFoods(this.UserId, menu, date, q);
 
     [HttpPost("menu")]
     public async Task<Wrapper> AddMenuItem(AddDailyMenuDto dto) =>

@@ -211,12 +211,17 @@ public class FoodService(AppDbContext dbContext)
 
     #region Menu
 
-    public async Task<Wrapper> GetMenuFoods(long userId, DateTime? date, DataQueryRequest q)
+    public async Task<Wrapper> GetMenuFoods(long userId, EnumMenu? menu, DateTime? date, DataQueryRequest q)
     {
         date ??= DateTime.Now.Date;
-
-        return await dbContext.DailyMenus
-            .Where(x => x.UserId == userId && x.Date == date.Value.Date)
+        var query = dbContext.DailyMenus
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Where(x => x.UserId == userId && x.Date == date.Value.Date);
+        
+        if (menu.HasValue) query = query.Where(x => x.Menu == menu.Value);
+        
+        return await query
             .Select(x => new GetMenuFoodsDto
             {
                 Menu = x.Menu, Date = x.Date, FoodId = x.FoodId,
