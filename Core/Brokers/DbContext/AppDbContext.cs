@@ -21,7 +21,6 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<UserNormGeneral> UserNorms { get; set; }
     public DbSet<UserDaily> UserDailies { get; set; }
     public DbSet<UserNormByMenu> UserNormByMenus { get; set; }
-    public DbSet<Reminder> Reminders { get; set; }
 
     #endregion
 
@@ -50,6 +49,13 @@ public class AppDbContext : DefaultConfiguredDbContext
     #region References
 
     public DbSet<Purpose> Purposes { get; set; }
+
+    #endregion
+
+    #region MyRegion
+
+    public DbSet<Notification> Notifications { get; set; }
+    public DbSet<Reminder> Reminders { get; set; }
 
     #endregion
 

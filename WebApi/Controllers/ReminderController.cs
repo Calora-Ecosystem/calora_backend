@@ -3,11 +3,9 @@ using Core;
 using Core.Enums;
 using Core.Services.Notification;
 using Core.Services.Notification.Contracts;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResultWrapper.Library;
 using WebCore.Controller;
-using WebCore.Enum;
 
 namespace WebApi.Controllers;
 
@@ -22,7 +20,7 @@ public class ReminderController(ReminderService service) : AuthorizedController
         await service.GetAllByUserId(this.UserId, q);
 
     [HttpPost]
-    public async Task<Wrapper> AddRemind(AddRemindDto dto) => (await service.AddReminder(this.UserId, dto), 200);
+    public async Task<Wrapper> AddReminder(AddRemindDto dto) => (await service.AddReminder(this.UserId, dto), 200);
 
     /// <summary>
     /// Remove a reminder
