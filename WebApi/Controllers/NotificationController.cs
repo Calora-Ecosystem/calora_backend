@@ -13,6 +13,7 @@ namespace WebApi.Controllers;
 public class NotificationController(NotificationService notificationService) : AuthorizedController
 {
     [HttpGet("unread")]
+    [ProducesResponseType(typeof(WrapperGeneric<int>), 200)]
     public async Task<Wrapper> GetUnreadNotificationsCount() =>
         (await notificationService.GetUnreadNotificationsCount(this.UserId), 200);
 }

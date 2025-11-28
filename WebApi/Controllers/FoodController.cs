@@ -1,5 +1,6 @@
 ﻿using BRB.Core.Common.Models;
 using Core;
+using Core.Entities.FoodEntites;
 using Core.Enums;
 using Core.Services.FoodService;
 using Core.Services.FoodService.Contracts.Category;
@@ -20,10 +21,12 @@ public class FoodController(FoodService service) : AuthorizedController
 
     [HttpGet]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetAllFoodDto>>), 200)]
     public async Task<Wrapper> GetAllFoods([FromQuery] DataQueryRequest q) =>
         await service.GetAllFoods(this.HasAuthorized ? this.UserId : null, q);
 
     [HttpGet("favourites")]
+    [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetAllFoodDto>>), 200)]
     public async Task<Wrapper> GetFavouriteFoods([FromQuery] DataQueryRequest q) =>
         await service.GetFavouriteFoods(this.UserId, q);
 
@@ -59,6 +62,7 @@ public class FoodController(FoodService service) : AuthorizedController
 
     [HttpGet("categories")]
     [RoleAuthorize(EnumRole.User)]
+    [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<FoodCategory>>), 200)]
     public async Task<Wrapper> GetAllCategories([FromQuery] DataQueryRequest q) => await service.GetAllCategory(q);
 
     [HttpPost("categories")]
@@ -73,6 +77,7 @@ public class FoodController(FoodService service) : AuthorizedController
 
     [HttpGet("menu")]
     [RoleAuthorize(EnumRole.User)]
+    [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetMenuFoodsDto>>), 200)]
     public async Task<Wrapper> GetMenuFoods([FromQuery] DataQueryRequest q) =>
         await service.GetMenuFoods(this.UserId, q);
 
@@ -94,6 +99,7 @@ public class FoodController(FoodService service) : AuthorizedController
     /// <returns></returns>
     [HttpGet("summary")]
     [RoleAuthorize(EnumRole.User)]
+    [ProducesResponseType(typeof(WrapperGeneric<SummaryDto>), 200)]
     public async Task<Wrapper> Summary(DateTime? date) => (await service.Summary(this.UserId, date), 200);
 
     #endregion
