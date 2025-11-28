@@ -29,7 +29,7 @@ public class FoodController(FoodService service) : AuthorizedController
     [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetAllFoodDto>>), 200)]
     public async Task<Wrapper> GetFavouriteFoods([FromQuery] DataQueryRequest q) =>
         await service.GetFavouriteFoods(this.UserId, q);
-    
+
     [HttpGet("{foodId:long:min(1)}")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(WrapperGeneric<FoodDto>), 200)]
@@ -84,8 +84,8 @@ public class FoodController(FoodService service) : AuthorizedController
     [HttpGet("menu")]
     [RoleAuthorize(EnumRole.User)]
     [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetMenuFoodsDto>>), 200)]
-    public async Task<Wrapper> GetMenuFoods([FromQuery] DataQueryRequest q) =>
-        await service.GetMenuFoods(this.UserId, q);
+    public async Task<Wrapper> GetMenuFoods([FromQuery] DataQueryRequest q, [FromQuery] DateTime? date) =>
+        await service.GetMenuFoods(this.UserId, date, q);
 
     [HttpPost("menu")]
     public async Task<Wrapper> AddMenuItem(AddDailyMenuDto dto) =>

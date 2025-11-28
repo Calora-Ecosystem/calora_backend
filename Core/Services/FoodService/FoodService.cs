@@ -92,7 +92,10 @@ public class FoodService(AppDbContext dbContext)
         if (userId.HasValue && food.IsUserFood && food.UserId != userId)
             throw new NotFoundException("Food not found");
 
-        var metricsDict = new List<EnumMetrics>([EnumMetrics.Weight, EnumMetrics.Kcal, EnumMetrics.Carb, EnumMetrics.Fat, EnumMetrics.Protein]).ToDictionary(x => x, x => new GetNormDto(userId ?? 0, x, 0));
+        var metricsDict =
+            new List<EnumMetrics>([
+                EnumMetrics.Weight, EnumMetrics.Kcal, EnumMetrics.Carb, EnumMetrics.Fat, EnumMetrics.Protein
+            ]).ToDictionary(x => x, x => new GetNormDto(userId ?? 0, x, 0));
 
         food.Metrics.ForEach(x => metricsDict[x.Metric] = x);
         food.Metrics = metricsDict.Values;
@@ -208,10 +211,12 @@ public class FoodService(AppDbContext dbContext)
 
     #region Menu
 
-    public async Task<Wrapper> GetMenuFoods(long userId, DataQueryRequest q)
+    public async Task<Wrapper> GetMenuFoods(long userId, DateTime? date, DataQueryRequest q)
     {
+        date ??= DateTime.Now.Date;
+
         return await dbContext.DailyMenus
-            .Where(x => x.UserId == userId)
+            .Where(x => x.UserId == userId && x.Date == date.Value.Date)
             .Select(x => new GetMenuFoodsDto
             {
                 Menu = x.Menu, Date = x.Date, FoodId = x.FoodId,
@@ -219,16 +224,15 @@ public class FoodService(AppDbContext dbContext)
                 CategoryId = x.Food.CategoryId,
                 CategoryName = x.Food.Category.Name,
                 CoverUrl = x.Food.CoverUrl,
-                Metrics = x.Food.Metrics,
-                UserId = x.Food.UserId,
-                Name = x.Food.Name
+                Metrics = x.Food.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
+                UserId = x.Food.UserId
             })
             .GetByDataQueryAsync(q);
     }
 
     public async Task<DailyMenu> AddDailyMenuItem(long userId, AddDailyMenuDto dto)
     {
-        if (!await dbContext.Foods.AnyAsync(x => x.Id == dto.FoodId && x.UserId == userId))
+        if (!await dbContext.Foods.AnyAsync(x => x.Id == dto.FoodId && (!x.UserId.HasValue || x.UserId == userId)))
             throw new NotFoundException("Food not found");
 
         var date = dto.Date?.Date ?? DateTime.Now.Date;
@@ -237,9 +241,11 @@ public class FoodService(AppDbContext dbContext)
                                                                            && x.Menu == dto.Menu
                                                                            && x.Date == date
                                                                            && x.FoodId == dto.FoodId)
-                       ?? new DailyMenu();
+                       ?? new DailyMenu()
+                       {
+                           UserId = userId
+                       };
 
-        menuItem.UserId = userId;
         menuItem.Menu = dto.Menu;
         menuItem.Date = date;
         menuItem.FoodId = dto.FoodId;
