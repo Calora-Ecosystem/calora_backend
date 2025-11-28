@@ -3,7 +3,6 @@ using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
-using Core.Entities.Auth;
 using Core.Entities.FoodEntites;
 using Core.Enums;
 using Core.Services.FoodService.Contracts.Category;
@@ -62,13 +61,11 @@ public class FoodService(AppDbContext dbContext)
             queryable = queryable.Where(x => x.UserId == userId || x.UserId.HasValue == false);
 
         return await queryable
-            .Select(x => new
+            .Select(x => new GetAllFoodDto
             {
-                x.Id,
-                x.Name,
-                x.CategoryId,
+                Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
                 CategoryName = x.Category.Name,
-                x.CoverUrl,
+                CoverUrl = x.CoverUrl,
                 Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 IsUserFood = x.UserId.HasValue
             })
@@ -81,13 +78,11 @@ public class FoodService(AppDbContext dbContext)
             .UserExtras
             .Where(x => x.UserId == userId)
             .SelectMany(x => x.FavouriteFoods)
-            .Select(x => new
+            .Select(x => new GetAllFoodDto
             {
-                x.Id,
-                x.Name,
-                x.CategoryId,
+                Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
                 CategoryName = x.Category.Name,
-                x.CoverUrl,
+                CoverUrl = x.CoverUrl,
                 Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 IsUserFood = x.UserId.HasValue
             })
@@ -184,18 +179,16 @@ public class FoodService(AppDbContext dbContext)
     {
         return await dbContext.DailyMenus
             .Where(x => x.UserId == userId)
-            .Select(x => new
+            .Select(x => new GetMenuFoodsDto
             {
-                x.Menu,
-                x.Date,
-                x.FoodId,
+                Menu = x.Menu, Date = x.Date, FoodId = x.FoodId,
                 FoodName = x.Food.Name,
-                x.Food.CategoryId,
+                CategoryId = x.Food.CategoryId,
                 CategoryName = x.Food.Category.Name,
-                x.Food.CoverUrl,
-                x.Food.Metrics,
-                x.Food.UserId,
-                x.Food.Name,
+                CoverUrl = x.Food.CoverUrl,
+                Metrics = x.Food.Metrics,
+                UserId = x.Food.UserId,
+                Name = x.Food.Name
             })
             .GetByDataQueryAsync(q);
     }
@@ -238,7 +231,8 @@ public class FoodService(AppDbContext dbContext)
     {
         var kcalNorm = await dbContext.UserNorms
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == EnumMetrics.Kcal);
+            .Select(x => new GetNormDto(x.UserId, x.Metric, x.Value))
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == EnumMetrics.Kcal) ?? new GetNormDto(userId, EnumMetrics.Kcal, 0);
 
         date = date?.Date ?? DateTime.Now.Date;
 
@@ -246,7 +240,7 @@ public class FoodService(AppDbContext dbContext)
             .AsNoTracking()
             .Where(x => x.UserId == userId && x.Date == date)
             .GroupBy(x => x.Menu)
-            .ToDictionaryAsync(x => x.Key, x => new
+            .ToDictionaryAsync(x => x.Key, x => new NutrientSummaryDto
             {
                 Menu = x.Key,
                 Kcal = x.Sum(dailyMenu => dailyMenu.Food.Metrics
@@ -256,28 +250,24 @@ public class FoodService(AppDbContext dbContext)
                 Protein = x.Sum(dailyMenu => dailyMenu.Food.Metrics
                     .First(foodMetric => foodMetric.Metric == EnumMetrics.Protein).Value),
                 Carb = x.Sum(dailyMenu => dailyMenu.Food.Metrics
-                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value),
+                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value)
             });
 
         var nutrientsNorm = await dbContext.UserNormByMenus
             .AsNoTracking()
             .Where(x => x.UserId == userId)
             .GroupBy(x => x.Menu)
-            .ToDictionaryAsync(x => x.Key, x => new
+            .ToDictionaryAsync(x => x.Key, x => new NutrientSummaryDto
             {
-                Menu = x.Key,
-                Kcal = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Kcal).Value,
-                Fat = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Fat).Value,
+                Menu = x.Key, Kcal = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Kcal).Value, Fat = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Fat).Value,
                 Protein = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Protein).Value,
-                Carb = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value,
+                Carb = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value
             });
 
 
-        return new
+        return new SummaryDto
         {
-            KcalNorm = kcalNorm,
-            NutrientsNorm = nutrientsNorm,
-            Nutrients = nutrients,
+            KcalNorm = kcalNorm, NutrientsNorm = nutrientsNorm, Nutrients = nutrients,
             SumKcal = nutrients.Values.Sum(x => x.Kcal),
             Date = date
         };
