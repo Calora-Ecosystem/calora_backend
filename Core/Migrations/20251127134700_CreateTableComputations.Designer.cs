@@ -6,6 +6,7 @@ using Core.Brokers.DbContext;
 using Core.Entities.Course;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -14,9 +15,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Core.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251127134700_CreateTableComputations")]
+    partial class CreateTableComputations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -825,51 +828,6 @@ namespace Core.Migrations
                     b.ToTable("food_metrics", (string)null);
                 });
 
-            modelBuilder.Entity("Core.Entities.Notification.Notification", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("HasRead")
-                        .HasColumnType("boolean")
-                        .HasColumnName("has_read");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("title");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_notifications");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_notifications_user_id");
-
-                    b.ToTable("notifications", (string)null);
-                });
-
             modelBuilder.Entity("Core.Entities.Notification.Reminder", b =>
                 {
                     b.Property<long>("Id")
@@ -1126,18 +1084,6 @@ namespace Core.Migrations
                         .HasConstraintName("fk_food_metrics_foods_food_id");
 
                     b.Navigation("Food");
-                });
-
-            modelBuilder.Entity("Core.Entities.Notification.Notification", b =>
-                {
-                    b.HasOne("Core.Entities.Auth.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_notifications_users_user_id");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Core.Entities.Notification.Reminder", b =>

@@ -1,6 +1,6 @@
 namespace Core.Entities.Course.Enum;
 
-public enum EnumHistoryEntityType
+public enum EnumEntityType
 {
     Lesson = 1,
     Exercise,

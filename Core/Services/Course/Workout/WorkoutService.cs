@@ -1,5 +1,7 @@
 using BRB.Core.Common.Exceptions;
+using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Models;
+using BRB.Core.Common.Models.Base;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
@@ -28,7 +30,7 @@ public class WorkoutService(AppDbContext dbContext)
             {
                 Id = x.Id,
                 CourseId = x.CourseId,
-                Title = x.Title, 
+                Title = x.Title,
                 HasRest = x.HasRest,
                 TotalItems = x.Exercises.Count(),
                 DoneItems = dbContext.Exercises
@@ -39,7 +41,7 @@ public class WorkoutService(AppDbContext dbContext)
                         (e, state) => new { e, state })
                     .Count(joined =>
                         joined.state.UserId == userId &&
-                        joined.state.Type == EnumHistoryEntityType.Exercise),
+                        joined.state.Type == EnumEntityType.Exercise),
                 TotalDurationInMin = x.Exercises.Sum(exercise => exercise.Duration.TotalMinutes),
                 TotalMetrics = x.Exercises
                     .Where(exercise => exercise.WorkoutId == x.Id)
@@ -73,7 +75,7 @@ public class WorkoutService(AppDbContext dbContext)
 
         workout.Title = dto.Title;
         workout.HasRest = dto.HasRest;
-        
+
         if (dto.Order.HasValue)
             workout.Order = dto.Order.Value;
 
@@ -91,6 +93,9 @@ public class WorkoutService(AppDbContext dbContext)
         await dbContext.SaveChangesAsync();
     }
 
+    public Task<List<ComputationDto>> GetWorkoutComputations(long id) => GetComputations(id);
+
+
     #region Exercise
 
     public async Task<Wrapper> GetAllExercises(long userId, long workoutId, DataQueryRequest query)
@@ -105,7 +110,7 @@ public class WorkoutService(AppDbContext dbContext)
                 Assets = x.Assets,
                 Duration = x.Duration,
                 IsDone = dbContext.CourseItemStates.Any(sh =>
-                    sh.EntityId == sh.Id && sh.UserId == userId && sh.Type == EnumHistoryEntityType.Exercise),
+                    sh.EntityId == sh.Id && sh.UserId == userId && sh.Type == EnumEntityType.Exercise),
                 Order = x.Order
             })
             .OrderBy(x => x.Order)
@@ -158,7 +163,7 @@ public class WorkoutService(AppDbContext dbContext)
 
         await dbContext.CourseItemStates
             .Where(x => x.UserId == userId && ids.Contains(x.EntityId) &&
-                        (x.Type == EnumHistoryEntityType.Workout || x.Type == EnumHistoryEntityType.Exercise))
+                        (x.Type == EnumEntityType.Workout || x.Type == EnumEntityType.Exercise))
             .ExecuteDeleteAsync();
     }
 
@@ -170,5 +175,79 @@ public class WorkoutService(AppDbContext dbContext)
         await dbContext.SaveChangesAsync();
     }
 
+    public async Task<List<ComputationDto>> GetExerciseComputations(long id)
+    {
+        var exercise = await dbContext.Exercises.GetByIdOrThrowsNotFoundException(id);
+        return await GetComputations(exercise.WorkoutId, exercise.Id);
+    }
+
     #endregion
+
+    public async Task<List<ComputationDto>> GetComputations(long workoutId, long? exerciseId = null)
+    {
+        var defaultValues = Enum.GetValues<EnumActivityLevel>().Cast<int>()
+            .ToDictionary(x => (EnumActivityLevel)x, x => new ComputationDto()
+            {
+                ComputationType = EnumComputationType.Count,
+                Type = EnumEntityType.Workout,
+                EntityId = workoutId,
+                Value = 0,
+                Activity = (EnumActivityLevel)x,
+                Id = 0
+            });
+
+        (await dbContext.Computations
+            .Where(x => x.EntityId == workoutId && x.Type == EnumEntityType.Workout)
+            .ToDictionaryAsync(x => x.Level, x => new ComputationDto()
+            {
+                Id = x.Id,
+                Activity = x.Level,
+                Type = x.Type,
+                EntityId = x.EntityId,
+                Value = x.Value,
+                ComputationType = x.ComputationType
+            })).ForEach(x => defaultValues[x.Key] = x.Value);
+
+        if (exerciseId.HasValue)
+        {
+            (await dbContext.Computations
+                .Where(x => x.EntityId == exerciseId && x.Type == EnumEntityType.Exercise)
+                .ToDictionaryAsync(x => x.Level, x => new ComputationDto()
+                {
+                    Id = x.Id,
+                    Activity = x.Level,
+                    Type = x.Type,
+                    EntityId = x.EntityId,
+                    Value = x.Value,
+                    ComputationType = x.ComputationType
+                })).ForEach(x => defaultValues[x.Key] = x.Value);
+        }
+
+        return defaultValues.Values.OrderBy(x => x.Activity).ToList();
+    }
+
+    public async Task CreateOrUpdateComputation(ComputationDto dto)
+    {
+        await (dto.Type switch
+        {
+            EnumEntityType.Exercise => dbContext.Exercises.ExistsOrThrowsNotFoundException(dto.EntityId),
+            EnumEntityType.Workout => dbContext.Workouts.ExistsOrThrowsNotFoundException(dto.EntityId),
+            _ => throw new BadRequestException("Invalid type of entity")
+        });
+
+        var computation = dto.Id.HasValue
+            ? await dbContext.Computations.GetByIdOrThrowsNotFoundException(dto.Id.Value)
+            : new Computation()
+            {
+                Type = dto.Type,
+                EntityId = dto.EntityId,
+            };
+
+        computation.Level = dto.Activity;
+        computation.ComputationType = dto.ComputationType;
+        computation.Value = dto.Value;
+
+        dbContext.Update(computation);
+        await dbContext.SaveChangesAsync();
+    }
 }

@@ -5,6 +5,7 @@ using Core.Entities.Course;
 using Core.Entities.FoodEntites;
 using Core.Entities.Notification;
 using Core.Entities.Refs;
+using Core.Services.Course.Workout.Contracts;
 using Microsoft.EntityFrameworkCore;
 
 namespace Core.Brokers.DbContext;
@@ -20,7 +21,6 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<UserNormGeneral> UserNorms { get; set; }
     public DbSet<UserDaily> UserDailies { get; set; }
     public DbSet<UserNormByMenu> UserNormByMenus { get; set; }
-    public DbSet<Reminder> Reminders { get; set; }
 
     #endregion
 
@@ -42,12 +42,20 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<Lesson> Lessons { get; set; }
     public DbSet<Workout> Workouts { get; set; }
     public DbSet<UserStepStat> UserStepStats { get; set; }
+    public DbSet<Computation> Computations { get; set; }
 
     #endregion
 
     #region References
 
     public DbSet<Purpose> Purposes { get; set; }
+
+    #endregion
+
+    #region MyRegion
+
+    public DbSet<Notification> Notifications { get; set; }
+    public DbSet<Reminder> Reminders { get; set; }
 
     #endregion
 
