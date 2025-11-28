@@ -72,6 +72,28 @@ public class FoodService(AppDbContext dbContext)
             .GetByDataQueryAsync(q);
     }
 
+    public async Task<FoodDto> GetFoodById(long foodId, long? userId)
+    {
+        var food =  await dbContext.Foods
+            .AsNoTracking()
+            .Select(x => new FoodDto
+            {
+                Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
+                Description = x.Description,
+                CategoryName = x.Category.Name,
+                CoverUrl = x.CoverUrl,
+                Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
+                IsUserFood = x.UserId.HasValue,
+                UserId = x.UserId,
+            })
+            .FirstOrDefaultAsync(x => x.Id == foodId) ?? throw new NotFoundException("Food not found");
+        
+        if (userId.HasValue && food.UserId != userId)
+            throw new NotFoundException("Food not found");
+
+        return food;
+    }
+
     public async Task<Wrapper> GetFavouriteFoods(long userId, DataQueryRequest q)
     {
         return await dbContext
@@ -230,9 +252,10 @@ public class FoodService(AppDbContext dbContext)
     public async Task<object> Summary(long userId, DateTime? date)
     {
         var kcalNorm = await dbContext.UserNorms
-            .AsNoTracking()
-            .Select(x => new GetNormDto(x.UserId, x.Metric, x.Value))
-            .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == EnumMetrics.Kcal) ?? new GetNormDto(userId, EnumMetrics.Kcal, 0);
+                           .AsNoTracking()
+                           .Select(x => new GetNormDto(x.UserId, x.Metric, x.Value))
+                           .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == EnumMetrics.Kcal) ??
+                       new GetNormDto(userId, EnumMetrics.Kcal, 0);
 
         date = date?.Date ?? DateTime.Now.Date;
 
@@ -259,7 +282,8 @@ public class FoodService(AppDbContext dbContext)
             .GroupBy(x => x.Menu)
             .ToDictionaryAsync(x => x.Key, x => new NutrientSummaryDto
             {
-                Menu = x.Key, Kcal = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Kcal).Value, Fat = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Fat).Value,
+                Menu = x.Key, Kcal = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Kcal).Value,
+                Fat = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Fat).Value,
                 Protein = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Protein).Value,
                 Carb = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value
             });
