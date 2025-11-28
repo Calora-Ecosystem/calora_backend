@@ -1,4 +1,5 @@
 ﻿using BRB.Core.Common.Exceptions;
+using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -74,7 +75,7 @@ public class FoodService(AppDbContext dbContext)
 
     public async Task<FoodDto> GetFoodById(long foodId, long? userId)
     {
-        var food =  await dbContext.Foods
+        var food = await dbContext.Foods
             .AsNoTracking()
             .Select(x => new FoodDto
             {
@@ -87,9 +88,14 @@ public class FoodService(AppDbContext dbContext)
                 UserId = x.UserId,
             })
             .FirstOrDefaultAsync(x => x.Id == foodId) ?? throw new NotFoundException("Food not found");
-        
-        if (userId.HasValue && food.UserId != userId)
+
+        if (userId.HasValue && food.IsUserFood && food.UserId != userId)
             throw new NotFoundException("Food not found");
+
+        var metricsDict = new List<EnumMetrics>([EnumMetrics.Weight, EnumMetrics.Kcal, EnumMetrics.Carb, EnumMetrics.Fat, EnumMetrics.Protein]).ToDictionary(x => x, x => new GetNormDto(userId ?? 0, x, 0));
+
+        food.Metrics.ForEach(x => metricsDict[x.Metric] = x);
+        food.Metrics = metricsDict.Values;
 
         return food;
     }
@@ -124,16 +130,21 @@ public class FoodService(AppDbContext dbContext)
             Description = dto.Description
         }).Entity;
 
-        dbContext.FoodMetrics.AddRange(
-            dto.Metrics.DistinctBy(x => x.Metric).Select(x => new FoodMetrics()
-            {
-                FoodId = food.Id,
-                Metric = x.Metric,
-                Value = x.Value
-            })
-        );
+        await dbContext.Transactional(async () =>
+        {
+            await dbContext.SaveChangesAsync();
 
-        await dbContext.SaveChangesAsync();
+            dbContext.FoodMetrics.AddRange(
+                dto.Metrics.DistinctBy(x => x.Metric).Select(x => new FoodMetrics()
+                {
+                    FoodId = food.Id,
+                    Metric = x.Metric,
+                    Value = x.Value
+                })
+            );
+
+            await dbContext.SaveChangesAsync();
+        });
 
         return food;
     }
