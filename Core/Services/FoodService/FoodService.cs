@@ -10,6 +10,7 @@ using Core.Services.FoodService.Contracts.Category;
 using Core.Services.FoodService.Contracts.FoodDtos;
 using Core.Services.User;
 using Core.Services.User.Contracts;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
 
@@ -120,13 +121,23 @@ public class FoodService(AppDbContext dbContext)
             .GetByDataQueryAsync(q);
     }
 
-    public async Task<Food> CreateFood(CreateFoodDto dto)
+    public async Task<Food> CreateFood(long userId, CreateFoodDto dto)
     {
+        long? foodUserId = null;
+        if (dto is CreateUserFood userFood)
+        {
+            if (userFood.UserId != userId)
+                throw new BadRequestException("Deny to create food for another user");
+
+            await dbContext.Users.ExistsOrThrowsNotFoundException(userFood.UserId);
+            foodUserId = userFood.UserId;
+        }
+
         await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId);
 
         var food = dbContext.Foods.Add(new Food()
         {
-            UserId = dto.UserId,
+            UserId = foodUserId,
             CategoryId = dto.CategoryId,
             CoverUrl = dto.CoverUrl,
             Name = dto.Name,
@@ -155,6 +166,16 @@ public class FoodService(AppDbContext dbContext)
     public async Task<Food> UpdateFood(long foodId, UpdateFoodDto dto)
     {
         var food = await dbContext.Foods.GetByIdOrThrowsNotFoundException(foodId);
+
+        if (!food.UserId.HasValue && dto.UserId.HasValue)
+            throw new BadRequestException("Unable to update this food");
+
+        if (food.UserId.HasValue && !dto.UserId.HasValue)
+            throw new BadRequestException("Unable to update this food");
+
+        if (food.UserId.HasValue && dto.UserId.HasValue && food.UserId != dto.UserId)
+            throw new BadRequestException("Unable to update this food");
+
         await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId);
 
         await dbContext.Transactional(async () =>
@@ -218,9 +239,9 @@ public class FoodService(AppDbContext dbContext)
             .AsNoTracking()
             .AsSplitQuery()
             .Where(x => x.UserId == userId && x.Date == date.Value.Date);
-        
+
         if (menu.HasValue) query = query.Where(x => x.Menu == menu.Value);
-        
+
         return await query
             .Select(x => new GetMenuFoodsDto
             {
@@ -275,8 +296,9 @@ public class FoodService(AppDbContext dbContext)
     {
         var kcalNorm = await dbContext.UserNorms
                            .AsNoTracking()
+                           .Where(x => x.UserId == userId && x.Metric == EnumMetrics.Kcal)
                            .Select(x => new GetNormDto(x.UserId, x.Metric, x.Value))
-                           .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == EnumMetrics.Kcal) ??
+                           .FirstOrDefaultAsync() ??
                        new GetNormDto(userId, EnumMetrics.Kcal, 0);
 
         date = date?.Date ?? DateTime.Now.Date;

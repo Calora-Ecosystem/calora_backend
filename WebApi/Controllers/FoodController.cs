@@ -1,4 +1,5 @@
-﻿using BRB.Core.Common.Models;
+﻿using BRB.Core.Common.Exceptions;
+using BRB.Core.Common.Models;
 using Core;
 using Core.Entities.FoodEntites;
 using Core.Enums;
@@ -14,7 +15,7 @@ namespace WebApi.Controllers;
 
 [ApiController]
 [Route("food")]
-[RoleAuthorize(EnumRole.SuperAdmin)]
+[RoleAuthorize(EnumRole.User)]
 public class FoodController(FoodService service) : AuthorizedController
 {
     #region Food
@@ -33,11 +34,15 @@ public class FoodController(FoodService service) : AuthorizedController
     [HttpGet("{foodId:long:min(1)}")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(WrapperGeneric<FoodDto>), 200)]
-    public async Task<Wrapper> GetAllFoods(long foodId) =>
+    public async Task<Wrapper> GetFoodById(long foodId) =>
         (await service.GetFoodById(foodId, this.HasAuthorized ? this.UserId : null), 200);
 
     [HttpPost]
-    public async Task<Wrapper> CreateFood(CreateFoodDto dto) => (await service.CreateFood(dto), 200);
+    public async Task<Wrapper> CreateUserFood(CreateUserFood dto) => (await service.CreateFood(this.UserId, dto), 200);
+    
+    [HttpPost("general")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> CreateGeneralFood(CreateFoodDto dto) => (await service.CreateFood(this.UserId, dto), 200);
 
     [HttpPut("{foodId:long:min(1)}")]
     public async Task<Wrapper> UpdateFood(long foodId, UpdateFoodDto dto) =>
@@ -50,7 +55,6 @@ public class FoodController(FoodService service) : AuthorizedController
     /// <returns></returns>
     /// ToDo: Check for USER role
     [HttpDelete("user-food/{foodId:long:min(1)}")]
-    [RoleAuthorize(EnumRole.User)]
     public async Task<Wrapper> RemoveUserFood(long foodId) => (await service.RemoveUserFood(foodId, this.UserId), 200);
 
     /// <summary>
@@ -60,6 +64,7 @@ public class FoodController(FoodService service) : AuthorizedController
     /// <returns></returns>
     /// ToDo: Check for ADMIN role
     [HttpDelete("{foodId:long:min(1)}")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> RemoveFood(long foodId) => (await service.RemoveFood(foodId), 200);
 
     #endregion
