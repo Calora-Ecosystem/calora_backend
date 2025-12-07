@@ -185,8 +185,7 @@ public class AuthService(
         claims.Add(new Claim(CustomClaims.DeviceId, deviceId.ToString()));
         claims.Add(new Claim(CustomClaims.UserId, user.Id.ToString()));
 
-        // var expires = DateTime.Now.AddHours(authConfig.Value.ATokenExpireInHours);
-        var expires = DateTime.Now.AddSeconds(30);
+        var expires = DateTime.Now.AddHours(authConfig.Value.ATokenExpireInHours);
         
         if (!environment.IsProduction() && user.Email == "zokirjonashiraliyev@gamil.com")
             expires = DateTime.Now.AddMinutes(1);
