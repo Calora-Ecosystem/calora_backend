@@ -218,9 +218,9 @@ public class FoodService(AppDbContext dbContext)
             .AsNoTracking()
             .AsSplitQuery()
             .Where(x => x.UserId == userId && x.Date == date.Value.Date);
-        
+
         if (menu.HasValue) query = query.Where(x => x.Menu == menu.Value);
-        
+
         return await query
             .Select(x => new GetMenuFoodsDto
             {
@@ -275,8 +275,9 @@ public class FoodService(AppDbContext dbContext)
     {
         var kcalNorm = await dbContext.UserNorms
                            .AsNoTracking()
+                           .Where(x => x.UserId == userId && x.Metric == EnumMetrics.Kcal)
                            .Select(x => new GetNormDto(x.UserId, x.Metric, x.Value))
-                           .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == EnumMetrics.Kcal) ??
+                           .FirstOrDefaultAsync() ??
                        new GetNormDto(userId, EnumMetrics.Kcal, 0);
 
         date = date?.Date ?? DateTime.Now.Date;
