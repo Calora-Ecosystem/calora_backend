@@ -39,14 +39,20 @@ public class FoodController(FoodService service) : AuthorizedController
 
     [HttpPost]
     public async Task<Wrapper> CreateUserFood(CreateUserFood dto) => (await service.CreateFood(this.UserId, dto), 200);
-    
+
     [HttpPost("general")]
     [RoleAuthorize(EnumRole.SuperAdmin)]
-    public async Task<Wrapper> CreateGeneralFood(CreateFoodDto dto) => (await service.CreateFood(this.UserId, dto), 200);
+    public async Task<Wrapper> CreateGeneralFood(CreateFoodDto dto) =>
+        (await service.CreateFood(this.UserId, dto), 200);
 
     [HttpPut("{foodId:long:min(1)}")]
     public async Task<Wrapper> UpdateFood(long foodId, UpdateFoodDto dto) =>
         (await service.UpdateFood(foodId, dto), 200);
+
+
+    [HttpPost("recognization")]
+    public async Task<Wrapper> RecognizeFood([FromForm] RecognizeFoodDto dto) =>
+        (await service.RecognizeFood(dto), 200);
 
     /// <summary>
     /// 
@@ -89,7 +95,8 @@ public class FoodController(FoodService service) : AuthorizedController
     [HttpGet("menu")]
     [RoleAuthorize(EnumRole.User)]
     [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetMenuFoodsDto>>), 200)]
-    public async Task<Wrapper> GetMenuFoods([FromQuery] DataQueryRequest q, [FromQuery] EnumMenu? menu, [FromQuery] DateTime? date) =>
+    public async Task<Wrapper> GetMenuFoods([FromQuery] DataQueryRequest q, [FromQuery] EnumMenu? menu,
+        [FromQuery] DateTime? date) =>
         await service.GetMenuFoods(this.UserId, menu, date, q);
 
     [HttpPost("menu")]

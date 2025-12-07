@@ -6,18 +6,18 @@ using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.FoodEntites;
 using Core.Enums;
+using Core.Services.Ai;
+using Core.Services.Ai.Contracts;
 using Core.Services.FoodService.Contracts.Category;
 using Core.Services.FoodService.Contracts.FoodDtos;
-using Core.Services.User;
 using Core.Services.User.Contracts;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
 
 namespace Core.Services.FoodService;
 
 [Injectable]
-public class FoodService(AppDbContext dbContext)
+public class FoodService(AppDbContext dbContext, AiService aiService)
 {
     #region Category
 
@@ -226,6 +226,15 @@ public class FoodService(AppDbContext dbContext)
     {
         return await dbContext.Foods.Where(x => x.Id == foodId)
             .ExecuteDeleteAsync();
+    }
+
+    public async Task<FoodResultDto> RecognizeFood(RecognizeFoodDto dto)
+    {
+        var stream = dto.File.OpenReadStream();
+        byte[] buffer = new byte[dto.File.Length];
+        await stream.ReadExactlyAsync(buffer, 0, buffer.Length);
+
+        return await aiService.RecognizeForFood(buffer, dto.File.ContentType);
     }
 
     #endregion
