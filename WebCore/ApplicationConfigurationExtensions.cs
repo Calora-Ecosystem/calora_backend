@@ -1,7 +1,10 @@
+using System.Net;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using BRB.Core.Common.Exceptions;
 using BRB.Core.Web.Fallback;
 using BRB.Core.Web.Filters;
 using BRB.Core.Web.Middlewares;
@@ -12,6 +15,7 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using ResultWrapper.Library;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
@@ -206,7 +210,7 @@ public static class ApplicationConfigurationExtensions
 
                 throw new InvalidOperationException("Unable to determine tag for endpoint.");
             });
-            
+
             options.DocInclusionPredicate((name, api) => true);
 
             var filePath = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetEntryAssembly()?.GetName().Name}.xml");
@@ -291,19 +295,26 @@ public static class ApplicationConfigurationExtensions
                         new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Auth:SecretKey"]!)),
                 };
 
-                // options.Events = new JwtBearerEvents
-                // {
-                //     OnMessageReceived = context =>
-                //     {
-                //         context.Token = context.Request.Cookies[Constant.Constants.ACCESS_TOKEN_KEY];
-                //
-                //         if (!builder.Environment.IsProduction() && context.Token.IsNullOrEmpty() &&
-                //             context.Request.Headers.Authorization.Count > 0)
-                //             context.Token = context.Request.Headers.Authorization[0]?.Split("Bearer ").FirstOrDefault();
-                //
-                //         return Task.CompletedTask;
-                //     }
-                // };
+                options.Events = new JwtBearerEvents
+                {
+                    OnChallenge = context =>
+                    {
+                        context.HandleResponse(); // ✅ DEFAULT RFC 9110 JSON NI O‘CHIRADI
+
+                        context.Response.StatusCode = 401;
+                        context.Response.ContentType = "application/json";
+
+                        var result = JsonSerializer.Serialize(
+                            new Wrapper(new UnauthorizedException(
+                                context.AuthenticateFailure is SecurityTokenExpiredException
+                                    ? "token_expired"
+                                    : "token_invalid"
+                            ), HttpStatusCode.Unauthorized)
+                        );
+
+                        return context.Response.WriteAsync(result);
+                    }
+                };
             });
 
 

@@ -9,13 +9,19 @@ public class CreateFoodDto
     public long CategoryId { get; set; }
     public MultiLanguageField Name { get; set; } = null!;
     public string? CoverUrl { get; set; }
-    public long? UserId { get; set; }
-    [MaxLength(500)]
-    public string? Description { get; set; }
+    [MaxLength(500)] public string? Description { get; set; }
     public List<FoodMetricDto> Metrics { get; set; } = default!;
 }
 
-public class UpdateFoodDto : CreateFoodDto;
+public class CreateUserFood : CreateFoodDto
+{
+    [Required] public long UserId { get; set; }
+}
+
+public class UpdateFoodDto : CreateFoodDto
+{
+    public long? UserId { get; set; }
+}
 
 public class FoodMetricDto
 {

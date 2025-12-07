@@ -1,7 +1,9 @@
-﻿using Core.Enums;
+﻿using BRB.Core.Common.Exceptions;
+using Core.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using ResultWrapper.Library;
 
 namespace Core;
 
@@ -13,6 +15,9 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
     {
         var endpoint = context.ActionDescriptor.EndpointMetadata;
 
+        if (endpoint.OfType<IAllowAnonymous>().Any())
+            return;
+
         // Eng oxirgi qo‘yilgan attribute ni tanlaymiz (odatda Action dagisi oxirida turadi)
         var attr = endpoint.OfType<RoleAuthorizeAttribute>().LastOrDefault();
         if (attr == null)
@@ -21,7 +26,7 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
         var user = context.HttpContext.User;
         if (user?.Identity is not { IsAuthenticated: true })
         {
-            context.Result = new UnauthorizedResult();
+            context.Result = new ObjectResult(new Wrapper(new UnauthorizedException()));
             return;
         }
 
@@ -30,6 +35,6 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
             return;
         }
 
-        context.Result = new ForbidResult();
+        context.Result = new ObjectResult(new Wrapper(new ForbiddenException()));
     }
 }
