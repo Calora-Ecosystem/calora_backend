@@ -187,7 +187,7 @@ public class AuthService(
 
         var expires = DateTime.Now.AddHours(authConfig.Value.ATokenExpireInHours);
         
-        if (!environment.IsProduction() && user.Email == "zokirjonashiraliyev@gamil.com")
+        if (!environment.IsProduction() && user.Email == "zokirjonashiraliyev@gmail.com")
             expires = DateTime.Now.AddMinutes(1);
 
         var token = new JwtSecurityToken(authConfig.Value.Issuer,
