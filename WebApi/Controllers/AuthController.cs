@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using BRB.Core.Common.Exceptions;
 using Core;
@@ -34,16 +35,21 @@ public class AuthController(AuthService authService) : ControllerBase
 
     [HttpGet("refresh-token")]
     public async Task<Wrapper>
-        RefreshToken([FromQuery, Required] string rToken) =>
-        (await authService.RefreshToken(
-                !long.TryParse(this.User.FindFirstValue(CustomClaims.UserId), out var userId)
+        RefreshToken([FromQuery, Required] string rToken)
+    {
+        var handler = new JwtSecurityTokenHandler();
+        var jwt = handler.ReadJwtToken(this.Request.Headers.Authorization.ToString().Replace("Bearer ", ""));
+        
+        return (await authService.RefreshToken(
+                !long.TryParse(jwt.Claims.FirstOrDefault(x => x.Type == CustomClaims.UserId)?.Value, out var userId)
                     ? throw new BadRequestException("Access token invalid")
                     : userId,
                 rToken,
-                !long.TryParse(this.User.FindFirstValue(CustomClaims.DeviceId), out var deviceId)
+                !long.TryParse(jwt.Claims.FirstOrDefault(x => x.Type == CustomClaims.DeviceId)?.Value, out var deviceId)
                     ? throw new BadRequestException("Access token invalid")
                     : deviceId),
             200);
+    }
 
     [HttpPost("send-otp/{email}")]
     public async Task<Wrapper> SendOtp([EmailAddress] string email) =>
