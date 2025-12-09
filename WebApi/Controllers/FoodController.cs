@@ -3,6 +3,7 @@ using BRB.Core.Common.Models;
 using Core;
 using Core.Entities.FoodEntites;
 using Core.Enums;
+using Core.Services.Ai.Contracts;
 using Core.Services.FoodService;
 using Core.Services.FoodService.Contracts.Category;
 using Core.Services.FoodService.Contracts.FoodDtos;
@@ -51,7 +52,7 @@ public class FoodController(FoodService service) : AuthorizedController
 
 
     [HttpPost("recognization")]
-    public async Task<Wrapper> RecognizeFood([FromForm] RecognizeFoodDto dto) =>
+    public async Task<WrapperGeneric<FoodResultDto>> RecognizeFood([FromForm] RecognizeFoodDto dto) =>
         (await service.RecognizeFood(dto), 200);
 
     /// <summary>
