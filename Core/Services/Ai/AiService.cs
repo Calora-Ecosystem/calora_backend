@@ -18,54 +18,58 @@ public class AiService(Client client)
         ResponseMimeType = "application/json",
         ResponseSchema = new Schema()
         {
-            Type = Type.OBJECT,
-            Properties = new Dictionary<string, Schema>()
+            Type = Type.ARRAY,
+            Items = new Schema()
             {
+                Type = Type.OBJECT,
+                Properties = new Dictionary<string, Schema>()
                 {
-                    "name", new Schema()
                     {
-                        Type = Type.STRING,
-                    }
-                },
-                {
-                    "weight", new Schema()
-                    {
-                        Type = Type.NUMBER,
-                    }
-                },
-                {
-                    "metrics", new Schema()
-                    {
-                        Type = Type.ARRAY,
-                        Items = new Schema()
+                        "name", new Schema()
                         {
-                            Type = Type.OBJECT,
-                            Properties = new Dictionary<string, Schema>()
+                            Type = Type.STRING,
+                        }
+                    },
+                    {
+                        "weight", new Schema()
+                        {
+                            Type = Type.NUMBER,
+                        }
+                    },
+                    {
+                        "metrics", new Schema()
+                        {
+                            Type = Type.ARRAY,
+                            Items = new Schema()
                             {
+                                Type = Type.OBJECT,
+                                Properties = new Dictionary<string, Schema>()
                                 {
-                                    "metric", new Schema()
                                     {
-                                        Type = Type.STRING,
-                                        Enum = Enum.GetNames<EnumMetrics>().ToList()
+                                        "metric", new Schema()
+                                        {
+                                            Type = Type.STRING,
+                                            Enum = Enum.GetNames<EnumMetrics>().ToList()
+                                        }
+                                    },
+                                    {
+                                        "value", new Schema()
+                                        {
+                                            Type = Type.NUMBER
+                                        }
                                     }
                                 },
-                                {
-                                    "value", new Schema()
-                                    {
-                                        Type = Type.NUMBER
-                                    }
-                                }
-                            },
-                            Required = ["metric", "value"]
+                                Required = ["metric", "value"]
+                            }
                         }
                     }
-                }
-            },
-            Required = ["metrics"]
+                },
+                Required = ["metrics"]
+            }
         }
     };
 
-    public async Task<FoodResultDto> RecognizeForFood(byte[] fileBuffer, string mimeType)
+    public async Task<List<FoodResultDto>> RecognizeForFood(byte[] fileBuffer, string mimeType)
     {
         var response = await client.Models.GenerateContentAsync(
             model: "gemini-2.5-flash", contents: new Content()
@@ -104,7 +108,7 @@ Estimate or Recognize food weight.
         if (string.IsNullOrWhiteSpace(json))
             throw new BadRequestException("Invalid result");
 
-        return JsonSerializer.Deserialize<FoodResultDto>(json, new JsonSerializerOptions()
+        return JsonSerializer.Deserialize<List<FoodResultDto>>(json, new JsonSerializerOptions()
                {
                    PropertyNameCaseInsensitive = true,
                    Converters =

@@ -228,7 +228,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
             .ExecuteDeleteAsync();
     }
 
-    public async Task<FoodResultDto> RecognizeFood(RecognizeFoodDto dto)
+    public async Task<List<FoodResultDto>> RecognizeFood(RecognizeFoodDto dto)
     {
         var stream = dto.File.OpenReadStream();
         byte[] buffer = new byte[dto.File.Length];
