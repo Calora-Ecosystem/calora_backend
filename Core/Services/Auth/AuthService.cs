@@ -158,7 +158,7 @@ public class AuthService(
 
         user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
-        
+
         return new
         {
             AccessToken = accessToken,
@@ -178,15 +178,16 @@ public class AuthService(
 
         var claims = new List<Claim>();
 
+        var sessionId = Guid.NewGuid().ToString();
 
         user.Roles.ForEach(role => claims.Add(new Claim(ClaimTypes.Role, role)));
-        ;
         claims.Add(new Claim(ClaimTypes.Email, user.Email));
         claims.Add(new Claim(CustomClaims.DeviceId, deviceId.ToString()));
         claims.Add(new Claim(CustomClaims.UserId, user.Id.ToString()));
+        claims.Add(new Claim(CustomClaims.SessionId, sessionId));
 
         var expires = DateTime.Now.AddHours(authConfig.Value.ATokenExpireInHours);
-        
+
         if (!environment.IsProduction() && user.Email == "zokirjonashiraliyev@gmail.com")
             expires = DateTime.Now.AddMinutes(1);
 
@@ -198,6 +199,8 @@ public class AuthService(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authConfig.Value.SecretKey)),
                 SecurityAlgorithms.HmacSha256));
 
+        memoryCache.Set($"session:{user.Id}:{sessionId}", DateTime.Now.Ticks, expires);
+
         var hash = new JwtSecurityTokenHandler().WriteToken(token);
 
         return hash;
@@ -206,6 +209,24 @@ public class AuthService(
     private async Task LogSignInfo(long userId, long deviceId)
     {
         dbContext.SignLogs.Add(new SignLog() { UserId = userId, DeviceId = deviceId, SignAt = DateTime.Now });
+        await dbContext.SaveChangesAsync();
+    }
+
+    public async Task Logout(Claim[] claims)
+    {
+        var userId = claims.FirstOrDefault(x => x.Type == CustomClaims.UserId)?.Value ??
+                     throw new UnauthorizedException();
+        var session = claims.FirstOrDefault(x => x.Type == CustomClaims.SessionId)?.Value ??
+                      throw new UnauthorizedException();
+
+        var user = await dbContext.Users.GetByIdOrThrowsNotFoundException(long.Parse(userId));
+
+        memoryCache.Remove($"session:{user.Id}:{session}");
+
+        user.RToken = null;
+        user.RTokenExpireAt = DateTime.MinValue;
+
+        dbContext.Users.Update(user);
         await dbContext.SaveChangesAsync();
     }
 }

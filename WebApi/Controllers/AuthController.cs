@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using BRB.Core.Common.Exceptions;
 using Core;
 using Core.Constants;
@@ -10,14 +9,14 @@ using Core.Services.Auth.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResultWrapper.Library;
-using WebCore.Enum;
+using WebCore.Controller;
 
 namespace WebApi.Controllers;
 
 [ApiController]
 [Route("auth")]
 [AllowAnonymous]
-public class AuthController(AuthService authService) : ControllerBase
+public class AuthController(AuthService authService) : AuthorizedController
 {
     [HttpPost("registration")]
     [ApiExplorerSettings(IgnoreApi = true)]
@@ -39,7 +38,7 @@ public class AuthController(AuthService authService) : ControllerBase
     {
         var handler = new JwtSecurityTokenHandler();
         var jwt = handler.ReadJwtToken(this.Request.Headers.Authorization.ToString().Replace("Bearer ", ""));
-        
+
         return (await authService.RefreshToken(
                 !long.TryParse(jwt.Claims.FirstOrDefault(x => x.Type == CustomClaims.UserId)?.Value, out var userId)
                     ? throw new BadRequestException("Access token invalid")
@@ -65,5 +64,12 @@ public class AuthController(AuthService authService) : ControllerBase
     public Wrapper Test()
     {
         return (new { Message = "Test" }, 200);
+    }
+
+    [HttpGet("logout")]
+    public async Task<Wrapper> Logout()
+    {
+        await authService.Logout(this.User.Claims.ToArray());
+        return 200;
     }
 }
