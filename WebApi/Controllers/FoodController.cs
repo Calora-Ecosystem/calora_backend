@@ -52,7 +52,7 @@ public class FoodController(FoodService service) : AuthorizedController
 
 
     [HttpPost("recognization")]
-    public async Task<WrapperGeneric<FoodResultDto>> RecognizeFood([FromForm] RecognizeFoodDto dto) =>
+    public async Task<WrapperGeneric<IEnumerable<FoodResultDto>>> RecognizeFood([FromForm] RecognizeFoodDto dto) =>
         (await service.RecognizeFood(dto), 200);
 
     /// <summary>
