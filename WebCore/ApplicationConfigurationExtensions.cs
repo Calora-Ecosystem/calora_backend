@@ -211,6 +211,7 @@ public static class ApplicationConfigurationExtensions
                 throw new InvalidOperationException("Unable to determine tag for endpoint.");
             });
 
+            options.EnableAnnotations();
             options.DocInclusionPredicate((name, api) => true);
 
             var filePath = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetEntryAssembly()?.GetName().Name}.xml");
