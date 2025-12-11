@@ -12,6 +12,7 @@
         <PackageReference Include="BRB.Core.File" Version="2.2.1"/>
         <PackageReference Include="Google.GenAI" Version="0.7.0" />
         <PackageReference Include="ResultWrapper.Library" Version="8.0.0"/>
+        <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.6.2" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.1.2"/>
         <PackageReference Include="EFCore.NamingConventions" Version="8.0.3"/>
         <PackageReference Include="FirebaseAdmin" Version="3.1.0"/>

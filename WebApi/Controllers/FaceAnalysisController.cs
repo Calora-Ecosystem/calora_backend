@@ -1,16 +1,17 @@
-﻿using BRB.Core.File;
+﻿using BRB.Core.Common.Exceptions;
+using Core.Services.Ai.Contracts;
 using Core.Services.File.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using OpenCvSharp;
+using ResultWrapper.Library;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using System;
 
-namespace Calora.Api.Controllers
+namespace WebApi.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("/face")]
     public class FaceAnalysisController : ControllerBase
     {
         private readonly string _cascadePath;
@@ -21,36 +22,32 @@ namespace Calora.Api.Controllers
         }
 
         [HttpPost("analyze")]
-        public async Task<IActionResult> Analyze([FromForm] UploadFileDto1 image)
+        public async Task<WrapperGeneric<AnalyzeFaceDto>> Analyze([FromForm] UploadFileDto image)
         {
-            if (image == null || image.File == null)
-                return BadRequest("Rasm yuborilmadi");
-
-            using var ms = new MemoryStream();
-            await image.File.CopyToAsync(ms);
-            var bytes = ms.ToArray();
+            var bytes = new byte[image.File.Length];
+            await using var readStream = image.File.OpenReadStream();
+            await readStream.ReadExactlyAsync(bytes);
 
             var cascade = new CascadeClassifier(_cascadePath);
             using var mat = Mat.FromImageData(bytes, ImreadModes.Color);
             var faces = cascade.DetectMultiScale(mat);
 
             if (faces.Length == 0)
-                return Ok(new { success = false, message = "Yuz aniqlanmadi" });
-
+                throw new BadRequestException("face not found");
+            
             var face = faces[0];
 
-            ms.Position = 0;
-            using Image<Rgba32> fullImg = Image.Load<Rgba32>(ms);
+            using Image<Rgba32> fullImg = Image.Load<Rgba32>(bytes);
 
             var cropped = fullImg.Clone(x =>
                 x.Crop(new Rectangle(face.X, face.Y, face.Width, face.Height)));
 
             var result = AnalyzeFace(cropped);
 
-            return Ok(result);
+            return (result, 200);
         }
 
-        private object AnalyzeFace(Image<Rgba32> face)
+        private AnalyzeFaceDto AnalyzeFace(Image<Rgba32> face)
         {
             // Har bir parametrni hisoblaymiz
             double redness = DetectRedness(face);           // Yuzda toshmalar
@@ -63,21 +60,12 @@ namespace Calora.Api.Controllers
             int healthIndex = (int)Math.Round(100 - ((redness + darkEyes + (100 - energy) + stress + (100 - sleep)) / 5));
 
             // Natijani formatlash
-            return new
+            return new AnalyzeFaceDto
             {
-                main = new
-                {
-                    healthPercent = healthIndex,    // 79/100 kabi
-                    text = $"Sog'lomlik foizi: {healthIndex}/100"
-                },
-                details = new[]
-                {
-                    new { title = "Yuzda toshmalar bor - jigaringiz yoki oshqozoningizni tekshirtiring.", percent = (int)redness },
-                    new { title = "Ko’z osti qoraygan - Uyqu sifatini yaxshilang.", percent = (int)darkEyes },
-                    new { title = "Energiya darajasi: O‘rtacha - Ko’proq suv iching va faol bo‘ling.", percent = (int)energy },
-                    new { title = "Stress darajasi: Yuqori - dam olish va meditatsiya qiling.", percent = (int)stress },
-                    new { title = "Uyqu darajasi: Yetarli emas - Kechqurung ertaroq uxlashni odat qiling !", percent = (int)sleep }
-                }
+                HealthPercent = healthIndex, Rashes = Math.Round(redness, 2), DarkEyes = Math.Round(darkEyes, 2),
+                Energy = Math.Round(energy, 2),
+                Stress = Math.Round(stress, 2),
+                Sleep = Math.Round(sleep, 2)
             };
         }
 
@@ -135,10 +123,5 @@ namespace Calora.Api.Controllers
             double avg = total / count;
             return Math.Min(100, avg / 2);
         }
-    }
-
-    public class UploadFileDto1
-    {
-        public IFormFile File { get; set; } = default!;
     }
 }

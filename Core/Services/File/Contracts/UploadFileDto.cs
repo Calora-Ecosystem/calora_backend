@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace Core.Services.File.Contracts;
 
 public class UploadFileDto
 {
+    [Required(ErrorMessage = "File is required")]
     public IFormFile File { get; set; } = default!;
 }
 
