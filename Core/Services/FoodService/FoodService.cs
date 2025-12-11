@@ -326,7 +326,9 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
                 Protein = x.Sum(dailyMenu => dailyMenu.Food.Metrics
                     .First(foodMetric => foodMetric.Metric == EnumMetrics.Protein).Value),
                 Carb = x.Sum(dailyMenu => dailyMenu.Food.Metrics
-                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value)
+                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value),
+                Weight = x.Sum(dailyMenu => dailyMenu.Food.Metrics
+                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Weight).Value)
             });
 
         var nutrientsNorm = await dbContext.UserNormByMenus
@@ -338,7 +340,8 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
                 Menu = x.Key, Kcal = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Kcal).Value,
                 Fat = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Fat).Value,
                 Protein = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Protein).Value,
-                Carb = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value
+                Carb = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value,
+                Weight = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Weight).Value
             });
 
 
