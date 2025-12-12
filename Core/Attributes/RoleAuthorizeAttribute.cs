@@ -1,12 +1,15 @@
-﻿using BRB.Core.Common.Exceptions;
+﻿using System.Net;
+using BRB.Core.Common.Exceptions;
 using Core.Constants;
 using Core.Enums;
 using Core.Exceptions;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using ResultWrapper.Library;
 
 namespace Core;
@@ -33,24 +36,31 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
             context.Result = new ObjectResult(new Wrapper(new UnauthorizedException()));
             return;
         }
-
-        var sessionId = user.Claims.FirstOrDefault(x => x.Type == CustomClaims.SessionId)?.Value;
-        var userId = user.Claims.FirstOrDefault(x => x.Type == CustomClaims.UserId)?.Value;
-
-        if (sessionId == null || userId == null)
+        
+        var environment = context.HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+        
+        //Disable session check in development
+        if (!environment.IsDevelopment())
         {
-            context.Result = new ObjectResult(new Wrapper(new SessionExpiredException()));
-            return;
+            var sessionId = user.Claims.FirstOrDefault(x => x.Type == CustomClaims.SessionId)?.Value;
+            var userId = user.Claims.FirstOrDefault(x => x.Type == CustomClaims.UserId)?.Value;
+
+            if (sessionId == null || userId == null)
+            {
+                context.Result =
+                    new ObjectResult(new Wrapper(new SessionExpiredException(), HttpStatusCode.Unauthorized));
+                return;
+            }
+
+            var cache = context.HttpContext.RequestServices.GetRequiredService<IMemoryCache>();
+
+            if (!cache.TryGetValue($"session:{userId}:{sessionId}", out var session) || session == null)
+            {
+                context.Result =
+                    new ObjectResult(new Wrapper(new SessionExpiredException(), HttpStatusCode.Unauthorized));
+                return;
+            }
         }
-
-        var cache = context.HttpContext.RequestServices.GetRequiredService<IMemoryCache>();
-
-        if (!cache.TryGetValue($"session:{userId}:{sessionId}", out var session) || session == null)
-        {
-            context.Result = new ObjectResult(new Wrapper(new SessionExpiredException()));
-            return;
-        }
-
 
         if (attr.Roles.Any(role => user.IsInRole(role.ToString())))
         {

@@ -284,6 +284,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
         menuItem.Menu = dto.Menu;
         menuItem.Date = date;
         menuItem.FoodId = dto.FoodId;
+        menuItem.Weight = dto.WeightInGr;
 
         menuItem = dbContext.DailyMenus.Update(menuItem).Entity;
         await dbContext.SaveChangesAsync();
@@ -315,21 +316,31 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
         var nutrients = await dbContext.DailyMenus
             .AsNoTracking()
             .Where(x => x.UserId == userId && x.Date == date)
+            .Include(x => x.Food)
+            .ThenInclude(x => x.Metrics)
             .GroupBy(x => x.Menu)
             .ToDictionaryAsync(x => x.Key, x => new NutrientSummaryDto
             {
                 Menu = x.Key,
+                Weight = x.Sum(dailyMenu => dailyMenu.Weight),
                 Kcal = x.Sum(dailyMenu => dailyMenu.Food.Metrics
-                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Kcal).Value),
+                    .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Kcal)?.Value ?? 0),
                 Fat = x.Sum(dailyMenu => dailyMenu.Food.Metrics
-                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Fat).Value),
+                    .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Fat)?.Value ?? 0),
                 Protein = x.Sum(dailyMenu => dailyMenu.Food.Metrics
-                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Protein).Value),
+                    .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Protein)?.Value ?? 0),
                 Carb = x.Sum(dailyMenu => dailyMenu.Food.Metrics
-                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value),
-                Weight = x.Sum(dailyMenu => dailyMenu.Food.Metrics
-                    .First(foodMetric => foodMetric.Metric == EnumMetrics.Weight).Value)
+                    .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Carb)?.Value ?? 0),
             });
+
+
+        nutrients.ForEach(x =>
+        {
+            x.Value.Protein = x.Value.Protein * x.Value.Weight / 100;
+            x.Value.Kcal = x.Value.Kcal * x.Value.Weight / 100;
+            x.Value.Carb = x.Value.Carb * x.Value.Weight / 100;
+            x.Value.Fat = x.Value.Fat * x.Value.Weight / 100;
+        });
 
         var nutrientsNorm = await dbContext.UserNormByMenus
             .AsNoTracking()
