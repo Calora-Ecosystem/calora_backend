@@ -240,7 +240,7 @@ public static class ApplicationConfigurationExtensions
         {
             options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals;
             options.JsonSerializerOptions.Converters.Add(new MultiLanguageFieldConverter(httpContextAccessor));
-            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false));
             options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         });
 
