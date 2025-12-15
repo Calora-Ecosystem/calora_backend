@@ -259,6 +259,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
                 CategoryId = x.Food.CategoryId,
                 CategoryName = x.Food.Category.Name,
                 CoverUrl = x.Food.CoverUrl,
+                Weight = x.Weight,
                 Metrics = x.Food.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 UserId = x.Food.UserId
             })

@@ -16,4 +16,5 @@ public record GetMenuFoodsDto
     public string? CoverUrl { get; set; }
     public IEnumerable<GetNormDto> Metrics { get; set; } = null!;
     public long? UserId { get; set; }
+    public int Weight { get; set; }
 }
