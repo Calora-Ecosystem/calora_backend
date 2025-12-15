@@ -247,11 +247,11 @@ public class UserService(AppDbContext context)
                     .Select(x => new
                     {
                         Metric = x.Key,
-                        Sum = x.Sum(daily => daily.Value)
+                        Sum = Math.Round(x.Sum(daily => daily.Value), 0)
                     }), general => general.Metric, arg => arg.Metric,
                 (general, arg2) => new UserProgressSummaryDto
                 {
-                    Metric = general.Metric, Target = general.Value,
+                    Metric = general.Metric, Target = Math.Round(general.Value,0),
                     Progress = !arg2.IsNullOrEmpty() ? arg2.First().Sum : 0
                 })
             .ToListAsync();
