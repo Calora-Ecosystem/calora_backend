@@ -31,6 +31,14 @@ public class FoodController(FoodService service) : AuthorizedController
     [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetAllFoodDto>>), 200)]
     public async Task<Wrapper> GetFavouriteFoods([FromQuery] DataQueryRequest q) =>
         await service.GetFavouriteFoods(this.UserId, q);
+    
+    [HttpPost("favourites/toggle/{foodId:long:min(1)}")]
+    [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetAllFoodDto>>), 200)]
+    public async Task<Wrapper> ToggleFavouriteFood(long foodId)
+    {
+        await service.ToggleFavouriteFood(this.UserId, foodId);
+        return 200;
+    }
 
     [HttpGet("{foodId:long:min(1)}")]
     [AllowAnonymous]

@@ -27,5 +27,5 @@ public class UserExtra : ModelBase<long>
     public EnumActivityLevel ActivityLevel { get; set; } = EnumActivityLevel.Medium;
     public EnumLanguage Language { get; set; } = EnumLanguage.Uzbek;
     [MaxLength(100)] public string Name { get; set; } = null!;
-    public IQueryable<Food> FavouriteFoods { get; set; } = null!; //many2many
+    public List<Food> FavouriteFoods { get; set; } = null!; //many2many
 }

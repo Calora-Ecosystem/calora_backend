@@ -121,6 +121,21 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
             .GetByDataQueryAsync(q);
     }
 
+    public async Task ToggleFavouriteFood(long userId, long foodId)
+    {
+        var food = await dbContext.Foods.GetByIdOrThrowsNotFoundException(foodId);
+        var userExtra = await dbContext.UserExtras
+                            .Include(userExtra => userExtra.FavouriteFoods)
+                            .FirstOrDefaultAsync(x => x.UserId == userId) ??
+                        throw new NotFoundException("User extra not found");
+
+        if (!userExtra.FavouriteFoods.Contains(food))
+            userExtra.FavouriteFoods.Add(food);
+        else userExtra.FavouriteFoods.Remove(food);
+
+        await dbContext.SaveChangesAsync();
+    }
+
     public async Task<Food> CreateFood(long userId, CreateFoodDto dto)
     {
         long? foodUserId = null;
