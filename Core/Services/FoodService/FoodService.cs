@@ -55,7 +55,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
 
     #region Food
 
-    public async Task<Wrapper> GetAllFoods(long? userId, DataQueryRequest q)
+    public async Task<Wrapper> GetAllFoods(long? userId, DataQueryRequest q, bool latest = false)
     {
         var queryable = dbContext.Foods.AsQueryable();
 
@@ -68,6 +68,21 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
             fIds = await dbContext.UserExtras.Where(x => x.UserId == userId.Value)
                 .SelectMany(x => x.FavouriteFoods.Select(food => food.Id)).ToListAsync();
 
+        if (latest)
+        {
+            if (!userId.HasValue)
+                throw new BadRequestException("Authorized user required");
+            
+            var ids = dbContext.DailyMenus
+                .Where(x => x.UserId == userId)
+                .OrderByDescending(x => x.Date)
+                .Select(x => x.Id)
+                .Distinct()
+                .Take(10);
+
+            queryable = queryable.Where(x => ids.Contains(x.Id));
+        }
+        
         var resultQuery = queryable
             .FilterByExpressions(q.FilteringExpression);
 
@@ -84,7 +99,6 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
                 IsUserFood = x.UserId.HasValue
             }), await resultQuery.CountAsync());
     }
-
     public async Task<FoodDto> GetFoodById(long foodId, long? userId)
     {
         var food = await dbContext.Foods
