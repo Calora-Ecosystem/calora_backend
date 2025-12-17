@@ -11,13 +11,14 @@ using Core.Services.Ai.Contracts;
 using Core.Services.FoodService.Contracts.Category;
 using Core.Services.FoodService.Contracts.FoodDtos;
 using Core.Services.User.Contracts;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
 
 namespace Core.Services.FoodService;
 
 [Injectable]
-public class FoodService(AppDbContext dbContext, AiService aiService)
+public class FoodService(AppDbContext dbContext, AiService aiService, IHttpContextAccessor contextAccessor)
 {
     #region Category
 
@@ -270,11 +271,16 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
 
     public async Task<List<FoodResultDto>> RecognizeFood(RecognizeFoodDto dto)
     {
+        var rawLanguage = contextAccessor.HttpContext?.Request.Headers.AcceptLanguage.FirstOrDefault();
+
+        if (!Enum.TryParse<EnumLanguage>(rawLanguage, true, out var language))
+            language = EnumLanguage.Uzbek;
+        
         var stream = dto.File.OpenReadStream();
         byte[] buffer = new byte[dto.File.Length];
         await stream.ReadExactlyAsync(buffer, 0, buffer.Length);
 
-        return await aiService.RecognizeForFood(buffer, dto.File.ContentType);
+        return await aiService.RecognizeForFood(buffer, dto.File.ContentType, language);
     }
 
     #endregion
