@@ -12,4 +12,5 @@ public record GetAllFoodDto
     public string? CoverUrl { get; set; } = null!;
     public IEnumerable<GetNormDto> Metrics { get; set; } = null!;
     public bool IsUserFood { get; set; }
+    public bool IsFavourite { get; set; }
 }
