@@ -68,7 +68,12 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
             fIds = await dbContext.UserExtras.Where(x => x.UserId == userId.Value)
                 .SelectMany(x => x.FavouriteFoods.Select(food => food.Id)).ToListAsync();
 
-        return await queryable
+        var resultQuery = queryable
+            .FilterByExpressions(q.FilteringExpression);
+
+        return (resultQuery
+            .Sort(q)
+            .Page(q)
             .Select(x => new GetAllFoodDto
             {
                 Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
@@ -77,8 +82,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
                 IsFavourite = fIds.Contains(x.Id),
                 Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 IsUserFood = x.UserId.HasValue
-            })
-            .GetByDataQueryAsync(q);
+            }), await resultQuery.CountAsync());
     }
 
     public async Task<FoodDto> GetFoodById(long foodId, long? userId)
