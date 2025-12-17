@@ -62,12 +62,19 @@ public class FoodService(AppDbContext dbContext, AiService aiService)
         if (userId is not null)
             queryable = queryable.Where(x => x.UserId == userId || x.UserId.HasValue == false);
 
+        var fIds = new List<long>(); //user favourite food ids
+
+        if (userId.HasValue)
+            fIds = await dbContext.UserExtras.Where(x => x.UserId == userId.Value)
+                .SelectMany(x => x.FavouriteFoods.Select(food => food.Id)).ToListAsync();
+
         return await queryable
             .Select(x => new GetAllFoodDto
             {
                 Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
                 CategoryName = x.Category.Name,
                 CoverUrl = x.CoverUrl,
+                IsFavourite = fIds.Contains(x.Id),
                 Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 IsUserFood = x.UserId.HasValue
             })
