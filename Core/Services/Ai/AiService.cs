@@ -69,7 +69,7 @@ public class AiService(Client client)
         }
     };
 
-    public async Task<List<FoodResultDto>> RecognizeForFood(byte[] fileBuffer, string mimeType)
+    public async Task<List<FoodResultDto>> RecognizeForFood(byte[] fileBuffer, string mimeType, EnumLanguage language = EnumLanguage.Uzbek)
     {
         var response = await client.Models.GenerateContentAsync(
             model: "gemini-2.5-flash", contents: new Content()
@@ -80,10 +80,11 @@ public class AiService(Client client)
                     {
                         Text =
                             @$"
-Your are master of food world and nutriutions.
+Your are master of food world and nutritions.
 Recognize food from image or audio and return response by schema. 
 Calculate metrics by {string.Join(",", Enum.GetNames<EnumMetrics>())}.
 Estimate or Recognize food weight.
+Return all results in {language.ToString()}.
 "
                     },
                     new Part()
