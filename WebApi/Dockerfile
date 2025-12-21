@@ -1,19 +1,20 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0-jammy AS base
+﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS base
 
 RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    && add-apt-repository universe \
-    && apt-get update \
-    && apt-get install -y \
-        libtesseract4 \
-        tesseract-ocr \
-        libleptonica-dev \
-        libopencv-dev \
+    libopencv-core-dev \
+    libopencv-imgproc-dev \
+    libopencv-imgcodecs-dev \
+    libopencv-video-dev \
+    libopencv-highgui-dev \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0-jammy AS publish
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS publish
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY . .
