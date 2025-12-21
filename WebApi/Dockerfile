@@ -1,13 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS base
-
-RUN apt-get update && apt-get install -y \
-    libopencv-core406 \
-    libopencv-imgproc406 \
-    libopencv-imgcodecs406 \
-    libopencv-video406 \
-    libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
-
+﻿FROM ghcr.io/shimat/opencvsharp/ubuntu24-dotnet8-opencv4.12.0:20250815 AS base
 WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS publish
