@@ -12,6 +12,18 @@ namespace Core.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropColumn(
+                name: "Discriminator",
+                table: "user_dailies");
+
+            migrationBuilder.AlterColumn<TimeSpan>(
+                name: "time",
+                table: "reminders",
+                type: "interval",
+                nullable: false,
+                oldClrType: typeof(TimeOnly),
+                oldType: "time without time zone");
+
             migrationBuilder.AddColumn<string>(
                 name: "discriminator",
                 table: "notifications",
@@ -97,6 +109,21 @@ namespace Core.Migrations
             migrationBuilder.DropColumn(
                 name: "tokens",
                 table: "notifications");
+
+            migrationBuilder.AddColumn<string>(
+                name: "Discriminator",
+                table: "user_dailies",
+                type: "text",
+                nullable: false,
+                defaultValue: "");
+
+            migrationBuilder.AlterColumn<TimeOnly>(
+                name: "time",
+                table: "reminders",
+                type: "time without time zone",
+                nullable: false,
+                oldClrType: typeof(TimeSpan),
+                oldType: "interval");
         }
     }
 }

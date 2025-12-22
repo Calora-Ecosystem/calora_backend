@@ -15,7 +15,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Core.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251221065123_AddPushNotification'")]
+    [Migration("20251222093637_AddPushNotification")]
     partial class AddPushNotification
     {
         /// <inheritdoc />
@@ -900,8 +900,8 @@ namespace Core.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("menu");
 
-                    b.Property<TimeOnly>("Time")
-                        .HasColumnType("time without time zone")
+                    b.Property<TimeSpan>("Time")
+                        .HasColumnType("interval")
                         .HasColumnName("time");
 
                     b.Property<int>("Type")
