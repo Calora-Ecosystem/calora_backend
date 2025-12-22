@@ -1,0 +1,14 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Core.Entities.Notification;
+
+public class PushNotification : Notification
+{
+    public string? Image { get; set; } = null!;
+    [Column(TypeName = "jsonb")] public List<string> Tokens { get; set; } = null!;
+    [Column(TypeName = "jsonb")] public Dictionary<string, string>? Meta { get; set; }
+    public DateTime? SentAt { get; set; }
+    public DateTime? Scheduled { get; set; }
+    public int FailureCount { get; set; }
+    public int SuccessCount { get; set; }
+}

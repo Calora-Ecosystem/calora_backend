@@ -2,7 +2,9 @@ using BRB.Core.File;
 using Calora.Api.Controllers;
 using Core;
 using Core.Brokers.DbContext;
+using Core.Brokers.FirebaseBroker;
 using Core.Brokers.GeminiBroker;
+using Hangfire;
 using WebCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +17,7 @@ builder
     .Services
     .AddFileService()
     .AddGeminiAi()
+    .AddFirebaseAdmin()
     ;
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
@@ -22,8 +25,13 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.AddSwaggerServer("/api/");
 #endif
 
+builder
+    .AddHangfireDefault();
+
 var app = builder.Build();
 
 app.ConfigureDefaults();
+app.UseHangfireDashboard();
+app.AddRecurringJobs();
 
 app.Run();

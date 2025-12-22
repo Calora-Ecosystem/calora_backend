@@ -1,9 +1,65 @@
+using BRB.Core.Common.Exceptions;
+using BRB.Core.Common.Extensions;
+using BRB.Core.EF.Extensions;
+using Core.Services.Notification.Contracts;
+using FirebaseAdmin.Messaging;
+using Hangfire;
+using Microsoft.EntityFrameworkCore;
+
 namespace Core.Services.Notification;
 
 public partial class NotificationService
 {
-    public Task SendPush(long userId, string title, string description)
+    public async Task<SendPushResultDto> SendPush(List<string> tokens,
+        FirebaseAdmin.Messaging.Notification notification, Dictionary<string, string>? meta)
     {
-        throw new NotImplementedException();
+        var response = await FirebaseMessaging.DefaultInstance
+            .SendEachForMulticastAsync(new MulticastMessage()
+            {
+                Notification = notification,
+                Tokens = tokens,
+                Data = meta
+            });
+
+        return new SendPushResultDto
+        {
+            Total = tokens.Count,
+            FailureCount = response.FailureCount,
+            SuccessCount = response.SuccessCount
+        };
+    }
+
+    public async Task SendPush(long notificationId)
+    {
+        var notification = await dbContext.PushNotifications.GetByIdOrThrowsNotFoundException(notificationId);
+
+        var response = await SendPush(notification.Tokens, new FirebaseAdmin.Messaging.Notification()
+        {
+            Title = notification.Title,
+            Body = notification.Description,
+            ImageUrl = notification.Image
+        }, notification.Meta);
+
+        notification.SentAt = DateTime.Now;
+        notification.SuccessCount = response.SuccessCount;
+        notification.FailureCount = response.FailureCount;
+
+        await dbContext.SaveChangesAsync();
+    }
+    
+    public async Task EnqueueNotifications()
+    {
+        (await dbContext.PushNotifications
+                .Where(x => !x.SentAt.HasValue)
+                .OrderBy(x => x.CreatedAt)
+                .Select(x => new { x.Id, x.Scheduled })
+                .ToListAsync())
+            .ForEach(n =>
+            {
+                if (n.Scheduled.HasValue)
+                    BackgroundJob.Schedule<NotificationService>(x => x.SendPush(n.Id), n.Scheduled.Value);
+                else
+                    BackgroundJob.Enqueue<NotificationService>(x => x.SendPush(n.Id));
+            });
     }
 }

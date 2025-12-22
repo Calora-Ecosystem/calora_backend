@@ -7,7 +7,7 @@ namespace Core.Brokers.GeminiBroker;
 
 public static class ServiceCollectionExtensions
 {
-    public static void AddGeminiAi(this IServiceCollection services, string configSection = "Gemini")
+    public static IServiceCollection AddGeminiAi(this IServiceCollection services, string configSection = "Gemini")
     {
         services
             .AddOptions<GeminiConfig>()
@@ -20,5 +20,7 @@ public static class ServiceCollectionExtensions
             var option = provider.GetRequiredService<IOptions<GeminiConfig>>();
             return new Client(apiKey: option.Value.ApiKey);
         });
+
+        return services;
     }
 }

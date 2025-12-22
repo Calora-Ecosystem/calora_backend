@@ -3,10 +3,13 @@ using BRB.Core.EF.Extensions;
 using Core.Brokers.EmailBroker;
 using Core.Services.Auth;
 using Core.Services.Auth.Contracts;
+using Core.Services.Notification;
+using Hangfire;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Npgsql;
 
 namespace Core;
@@ -55,5 +58,13 @@ public static class CoreConfiguration
             }, lifetime.Value, lifetime.Value);
 
         return builder;
+    }
+
+    public static WebApplication AddRecurringJobs(this WebApplication app)
+    {
+        RecurringJob.AddOrUpdate<NotificationService>("enqueue_notifications",
+            service => service.EnqueueNotifications(), app.Environment.IsProduction() ? "*/10 * * * *" : "* * * * *");
+
+        return app;
     }
 }

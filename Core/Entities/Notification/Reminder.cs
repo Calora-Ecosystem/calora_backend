@@ -9,7 +9,7 @@ public class Reminder : ModelBase<long>
 {
     [ForeignKey(nameof(User))] public long UserId { get; set; }
     // [ForeignKey(nameof(Moment))] public long MomentId { get; set; }
-    public TimeOnly Time { get; set; }
+    public TimeSpan Time { get; set; }
 
     public EnumMomentType Type { get; set; }
     public EnumMenu? Menu { get; set; }
