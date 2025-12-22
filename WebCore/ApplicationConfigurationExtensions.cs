@@ -8,6 +8,8 @@ using BRB.Core.Common.Exceptions;
 using BRB.Core.Web.Fallback;
 using BRB.Core.Web.Filters;
 using BRB.Core.Web.Middlewares;
+using Hangfire;
+using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
@@ -393,5 +395,17 @@ public static class ApplicationConfigurationExtensions
         });
 
         return app;
+    }
+
+    public static WebApplicationBuilder AddHangfireDefault(this WebApplicationBuilder builder)
+    {
+        builder.Services.AddHangfire(configuration =>
+        {
+            configuration
+                .UseSerilogLogProvider()
+                .UseInMemoryStorage();
+        });
+        builder.Services.AddHangfireServer(options => { options.WorkerCount = 5; });
+        return builder;
     }
 }

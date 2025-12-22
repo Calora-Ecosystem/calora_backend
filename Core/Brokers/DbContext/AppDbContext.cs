@@ -52,9 +52,10 @@ public class AppDbContext : DefaultConfiguredDbContext
 
     #endregion
 
-    #region MyRegion
+    #region Notifications
 
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<PushNotification> PushNotifications { get; set; }
     public DbSet<Reminder> Reminders { get; set; }
 
     #endregion

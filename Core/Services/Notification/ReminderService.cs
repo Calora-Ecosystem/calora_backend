@@ -1,10 +1,9 @@
-﻿using BRB.Core.Common.Exceptions;
+﻿using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Notification;
-using Core.Entities.Refs;
 using Core.Enums;
 using Core.Services.Notification.Contracts;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +12,7 @@ using ResultWrapper.Library;
 namespace Core.Services.Notification;
 
 [Injectable]
-public class ReminderService(AppDbContext dbContext)
+public class ReminderService(AppDbContext dbContext, NotificationService notificationService)
 {
     public async Task<Wrapper> GetAllByUserId(long userId, DataQueryRequest q)
     {
@@ -36,7 +35,7 @@ public class ReminderService(AppDbContext dbContext)
                 Menu = dto.Menu
             };
 
-        reminder.Time = dto.Time;
+        reminder.Time = dto.Time.ToTimeSpan();
 
         reminder = dbContext.Update(reminder).Entity;
 
@@ -51,6 +50,25 @@ public class ReminderService(AppDbContext dbContext)
             .Reminders
             .Where(x => x.Id == reminderId && x.UserId == userId)
             .ExecuteDeleteAsync();
+    }
+
+    public async Task QueueToPush()
+    {
+        var now = DateTime.Now;
+
+        await (await dbContext.Reminders
+                .Where(x =>
+                    (x.Type == EnumMomentType.DailyChallenge || x.Type == EnumMomentType.Sleep)
+                    && (x.Time - now.TimeOfDay).TotalMinutes < 30)
+                .ToListAsync())
+            .ForEachAsync(x => notificationService.CreateOrUpdatePushNotification(new PushNotificationDto()
+                {
+                    UserId = x.UserId,
+                    Description = "",
+                    Title = "sleep and daily challenge",
+                    Scheduled = now.Add(x.Time - now.TimeOfDay)
+                }
+            ));
     }
 
     // public async Workout<Wrapper> GetAllMoments(DataQueryRequest q)
