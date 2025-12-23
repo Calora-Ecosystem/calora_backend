@@ -59,21 +59,9 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
 
         await (await dbContext.Reminders
                 .Where(x =>
-                    (x.Time - (
-                        x.Type == EnumMomentType.DailyChallenge
-                        || x.Type == EnumMomentType.Sleep
-                        || x.Type == EnumMomentType.Water
-                            ? nowSpan
-                            : x.Type == EnumMomentType.Food && x.Menu == EnumMenu.Breakfast
-                                ? new TimeSpan(8, 0, 0)
-                                : x.Type == EnumMomentType.Food && x.Menu == EnumMenu.Lunch
-                                    ? new TimeSpan(12, 0, 0)
-                                    : x.Type == EnumMomentType.Food && x.Menu == EnumMenu.Dinner
-                                        ? new TimeSpan(18, 0, 0)
-                                        : x.Type == EnumMomentType.Food && x.Menu == EnumMenu.Snack
-                                            ? new TimeSpan(20, 0, 0)
-                                            : TimeSpan.Zero
-                    )).TotalMinutes <= 30
+                    x.Type == EnumMomentType.Water
+                        ? nowSpan.Hours % x.Time.Hours == 0
+                        : (x.Time - nowSpan).TotalMinutes <= 30
                 )
                 .ToListAsync())
             .ForEachAsync(x => notificationService.CreateOrUpdatePushNotification(new PushNotificationDto()
@@ -81,7 +69,7 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
                 UserId = x.UserId,
                 Description = "",
                 Title = "sleep and daily challenge",
-                Scheduled = now.Add(x.Time - nowSpan)
+                Scheduled = x.Type == EnumMomentType.Water ? null : now.Add(x.Time - nowSpan)
             }));
     }
 
