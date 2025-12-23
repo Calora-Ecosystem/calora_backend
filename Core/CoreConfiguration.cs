@@ -69,7 +69,7 @@ public static class CoreConfiguration
             service => service.EnqueueNotifications(), app.Environment.IsProduction() ? "*/10 * * * *" : "* * * * *");
 
         RecurringJob.AddOrUpdate<ReminderService>("check_reminders",
-            service => service.CheckReminders(), "*/30 * * * *");
+            service => service.CheckReminders(), "*/31 * * * *");
 
         return app;
     }
