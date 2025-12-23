@@ -106,8 +106,11 @@ public class CourseService(AppDbContext context)
         await context.SaveChangesAsync();
     }
 
-    public async Task ReorderCourseItem(EnumCourseItemType type, long id, long? beforeImteId, long? afterItemId)
+    public async Task ReorderCourseItem(EnumCourseItemType type, long id, long? beforeItemId, long? afterItemId)
     {
+        if (beforeItemId == null && afterItemId == null)
+            throw new BadRequestException("Both before and after item id are null");
+        
         Func<long, long?, long?, Task> orderFunc = type switch
         {
             EnumCourseItemType.Course => ReorderItemAsync<Entities.Course.Course>,
@@ -117,7 +120,7 @@ public class CourseService(AppDbContext context)
             _ => throw new Exception("Unknown type")
         };
 
-        await orderFunc(id, beforeImteId, afterItemId);
+        await orderFunc(id, beforeItemId, afterItemId);
     }
 
     public async Task ReorderItemAsync<T>(long itemId, long? beforeItemId, long? afterItemId) where T : BaseItem
