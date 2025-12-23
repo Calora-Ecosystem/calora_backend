@@ -90,6 +90,13 @@ public class UserService(AppDbContext context)
             extra.Weight = dto.Weight;
 
             //Calculate user norms
+            //Weight
+            await CreateOrUpdateNorm(userId, new CreateUserNormDto()
+            {
+                Metric = EnumMetrics.Weight,
+                Value = dto.TargetWeight
+            });
+            
             //Step
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
