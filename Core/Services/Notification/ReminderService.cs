@@ -68,7 +68,7 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
             {
                 UserId = x.UserId,
                 Description = "",
-                Title = "sleep and daily challenge",
+                Title = $"Reminding: {x.Type}{(x.Menu.HasValue ? $"-{x.Menu}" : "")}",
                 Scheduled = x.Type == EnumMomentType.Water ? null : now.Add(x.Time - nowSpan)
             }));
     }
