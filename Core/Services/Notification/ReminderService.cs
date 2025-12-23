@@ -52,23 +52,37 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
             .ExecuteDeleteAsync();
     }
 
-    public async Task QueueToPush()
+    public async Task CheckReminders()
     {
         var now = DateTime.Now;
+        var nowSpan = now.TimeOfDay;
 
         await (await dbContext.Reminders
                 .Where(x =>
-                    (x.Type == EnumMomentType.DailyChallenge || x.Type == EnumMomentType.Sleep)
-                    && (x.Time - now.TimeOfDay).TotalMinutes < 30)
+                    (x.Time - (
+                        x.Type == EnumMomentType.DailyChallenge
+                        || x.Type == EnumMomentType.Sleep
+                        || x.Type == EnumMomentType.Water
+                            ? nowSpan
+                            : x.Type == EnumMomentType.Food && x.Menu == EnumMenu.Breakfast
+                                ? new TimeSpan(8, 0, 0)
+                                : x.Type == EnumMomentType.Food && x.Menu == EnumMenu.Lunch
+                                    ? new TimeSpan(12, 0, 0)
+                                    : x.Type == EnumMomentType.Food && x.Menu == EnumMenu.Dinner
+                                        ? new TimeSpan(18, 0, 0)
+                                        : x.Type == EnumMomentType.Food && x.Menu == EnumMenu.Snack
+                                            ? new TimeSpan(20, 0, 0)
+                                            : TimeSpan.Zero
+                    )).TotalMinutes <= 30
+                )
                 .ToListAsync())
             .ForEachAsync(x => notificationService.CreateOrUpdatePushNotification(new PushNotificationDto()
-                {
-                    UserId = x.UserId,
-                    Description = "",
-                    Title = "sleep and daily challenge",
-                    Scheduled = now.Add(x.Time - now.TimeOfDay)
-                }
-            ));
+            {
+                UserId = x.UserId,
+                Description = "",
+                Title = "sleep and daily challenge",
+                Scheduled = now.Add(x.Time - nowSpan)
+            }));
     }
 
     // public async Workout<Wrapper> GetAllMoments(DataQueryRequest q)

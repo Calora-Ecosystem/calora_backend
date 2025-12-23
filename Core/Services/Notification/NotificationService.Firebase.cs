@@ -32,8 +32,10 @@ public partial class NotificationService
     public async Task SendPush(long notificationId)
     {
         var notification = await dbContext.PushNotifications.GetByIdOrThrowsNotFoundException(notificationId);
+        var fcmTokens = await dbContext.Devices.Where(x => x.UserId == notification.UserId && x.FcmToken != null).Select(x => x.FcmToken!)
+            .ToListAsync();
 
-        var response = await SendPush(notification.Tokens, new FirebaseAdmin.Messaging.Notification()
+        var response = await SendPush(fcmTokens, new FirebaseAdmin.Messaging.Notification()
         {
             Title = notification.Title,
             Body = notification.Description,

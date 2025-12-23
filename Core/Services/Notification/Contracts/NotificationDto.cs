@@ -32,4 +32,5 @@ public class PushNotificationDto : NotificationDto
     public long UserId { get; set; }
     public string? Image { get; set; }
     public DateTime? Scheduled { get; set; }
+    public Dictionary<string, string>? Meta { get; set; }
 }

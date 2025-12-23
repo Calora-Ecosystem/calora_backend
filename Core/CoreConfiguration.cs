@@ -62,8 +62,14 @@ public static class CoreConfiguration
 
     public static WebApplication AddRecurringJobs(this WebApplication app)
     {
+        if (app.Environment.IsDevelopment())
+            return app;
+
         RecurringJob.AddOrUpdate<NotificationService>("enqueue_notifications",
             service => service.EnqueueNotifications(), app.Environment.IsProduction() ? "*/10 * * * *" : "* * * * *");
+
+        RecurringJob.AddOrUpdate<ReminderService>("check_reminders",
+            service => service.CheckReminders(), "*/30 * * * *");
 
         return app;
     }

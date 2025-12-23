@@ -1,6 +1,7 @@
 ﻿using Core;
 using Core.Enums;
 using Core.Services.Notification;
+using Core.Services.Notification.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using ResultWrapper.Library;
 using WebCore.Controller;
@@ -16,4 +17,13 @@ public class NotificationController(NotificationService notificationService) : A
     [ProducesResponseType(typeof(WrapperGeneric<int>), 200)]
     public async Task<Wrapper> GetUnreadNotificationsCount() =>
         (await notificationService.GetUnreadNotificationsCount(this.UserId), 200);
+
+    [HttpPost]
+    [ProducesResponseType(typeof(WrapperGeneric<int>), 200)]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> CreateOrUpdateNotification(PushNotificationDto dto)
+    {
+        await notificationService.CreateOrUpdatePushNotification(dto);
+        return 200;
+    }
 }
