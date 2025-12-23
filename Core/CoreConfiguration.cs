@@ -65,6 +65,9 @@ public static class CoreConfiguration
         RecurringJob.AddOrUpdate<NotificationService>("enqueue_notifications",
             service => service.EnqueueNotifications(), app.Environment.IsProduction() ? "*/10 * * * *" : "* * * * *");
 
+        RecurringJob.AddOrUpdate<ReminderService>("check_reminders",
+            service => service.CheckReminders(), "*/30 * * * *");
+
         return app;
     }
 }
