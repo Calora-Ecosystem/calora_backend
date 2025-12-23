@@ -74,6 +74,7 @@ public class WorkoutService(AppDbContext dbContext)
             };
 
         workout.Title = dto.Title;
+        workout.Description = dto.Description;
         workout.HasRest = dto.HasRest;
         workout.Assets = dto.Assets;
 

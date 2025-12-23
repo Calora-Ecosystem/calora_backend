@@ -11,6 +11,5 @@ public class Workout : BaseItem
 
     public bool HasRest { get; set; } = false;
     public Course Course { get; set; } = null!;
-    public long Type { get; set; }
     public ICollection<Exercise> Exercises { get; set; } = null!;
 }
