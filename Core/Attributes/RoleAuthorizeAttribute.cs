@@ -17,6 +17,7 @@ namespace Core;
 public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribute, IAuthorizationFilter
 {
     private new EnumRole[] Roles { get; set; } = roles;
+    public EnumSPlans[]? Plans { get; set; } = null!;
 
     public void OnAuthorization(AuthorizationFilterContext context)
     {
@@ -36,9 +37,9 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
             context.Result = new ObjectResult(new Wrapper(new UnauthorizedException()));
             return;
         }
-        
+
         var environment = context.HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
-        
+
         //Disable session check in development
         if (!environment.IsDevelopment())
         {
@@ -65,6 +66,21 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
         if (attr.Roles.Any(role => user.IsInRole(role.ToString())))
         {
             return;
+        }
+
+        if (attr.Plans != null)
+        {
+            if (!attr.Plans.Any())
+                return;
+
+            var plan = user.Claims.FirstOrDefault(x => x.Type == CustomClaims.Plan)?.Value;
+
+            if (plan != null && Enum.IsDefined(typeof(EnumSPlans), plan) &&
+                attr.Plans!.Contains(Enum.Parse<EnumSPlans>(plan)))
+                return;
+
+            context.Result =
+                new ObjectResult(new Wrapper(new ForbiddenException("You don't have access to this resource")));
         }
 
         context.Result = new ObjectResult(new Wrapper(new ForbiddenException()));

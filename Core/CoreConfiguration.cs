@@ -3,6 +3,7 @@ using BRB.Core.EF.Extensions;
 using Core.Brokers.EmailBroker;
 using Core.Services.Auth;
 using Core.Services.Auth.Contracts;
+using Core.Services.Billing.Click;
 using Core.Services.Notification;
 using Hangfire;
 using Microsoft.AspNetCore.Builder;
@@ -72,5 +73,16 @@ public static class CoreConfiguration
             service => service.CheckReminders(), "*/30 * * * *");
 
         return app;
+    }
+
+    public static IServiceCollection AddClickService(this IServiceCollection services)
+    {
+        services.AddScoped<ClickService>();
+        services.AddOptions<ClickConfig>()
+            .BindConfiguration("Click")
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        return services;
     }
 }

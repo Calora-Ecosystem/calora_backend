@@ -6,4 +6,5 @@ public static class CustomClaims
      public const string SessionId = "session-id";
      public const string UserId = "user-id";
      public const string RoleId = "role-id";
+     public const string Plan = "plan";
 }

@@ -20,6 +20,7 @@ builder
     .AddFileService()
     .AddGeminiAi()
     .AddFirebaseAdmin()
+    .AddClickService()
     ;
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();

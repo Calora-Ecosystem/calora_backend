@@ -1,4 +1,6 @@
 ﻿using BRB.Core.Common.Exceptions;
+using Core;
+using Core.Enums;
 using Core.Services.Ai.Contracts;
 using Core.Services.File.Contracts;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +24,7 @@ namespace WebApi.Controllers
         }
 
         [HttpPost("analyze")]
+        [RoleAuthorize(EnumRole.User)]
         public async Task<WrapperGeneric<AnalyzeFaceDto>> Analyze([FromForm] UploadFileDto image)
         {
             var bytes = new byte[image.File.Length];
@@ -34,7 +37,7 @@ namespace WebApi.Controllers
 
             if (faces.Length == 0)
                 throw new BadRequestException("face not found");
-            
+
             var face = faces[0];
 
             using Image<Rgba32> fullImg = Image.Load<Rgba32>(bytes);
@@ -50,14 +53,15 @@ namespace WebApi.Controllers
         private AnalyzeFaceDto AnalyzeFace(Image<Rgba32> face)
         {
             // Har bir parametrni hisoblaymiz
-            double redness = DetectRedness(face);           // Yuzda toshmalar
-            double darkEyes = DetectDarkCircles(face);     // Ko'z osti qoraygan
-            double energy = DetectEnergy(face);            // Energiya darajasi
+            double redness = DetectRedness(face); // Yuzda toshmalar
+            double darkEyes = DetectDarkCircles(face); // Ko'z osti qoraygan
+            double energy = DetectEnergy(face); // Energiya darajasi
             double stress = (redness / 2 + (100 - energy) / 2); // Stress darajasi (heuristik)
-            double sleep = 100 - darkEyes;                // Uyqu darajasi
+            double sleep = 100 - darkEyes; // Uyqu darajasi
 
             // Main sog'liq foizi
-            int healthIndex = (int)Math.Round(100 - ((redness + darkEyes + (100 - energy) + stress + (100 - sleep)) / 5));
+            int healthIndex =
+                (int)Math.Round(100 - ((redness + darkEyes + (100 - energy) + stress + (100 - sleep)) / 5));
 
             // Natijani formatlash
             return new AnalyzeFaceDto
@@ -76,12 +80,12 @@ namespace WebApi.Controllers
             double red = 0, total = w * h;
 
             for (int y = 0; y < h; y++)
-                for (int x = 0; x < w; x++)
-                {
-                    var p = img[x, y];
-                    if (p.R > 180 && p.G < 120)
-                        red++;
-                }
+            for (int x = 0; x < w; x++)
+            {
+                var p = img[x, y];
+                if (p.R > 180 && p.G < 120)
+                    red++;
+            }
 
             return (red / total) * 100;
         }
@@ -94,16 +98,16 @@ namespace WebApi.Controllers
             double dark = 0, count = 0;
 
             for (int y = startY; y < h; y++)
-                for (int x = 0; x < w; x++)
-                {
-                    var p = img[x, y];
-                    double brightness = (p.R + p.G + p.B) / 3.0;
+            for (int x = 0; x < w; x++)
+            {
+                var p = img[x, y];
+                double brightness = (p.R + p.G + p.B) / 3.0;
 
-                    if (brightness < 80)
-                        dark++;
+                if (brightness < 80)
+                    dark++;
 
-                    count++;
-                }
+                count++;
+            }
 
             return (dark / count) * 100;
         }
@@ -114,11 +118,11 @@ namespace WebApi.Controllers
             double total = 0, count = w * h;
 
             for (int y = 0; y < h; y++)
-                for (int x = 0; x < w; x++)
-                {
-                    var p = img[x, y];
-                    total += (p.R + p.G + p.B) / 3.0;
-                }
+            for (int x = 0; x < w; x++)
+            {
+                var p = img[x, y];
+                total += (p.R + p.G + p.B) / 3.0;
+            }
 
             double avg = total / count;
             return Math.Min(100, avg / 2);
