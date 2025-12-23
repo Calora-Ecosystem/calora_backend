@@ -19,4 +19,5 @@ public class CreateUserExtraDto
     public EnumLanguage Language { get; set; }
     public EnumActivityLevel ActivityLevel { get; set; }
     public EnumPurpose Purpose { get; set; }
+    public double TargetWeight { get; set; }
 }

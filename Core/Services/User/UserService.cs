@@ -90,6 +90,13 @@ public class UserService(AppDbContext context)
             extra.Weight = dto.Weight;
 
             //Calculate user norms
+            //Weight
+            await CreateOrUpdateNorm(userId, new CreateUserNormDto()
+            {
+                Metric = EnumMetrics.Weight,
+                Value = dto.TargetWeight
+            });
+            
             //Step
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
@@ -450,7 +457,7 @@ group by ung.user_id
             _ => 10 * extra.Weight + 6.25 * extra.Height - 5 * extra.Age - 161
         };
 
-        const double activityValueDistancePerLevel = 1.75;
+        const double activityValueDistancePerLevel = 0.175;
         const double activityValueMin = 1.2;
 
         var activityValue = (extra.ActivityLevel - EnumActivityLevel.Minimal) * activityValueDistancePerLevel +
