@@ -28,12 +28,14 @@ public partial class NotificationService(EmailClient emailClient, FirebaseMessag
               throw new NotFoundException("Notification not found")
             : new PushNotification()
             {
+                UserId = dto.UserId
             };
 
         notification.Title = dto.Title;
         notification.Image = dto.Image;
         notification.Description = dto.Description;
         notification.Scheduled = dto.Scheduled;
+        notification.Meta = dto.Meta;
 
         dbContext.Update(notification);
         await dbContext.SaveChangesAsync();
