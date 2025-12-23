@@ -5,7 +5,9 @@ using Core.Brokers.DbContext;
 using Core.Brokers.FirebaseBroker;
 using Core.Brokers.GeminiBroker;
 using Hangfire;
+using Hangfire.Dashboard;
 using WebCore;
+using WebCore.Filters.Hangfire;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,7 +33,13 @@ builder
 var app = builder.Build();
 
 app.ConfigureDefaults();
-app.UseHangfireDashboard();
+app.UseHangfireDashboard(options: new DashboardOptions()
+{
+#if !DEBUG
+    PrefixPath = "/api",
+#endif
+    Authorization = [new Authorization(app.Environment)]
+});
 app.AddRecurringJobs();
 
 app.Run();
