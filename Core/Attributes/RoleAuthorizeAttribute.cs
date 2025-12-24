@@ -72,6 +72,6 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
         }
         
         context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Forbidden;
-        context.Result = new ObjectResult(new Wrapper(new ForbiddenException()));
+        context.Result = new ObjectResult(new Wrapper(new ForbiddenException(), HttpStatusCode.Forbidden));
     }
 }
