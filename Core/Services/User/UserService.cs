@@ -4,11 +4,9 @@ using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Auth;
-using Core.Entities.Refs;
 using Core.Enums;
 using Core.Services.User.Contracts;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.IdentityModel.Tokens;
 using ResultWrapper.Library;
 
@@ -330,7 +328,7 @@ public class UserService(AppDbContext context)
             .Sort(q)
             .ToDictionaryAsync(x => x.Date, x => x);
 
-        var result = Enumerable.Range(0, (to - from).Value.Days + 1).Select((x, i) =>
+        var result = Enumerable.Range(0, (to - from).Value.Days + 1).Select((_, i) =>
             byDate.TryGetValue(from.Value.AddDays(i), out var value)
                 ? value
                 : new GetDailyDto()
@@ -360,6 +358,14 @@ public class UserService(AppDbContext context)
 
         context.UserDailies.Update(existing);
         await context.SaveChangesAsync();
+    }
+
+    public async Task ResetDaily(long userId, DateTime date)
+    {
+        await context
+            .UserDailies
+            .Where(x => x.UserId == userId && x.Date.Date == date.Date)
+            .ExecuteDeleteAsync();
     }
 
     // public async Task UpdateDaily(long userId, EnumMetrics metric, DateTime date, UpdateUserDailyDto dto)

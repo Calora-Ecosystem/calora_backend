@@ -88,6 +88,13 @@ public class UserController(UserService userService) : AuthorizedController
         await userService.CreateOrUpdateDaily(this.UserId, userDaily);
         return (new { Message = "User daily record added successfully." }, 201);
     }
+    
+    [HttpPost("dailies/reset")]
+    public async Task<Wrapper> ResetDaily(DateTime date)
+    {
+        await userService.ResetDaily(this.UserId, date);
+        return 200;
+    }
 
     [HttpPost("dailies/batch")]
     public async Task<Wrapper> AddDailyBatch([FromBody] List<CreateUserDailyDto> userDaily)
