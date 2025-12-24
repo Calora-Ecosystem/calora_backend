@@ -48,7 +48,7 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
 
             if (sessionId == null || userId == null)
             {
-                context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Forbidden;
+                context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Unauthorized;
                 context.Result =
                     new ObjectResult(new Wrapper(new SessionExpiredException(), HttpStatusCode.Unauthorized));
                 return;
@@ -58,7 +58,7 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
 
             if (!cache.TryGetValue($"session:{userId}:{sessionId}", out var session) || session == null)
             {
-                context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Forbidden;
+                context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Unauthorized;
                 context.Result =
                     new ObjectResult(new Wrapper(new SessionExpiredException(), HttpStatusCode.Unauthorized));
                 return;
