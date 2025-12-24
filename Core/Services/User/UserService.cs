@@ -192,7 +192,7 @@ public class UserService(AppDbContext context)
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
                 Metric = EnumMetrics.Carb,
-                Value = (tdee - protein * 4 - fat * 9) / 4
+                Value = (2.5 + 0.5*(extra.ActivityLevel - EnumActivityLevel.Minimal)) * extra.Weight
             });
 
             context.UserExtras.Update(extra);
