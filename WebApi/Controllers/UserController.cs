@@ -89,7 +89,7 @@ public class UserController(UserService userService) : AuthorizedController
         return (new { Message = "User daily record added successfully." }, 201);
     }
     
-    [HttpPost("dailies/reset")]
+    [HttpDelete("dailies/reset")]
     public async Task<Wrapper> ResetDaily(DateTime date)
     {
         await userService.ResetDaily(this.UserId, date);
