@@ -1,6 +1,7 @@
 ﻿using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
 using Core;
+using Core.Attributes;
 using Core.Entities.FoodEntites;
 using Core.Enums;
 using Core.Services.Ai.Contracts;

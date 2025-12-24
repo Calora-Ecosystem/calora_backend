@@ -2,6 +2,7 @@
 using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Models;
 using Core;
+using Core.Attributes;
 using Core.Enums;
 using Core.Services.User;
 using Core.Services.User.Contracts;

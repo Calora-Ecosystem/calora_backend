@@ -2,6 +2,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using BRB.Core.Common.Exceptions;
 using Core;
+using Core.Attributes;
 using Core.Constants;
 using Core.Enums;
 using Core.Services.Auth;

@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ResultWrapper.Library;
 
-namespace Core;
+namespace Core.Attributes;
 
 public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribute, IAuthorizationFilter
 {
@@ -20,6 +20,7 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
 
     public void OnAuthorization(AuthorizationFilterContext context)
     {
+        context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Unauthorized;
         var endpoint = context.ActionDescriptor.EndpointMetadata;
 
         if (endpoint.OfType<IAllowAnonymous>().Any())
@@ -61,12 +62,15 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
                 return;
             }
         }
+        
+        context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Forbidden;
 
         if (attr.Roles.Any(role => user.IsInRole(role.ToString())))
         {
             return;
         }
-
+        
+        
         context.Result = new ObjectResult(new Wrapper(new ForbiddenException()));
     }
 }
