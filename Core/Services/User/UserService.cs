@@ -34,7 +34,8 @@ public class UserService(AppDbContext context)
     {
         var extra = await context.UserExtras
                         .Where(x => x.UserId == userId)
-                        .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.EntryWeight, x.Height, x.Bmi, x.Gender,
+                        .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.EntryWeight, x.Height,
+                            Math.Round(x.Bmi, 0), x.Gender,
                             x.BirthDate,
                             x.Photo, x.Name, x.ActivityLevel, x.Purpose))
                         .FirstOrDefaultAsync()
@@ -96,7 +97,7 @@ public class UserService(AppDbContext context)
                 Metric = EnumMetrics.Weight,
                 Value = dto.TargetWeight
             });
-            
+
             //Step
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
@@ -191,7 +192,7 @@ public class UserService(AppDbContext context)
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
                 Metric = EnumMetrics.Carb,
-                Value = (tdee - protein * 4 - fat * 9) / 4
+                Value = (2.5 + 0.5*(extra.ActivityLevel - EnumActivityLevel.Minimal)) * extra.Weight
             });
 
             context.UserExtras.Update(extra);
@@ -258,7 +259,7 @@ public class UserService(AppDbContext context)
                     }), general => general.Metric, arg => arg.Metric,
                 (general, arg2) => new UserProgressSummaryDto
                 {
-                    Metric = general.Metric, Target = Math.Round(general.Value,0),
+                    Metric = general.Metric, Target = Math.Round(general.Value, 0),
                     Progress = !arg2.IsNullOrEmpty() ? arg2.First().Sum : 0
                 })
             .ToListAsync();
