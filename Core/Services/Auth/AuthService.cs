@@ -1,4 +1,5 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -7,6 +8,7 @@ using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Helpers;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
+using Core.Brokers.Apple;
 using Core.Brokers.DbContext;
 using Core.Brokers.EmailBroker;
 using Core.Constants;
@@ -15,6 +17,7 @@ using Core.Enums;
 using Core.Services.Auth.Contracts;
 using Core.Services.Notification;
 using Core.Services.Notification.Contracts;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -32,8 +35,88 @@ public class AuthService(
     IWebHostEnvironment environment,
     DeviceService deviceService,
     IOptions<AuthConfig> authConfig,
-    NotificationService notificationService)
+    NotificationService notificationService,
+    AppleClient appleClient
+)
 {
+    public async Task<object> SignInWithGoogle(SsoSignInDto dto)
+    {
+        var payload = await GoogleJsonWebSignature.ValidateAsync(dto.SsoToken);
+
+        var user = await dbContext.Users
+            .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, payload.Email)) ?? new Entities.Auth.User()
+        {
+            Name = payload.Name,
+            Email = payload.Email,
+            Roles = [nameof(EnumRole.User)]
+        };
+
+        var hasNewUser = user.Id == 0;
+
+        user = dbContext.Users.Update(user).Entity;
+        await dbContext.SaveChangesAsync();
+
+        return GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+    }
+
+    public async Task<object> SignInWithAppleToken(SsoSignInDto dto)
+    {
+        var jwkSet = await appleClient.FetchAppleJwkSet();
+
+        Debug.WriteLine(jwkSet);
+
+        var parts = dto.SsoToken
+            .Split(".")
+            .Take(2)
+            .Select(x => JsonSerializer.Deserialize<JsonElement>(Base64UrlEncoder.Decode(x)))
+            .ToArray();
+
+        if (parts.Length < 2)
+            throw new UnauthorizedException("Invalid token");
+
+        var kid = parts[0].GetProperty("kid").GetString() ?? throw new UnauthorizedException("Invalid token");
+        var exp = parts[1].GetProperty("exp").GetInt64();
+        var email = parts[1].GetProperty("email").GetString() ?? throw new UnauthorizedException("Invalid token");
+        var emailVerified = parts[1].GetProperty("email_verified").GetBoolean();
+        var aud = parts[1].GetProperty("aud").GetString() ?? throw new UnauthorizedException("Invalid token");
+        var iss = parts[1].GetProperty("iss").GetString() ?? throw new UnauthorizedException("Invalid token");
+
+        if (aud != "uz.zingo.app")
+            throw new UnauthorizedException("Invalid audience");
+
+        if (!iss.EndsWith("appleid.apple.com"))
+            throw new UnauthorizedException("Invalid issuer");
+
+#if !DEBUG
+        var expDate = DateTimeOffset.FromUnixTimeSeconds(exp);
+        Debug.WriteLine(expDate);
+        
+        if (expDate <= DateTime.Now)
+            throw new UnauthorizedException("Token expired");
+#endif
+
+        if (jwkSet.Keys.All(x => x.KeyId != kid))
+            throw new UnauthorizedException("Invalid token kid");
+
+        if (email.IsNullOrEmpty() || !emailVerified)
+            throw new UnauthorizedException("Required claim principal not found");
+
+        var user = await dbContext.Users
+            .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, email)) ?? new Entities.Auth.User()
+        {
+            Name = "Anonymous",
+            Email = email,
+            Roles = [nameof(EnumRole.User)]
+        };
+
+        var hasNewUser = user.Id == 0;
+
+        user = dbContext.Users.Update(user).Entity;
+        await dbContext.SaveChangesAsync();
+
+        return GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+    }
+
     public async Task<object> RegisterAsync(RegisterDto dto)
     {
         var userExists = await dbContext.Users.AnyAsync(x => EF.Functions.ILike(x.Email, dto.Email));
@@ -81,11 +164,16 @@ public class AuthService(
         user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
 
+        return GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+    }
+
+    public async Task<object> GenerateTokens(Entities.Auth.User user, DeviceDto deviceInfo, bool hasNewUser)
+    {
         Device? device = null;
 
         await dbContext.Transactional(async () =>
         {
-            device = await deviceService.CreateOrUpdateDeviceAndGet(user.Id, dto.DeviceInfo);
+            device = await deviceService.CreateOrUpdateDeviceAndGet(user.Id, deviceInfo);
             await LogSignInfo(user.Id, device.Id);
         });
 
