@@ -1,5 +1,6 @@
 using System.Reflection;
 using BRB.Core.EF.Extensions;
+using Core.Brokers.Apple;
 using Core.Brokers.EmailBroker;
 using Core.Services.Auth;
 using Core.Services.Auth.Contracts;
@@ -27,6 +28,10 @@ public static class CoreConfiguration
             .AddOptions<AuthConfig>()
             .BindConfiguration("Auth")
             .ValidateOnStart();
+
+        builder
+            .Services
+            .AddAppleClient();
 
         return builder;
     }

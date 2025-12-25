@@ -32,6 +32,14 @@ public class AuthController(AuthService authService) : AuthorizedController
     [HttpPost("sign-in")]
     public async Task<Wrapper> SignIn([FromBody] SignInDto dto) =>
         (await authService.SignInAsync(dto), 200);
+    
+    [HttpPost("sign-in/google")]
+    public async Task<Wrapper> SignInViaGoogle([FromBody] SsoSignInDto dto) =>
+        (await authService.SignInWithGoogle(dto), 200);
+    
+    [HttpPost("sign-in/apple")]
+    public async Task<Wrapper> SignInViaApple([FromBody] SsoSignInDto dto) =>
+        (await authService.SignInWithAppleToken(dto), 200);
 
     [HttpGet("refresh-token")]
     public async Task<Wrapper>
