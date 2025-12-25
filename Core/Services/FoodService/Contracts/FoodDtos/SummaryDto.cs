@@ -8,6 +8,6 @@ public record SummaryDto
     public GetNormDto KcalNorm { get; set; } = null!;
     public Dictionary<EnumMenu, NutrientSummaryDto> NutrientsNorm { get; set; } = null!;
     public Dictionary<EnumMenu, NutrientSummaryDto> Nutrients { get; set; } = null!;
-    public double SumKcal { get; set; }
+    public Dictionary<EnumMetrics, double> Sum { get; set; } = null!;
     public DateTime? Date { get; set; }
 }
