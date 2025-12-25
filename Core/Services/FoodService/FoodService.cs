@@ -397,10 +397,10 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
 
         nutrients.ForEach(x =>
         {
-            x.Value.Protein = x.Value.Protein * x.Value.Weight / 100;
-            x.Value.Kcal = x.Value.Kcal * x.Value.Weight / 100;
-            x.Value.Carb = x.Value.Carb * x.Value.Weight / 100;
-            x.Value.Fat = x.Value.Fat * x.Value.Weight / 100;
+            x.Value.Protein = Math.Round(x.Value.Protein * x.Value.Weight / 100, 0);
+            x.Value.Kcal = Math.Round(x.Value.Kcal * x.Value.Weight / 100, 0);
+            x.Value.Carb = Math.Round(x.Value.Carb * x.Value.Weight / 100, 0);
+            x.Value.Fat = Math.Round(x.Value.Fat * x.Value.Weight / 100, 0);
         });
 
         var nutrientsNorm = Enum.GetValues<EnumMenu>()
@@ -421,10 +421,17 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                 Weight = 0
             });
         
+        
         return new SummaryDto
         {
             KcalNorm = kcalNorm, NutrientsNorm = nutrientsNorm, Nutrients = nutrients,
-            SumKcal = nutrients.Values.Sum(x => x.Kcal),
+            Sum = new Dictionary<EnumMetrics, double>()
+            {
+                { EnumMetrics.Kcal, nutrients.Values.Sum(x => x.Kcal) },
+                { EnumMetrics.Carb, nutrients.Values.Sum(x => x.Carb) },
+                { EnumMetrics.Protein, nutrients.Values.Sum(x => x.Protein) },
+                { EnumMetrics.Fat, nutrients.Values.Sum(x => x.Fat) },
+            },
             Date = date
         };
     }
