@@ -56,7 +56,7 @@ public class AuthService(
         user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
 
-        return GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+        return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
     }
 
     public async Task<object> SignInWithAppleToken(SsoSignInDto dto)
@@ -114,7 +114,7 @@ public class AuthService(
         user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
 
-        return GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+        return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
     }
 
     public async Task<object> RegisterAsync(RegisterDto dto)
@@ -164,7 +164,7 @@ public class AuthService(
         user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
 
-        return GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+        return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
     }
 
     public async Task<object> GenerateTokens(Entities.Auth.User user, DeviceDto deviceInfo, bool hasNewUser)
