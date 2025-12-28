@@ -16,7 +16,7 @@ namespace WebApi.Controllers;
 public class NotificationController(NotificationService notificationService) : AuthorizedController
 {
     [HttpGet]
-    [ProducesResponseType(typeof(WrapperGeneric<int>), 200)]
+    [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetNotificationDto>>), 200)]
     public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q) =>
         await notificationService.GetAllNotifications(this.UserId, q);
 
