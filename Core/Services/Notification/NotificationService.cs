@@ -1,4 +1,6 @@
+using System.Linq.Expressions;
 using BRB.Core.Common.Exceptions;
+using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
@@ -7,6 +9,7 @@ using Core.Entities.Notification;
 using Core.Services.Notification.Contracts;
 using FirebaseAdmin.Messaging;
 using Microsoft.EntityFrameworkCore;
+using ResultWrapper.Library;
 
 namespace Core.Services.Notification;
 
@@ -15,7 +18,27 @@ public partial class NotificationService(EmailClient emailClient, FirebaseMessag
 {
     public async Task<int> GetUnreadNotificationsCount(long userId)
     {
-        return await dbContext.Notifications.CountAsync(x => x.UserId == userId && x.HasRead);
+        return await dbContext.Notifications.CountAsync(x => x.UserId == userId && !x.HasRead);
+    }
+
+    public async Task<Wrapper> GetAllNotifications(long userId, DataQueryRequest q)
+    {
+        var query = dbContext.PushNotifications
+            .Where(x => x.UserId == userId);
+
+
+        return (await query
+            .OrderByDescending(x => x.SentAt)
+            .Page(q)
+            .Select(x => new GetNotificationDto
+            {
+                Id = x.Id, UserId = x.UserId, Title = x.Title,
+                Description = x.Description,
+                Image = x.Image,
+                HasRead = x.HasRead,
+                SentAt = x.CreatedAt
+            })
+            .ToListAsync(), await query.CountAsync());
     }
 
     public async Task CreateOrUpdatePushNotification(PushNotificationDto dto)

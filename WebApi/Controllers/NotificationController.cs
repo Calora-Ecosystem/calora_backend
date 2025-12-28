@@ -1,4 +1,5 @@
-﻿using Core;
+﻿using BRB.Core.Common.Models;
+using Core;
 using Core.Attributes;
 using Core.Enums;
 using Core.Services.Notification;
@@ -14,6 +15,11 @@ namespace WebApi.Controllers;
 [RoleAuthorize(EnumRole.User)]
 public class NotificationController(NotificationService notificationService) : AuthorizedController
 {
+    [HttpGet]
+    [ProducesResponseType(typeof(WrapperGeneric<int>), 200)]
+    public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q) =>
+        await notificationService.GetAllNotifications(this.UserId, q);
+
     [HttpGet("unread")]
     [ProducesResponseType(typeof(WrapperGeneric<int>), 200)]
     public async Task<Wrapper> GetUnreadNotificationsCount() =>
