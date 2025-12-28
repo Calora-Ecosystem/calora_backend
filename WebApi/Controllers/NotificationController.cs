@@ -25,7 +25,7 @@ public class NotificationController(NotificationService notificationService) : A
     public async Task<Wrapper> GetUnreadNotificationsCount() =>
         (await notificationService.GetUnreadNotificationsCount(this.UserId), 200);
 
-    [HttpPut("mark-read")]
+    [HttpPut("mark-read/{notificationId:long:min(1)}")]
     public async Task<Wrapper> MarkRead(long notificationId)
     {
         await notificationService.MarkAsRead(this.UserId, notificationId);
