@@ -41,6 +41,15 @@ public partial class NotificationService(EmailClient emailClient, FirebaseMessag
             .ToListAsync(), await query.CountAsync());
     }
 
+    public async Task MarkAsRead(long userId, long id)
+    {
+        await dbContext
+            .Notifications
+            .Where(x => x.Id == id && x.UserId == userId)
+            .ExecuteUpdateAsync(x =>
+                x.SetProperty(notification => notification.HasRead, notification => true));
+    }
+
     public async Task CreateOrUpdatePushNotification(PushNotificationDto dto)
     {
         await dbContext.Users.ExistsOrThrowsNotFoundException(dto.UserId);
