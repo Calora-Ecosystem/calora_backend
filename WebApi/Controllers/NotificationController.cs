@@ -25,6 +25,13 @@ public class NotificationController(NotificationService notificationService) : A
     public async Task<Wrapper> GetUnreadNotificationsCount() =>
         (await notificationService.GetUnreadNotificationsCount(this.UserId), 200);
 
+    [HttpPut("mark-read")]
+    public async Task<Wrapper> MarkRead(long notificationId)
+    {
+        await notificationService.MarkAsRead(this.UserId, notificationId);
+        return 200;
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(WrapperGeneric<int>), 200)]
     [RoleAuthorize(EnumRole.SuperAdmin)]
