@@ -34,3 +34,8 @@ public class PushNotificationDto : NotificationDto
     public DateTime? Scheduled { get; set; }
     public Dictionary<string, string>? Meta { get; set; }
 }
+
+public class SmsNotificationDto : NotificationDto
+{
+    public string Phone { get; set; } = null!;
+}

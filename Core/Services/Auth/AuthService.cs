@@ -3,6 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using BRB.Core.Common.Attributes;
 using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Helpers;
@@ -14,7 +15,9 @@ using Core.Brokers.EmailBroker;
 using Core.Constants;
 using Core.Entities.Auth;
 using Core.Enums;
+using Core.Helpers;
 using Core.Services.Auth.Contracts;
+using Core.Services.Auth.Enums;
 using Core.Services.Notification;
 using Core.Services.Notification.Contracts;
 using Google.Apis.Auth;
@@ -117,7 +120,7 @@ public class AuthService(
         return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
     }
 
-    public async Task<object> RegisterAsync(RegisterDto dto)
+    public async Task<object> RegisterViaEmailAsync(RegisterViaEmailDto dto)
     {
         var userExists = await dbContext.Users.AnyAsync(x => EF.Functions.ILike(x.Email, dto.Email));
         if (userExists)
@@ -134,22 +137,34 @@ public class AuthService(
 
         await dbContext.SaveChangesAsync();
 
-        return await this.SendVerificationCode(user);
+        return await this.SendVerificationCode(EnumChannel.Email, user);
     }
 
-    public async Task<object> SignInAsync(SignInDto dto)
+    public async Task<object> RegisterViaPhoneAsync(RegisterViaPhoneDto dto)
     {
-        if (!memoryCache.TryGetValue(dto.VerificationCode.ToString(), out string? otp))
-            throw new NotFoundException("Otp not found or expired");
+        var validPhone = FormatHelper.MakeValidPhone(dto.Phone);
 
-        memoryCache.Remove(dto.VerificationCode.ToString());
+        var userExists = await dbContext.Users.AnyAsync(x => x.Phone == validPhone);
+        if (userExists)
+            throw new AlreadyExistsException("User already exists");
 
-        if (environment.IsProduction())
-            if (dto.Code.IsNullOrEmpty() || otp.IsNullOrEmpty() || otp != dto.Code)
-                throw new NotFoundException("Otp didn't match");
-            else ;
-        else if (dto.Code != "777777")
-            throw new NotFoundException("Otp didn't match");
+        var user = new Entities.Auth.User()
+        {
+            Name = "Anonymous",
+            Phone = dto.Phone,
+            Roles = [nameof(EnumRole.User)]
+        };
+
+        user = dbContext.Users.Add(user).Entity;
+
+        await dbContext.SaveChangesAsync();
+
+        return await this.SendVerificationCode(EnumChannel.Phone, user);
+    }
+
+    public async Task<object> SignInViaEmailAsync(SignInViaEmailDto dto)
+    {
+        VerifyOtp(dto.VerificationCode.ToString(), dto.Code);
 
         var user = await dbContext.Users
             .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, dto.Email)) ?? new Entities.Auth.User()
@@ -165,6 +180,41 @@ public class AuthService(
         await dbContext.SaveChangesAsync();
 
         return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+    }
+
+    public async Task<object> SignInViaPhoneAsync(SignInViaPhoneDto dto)
+    {
+        var validPhone = FormatHelper.MakeValidPhone(dto.Phone);
+        VerifyOtp(dto.VerificationCode.ToString(), dto.Code);
+        var user = await dbContext.Users
+            .FirstOrDefaultAsync(x => x.Phone == dto.Phone) ?? new Entities.Auth.User()
+        {
+            Name = "Anonymous",
+            Phone = validPhone,
+            Roles = [nameof(EnumRole.User)]
+        };
+
+        var hasNewUser = user.Id == 0;
+
+        user = dbContext.Users.Update(user).Entity;
+        await dbContext.SaveChangesAsync();
+
+        return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+    }
+
+    public void VerifyOtp(string verificationCode, string code)
+    {
+        if (!memoryCache.TryGetValue(verificationCode, out string? otp))
+            throw new NotFoundException("Otp not found or expired");
+
+        memoryCache.Remove(verificationCode);
+
+        if (environment.IsProduction())
+            if (code.IsNullOrEmpty() || otp.IsNullOrEmpty() || otp != code)
+                throw new NotFoundException("Otp didn't match");
+            else ;
+        else if (code != "777777")
+            throw new NotFoundException("Otp didn't match");
     }
 
     public async Task<object> GenerateTokens(Entities.Auth.User user, DeviceDto deviceInfo, bool hasNewUser)
@@ -195,12 +245,17 @@ public class AuthService(
         };
     }
 
-    public async Task<object> SendVerificationCode(Entities.Auth.User user)
+    public async Task<object> SendVerificationCode(EnumChannel channel, Entities.Auth.User user)
     {
-        return await this.SendVerificationCode(user.Email);
+        return await this.SendVerificationCode(channel, (channel switch
+        {
+            EnumChannel.Email => user.Email,
+            EnumChannel.Phone => user.Phone,
+            _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, null)
+        })!);
     }
 
-    public async Task<object> SendVerificationCode(string email)
+    public async Task<object> SendVerificationCode(EnumChannel channel, string destination)
     {
         var expireDate = DateTime.Now.AddMinutes(2);
         var code = Guid.NewGuid().ToString();
@@ -210,19 +265,19 @@ public class AuthService(
 
         memoryCache.Set(code, otp, expireDate);
 
-        try
-        {
+        if (channel == EnumChannel.Email)
             await notificationService.SendMailAsync(new EmailNotificationWithoutUserDto()
             {
-                Email = email,
+                Email = destination,
                 Title = "Verification Code",
                 Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
             });
-        }
-        catch (Exception e)
-        {
-            Log.Error("Mail Sending Error: {0}", e);
-        }
+        else
+            await notificationService.SendSms(new SmsNotificationDto()
+            {
+                Title = "Verification Code",
+                Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
+            });
 
         return new
         {
