@@ -325,7 +325,7 @@ public class AuthService(
         var sessionId = Guid.NewGuid().ToString();
 
         user.Roles.ForEach(role => claims.Add(new Claim(ClaimTypes.Role, role)));
-        claims.Add(new Claim(ClaimTypes.Email, user.Email));
+        // claims.Add(new Claim(ClaimTypes.Email, user.Email));
         claims.Add(new Claim(CustomClaims.DeviceId, deviceId.ToString()));
         claims.Add(new Claim(CustomClaims.UserId, user.Id.ToString()));
         claims.Add(new Claim(CustomClaims.SessionId, sessionId));
