@@ -31,8 +31,12 @@ builder.Services.AddRateLimiter(options =>
 
     options.OnRejected = async (context, ct) =>
     {
-        await context.HttpContext.Response.WriteAsJsonAsync(Wrapper.ResultFromContent("too many requests",
-            HttpStatusCode.TooManyRequests), ct);
+        await context.HttpContext.Response.WriteAsJsonAsync(new Wrapper()
+        {
+            Content = TimeSpan.FromHours(6),
+            Code = HttpStatusCode.TooManyRequests,
+            Error = "too many requests"
+        }, ct);
     };
 
     options.AddPolicy("otp_limit",
@@ -42,7 +46,7 @@ builder.Services.AddRateLimiter(options =>
                 context.User?.FindFirst(CustomClaims.UserId)?.Value
                 ?? context.Connection.RemoteIpAddress?.ToString()
                 ?? "anonymous";
-            
+
             return RateLimitPartition.GetFixedWindowLimiter(userId, s => new FixedWindowRateLimiterOptions()
             {
                 AutoReplenishment = true,
