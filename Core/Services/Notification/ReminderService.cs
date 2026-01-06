@@ -60,7 +60,7 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
         await (await dbContext.Reminders
                 .Where(x =>
                     x.Type == EnumMomentType.Water
-                        ? nowSpan.Hours % x.Time.Hours == 0
+                        ? x.Time.Hours != 0 && nowSpan.Hours % x.Time.Hours == 0
                         : (x.Time - nowSpan).TotalMinutes <= 30
                 )
                 .ToListAsync())
