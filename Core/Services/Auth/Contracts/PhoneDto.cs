@@ -6,8 +6,7 @@ namespace Core.Services.Auth.Contracts;
 
 public class PhoneDto
 {
-    [LocalPhone(ErrorMessage = "E-mail must be valid")]
-    [MaxLength(100)]
+    [LocalPhone]
     [DefaultValue("+998998887766")]
     public string Phone { get; set; } = null!;
 }

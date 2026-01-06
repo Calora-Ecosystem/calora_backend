@@ -1,5 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
+using BRB.Core.Common.Attributes;
 using BRB.Core.Common.Exceptions;
 using Core.Attributes;
 using Core.Constants;
@@ -9,6 +11,7 @@ using Core.Services.Auth.Contracts;
 using Core.Services.Auth.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ResultWrapper.Library;
 using WebCore.Controller;
 
@@ -69,12 +72,18 @@ public class AuthController(AuthService authService) : AuthorizedController
     }
 
     [HttpPost("send-otp/email/{email}")]
+#if !DEBUG
+    [EnableRateLimiting("otp_limit")]
+#endif
     public async Task<Wrapper> SendOtp([EmailAddress] string email) =>
         (await authService.SendVerificationCode(EnumChannel.Email, email), 200);
 
     [HttpPost("send-otp/phone/{phone}")]
-    public async Task<Wrapper> SendOtpViaPhone([FromRoute] PhoneDto dto) =>
-        (await authService.SendVerificationCode(EnumChannel.Phone, dto.Phone), 200);
+#if !DEBUG
+    [EnableRateLimiting("otp_limit")]
+#endif
+    public async Task<Wrapper> SendOtpViaPhone([LocalPhone, DefaultValue("+998998887766")] string phone) =>
+        (await authService.SendVerificationCode(EnumChannel.Phone, phone), 200);
 
     [HttpGet("roles")]
     [RoleAuthorize(EnumRole.SuperAdmin)]
