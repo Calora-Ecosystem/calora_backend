@@ -1,14 +1,17 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
+using BRB.Core.Common.Attributes;
 using BRB.Core.Common.Exceptions;
-using Core;
 using Core.Attributes;
 using Core.Constants;
 using Core.Enums;
 using Core.Services.Auth;
 using Core.Services.Auth.Contracts;
+using Core.Services.Auth.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ResultWrapper.Library;
 using WebCore.Controller;
 
@@ -19,24 +22,33 @@ namespace WebApi.Controllers;
 [AllowAnonymous]
 public class AuthController(AuthService authService) : AuthorizedController
 {
-    [HttpPost("registration")]
+    [HttpPost("registration/email")]
     [ApiExplorerSettings(IgnoreApi = true)]
-    public async Task<Wrapper> Register([FromBody] RegisterDto dto) =>
-        (await authService.RegisterAsync(dto), 200);
+    public async Task<Wrapper> Register([FromBody] RegisterViaEmailDto dto) =>
+        (await authService.RegisterViaEmailAsync(dto), 200);
+
+    [HttpPost("registration/phone")]
+    [ApiExplorerSettings(IgnoreApi = true)]
+    public async Task<Wrapper> Register([FromBody] RegisterViaPhoneDto dto) =>
+        (await authService.RegisterViaPhoneAsync(dto), 200);
 
     /// <summary>
     /// Also create new user with verified email
     /// </summary>
-    /// <param name="dto"></param>
+    /// <param name="viaEmailDto"></param>
     /// <returns></returns>
-    [HttpPost("sign-in")]
-    public async Task<Wrapper> SignIn([FromBody] SignInDto dto) =>
-        (await authService.SignInAsync(dto), 200);
-    
+    [HttpPost("sign-in/email")]
+    public async Task<Wrapper> SignIn([FromBody] SignInViaEmailDto viaEmailDto) =>
+        (await authService.SignInViaEmailAsync(viaEmailDto), 200);
+
+    [HttpPost("sign-in/phone")]
+    public async Task<Wrapper> SignIn([FromBody] SignInViaPhoneDto dto) =>
+        (await authService.SignInViaPhoneAsync(dto), 200);
+
     [HttpPost("sign-in/google")]
     public async Task<Wrapper> SignInViaGoogle([FromBody] SsoSignInDto dto) =>
         (await authService.SignInWithGoogle(dto), 200);
-    
+
     [HttpPost("sign-in/apple")]
     public async Task<Wrapper> SignInViaApple([FromBody] SsoSignInDto dto) =>
         (await authService.SignInWithAppleToken(dto), 200);
@@ -59,9 +71,19 @@ public class AuthController(AuthService authService) : AuthorizedController
             200);
     }
 
-    [HttpPost("send-otp/{email}")]
+    [HttpPost("send-otp/email/{email}")]
+#if !DEBUG
+    [EnableRateLimiting("otp_limit")]
+#endif
     public async Task<Wrapper> SendOtp([EmailAddress] string email) =>
-        (await authService.SendVerificationCode(email), 200);
+        (await authService.SendVerificationCode(EnumChannel.Email, email), 200);
+
+    [HttpPost("send-otp/phone/{phone:required}")]
+#if !DEBUG
+    [EnableRateLimiting("otp_limit")]
+#endif
+    public async Task<Wrapper> SendOtpViaPhone([FromRoute, LocalPhone, DefaultValue("+998998887766")] string phone) =>
+        (await authService.SendVerificationCode(EnumChannel.Phone, phone), 200);
 
     [HttpGet("roles")]
     [RoleAuthorize(EnumRole.SuperAdmin)]
