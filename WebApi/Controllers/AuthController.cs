@@ -78,11 +78,11 @@ public class AuthController(AuthService authService) : AuthorizedController
     public async Task<Wrapper> SendOtp([EmailAddress] string email) =>
         (await authService.SendVerificationCode(EnumChannel.Email, email), 200);
 
-    [HttpPost("send-otp/phone/{phone}")]
+    [HttpPost("send-otp/phone/{phone:required}")]
 #if !DEBUG
     [EnableRateLimiting("otp_limit")]
 #endif
-    public async Task<Wrapper> SendOtpViaPhone([LocalPhone, DefaultValue("+998998887766")] string phone) =>
+    public async Task<Wrapper> SendOtpViaPhone([FromRoute, LocalPhone, DefaultValue("+998998887766")] string phone) =>
         (await authService.SendVerificationCode(EnumChannel.Phone, phone), 200);
 
     [HttpGet("roles")]

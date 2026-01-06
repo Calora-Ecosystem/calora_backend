@@ -7,5 +7,6 @@ public partial class NotificationService
 {
     public async Task SendSms(SmsNotificationDto dto)
     {
+        await eskizClient.SendMessage(dto.Phone, $"{dto.Title} {dto.Description}");
     }
 }

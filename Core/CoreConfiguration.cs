@@ -2,6 +2,7 @@ using System.Reflection;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.Apple;
 using Core.Brokers.EmailBroker;
+using Core.Brokers.EskizBroker;
 using Core.Services.Auth;
 using Core.Services.Auth.Contracts;
 using Core.Services.Notification;
@@ -31,7 +32,9 @@ public static class CoreConfiguration
 
         builder
             .Services
-            .AddAppleClient();
+            .AddAppleClient()
+            .AddEskizClient()
+            ;
 
         return builder;
     }

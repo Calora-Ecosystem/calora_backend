@@ -5,6 +5,7 @@ using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Brokers.EmailBroker;
+using Core.Brokers.EskizBroker;
 using Core.Entities.Notification;
 using Core.Services.Notification.Contracts;
 using FirebaseAdmin.Messaging;
@@ -14,7 +15,7 @@ using ResultWrapper.Library;
 namespace Core.Services.Notification;
 
 [Injectable]
-public partial class NotificationService(EmailClient emailClient, FirebaseMessaging firebase, AppDbContext dbContext)
+public partial class NotificationService(EmailClient emailClient, FirebaseMessaging firebase, AppDbContext dbContext, EskizClient eskizClient)
 {
     public async Task<int> GetUnreadNotificationsCount(long userId)
     {
