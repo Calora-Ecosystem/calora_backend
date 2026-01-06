@@ -42,12 +42,12 @@ builder.Services.AddRateLimiter(options =>
                 context.User?.FindFirst(CustomClaims.UserId)?.Value
                 ?? context.Connection.RemoteIpAddress?.ToString()
                 ?? "anonymous";
-
+            
             return RateLimitPartition.GetFixedWindowLimiter(userId, s => new FixedWindowRateLimiterOptions()
             {
                 AutoReplenishment = true,
                 PermitLimit = 3,
-                Window = TimeSpan.FromMinutes(10),
+                Window = TimeSpan.FromHours(6),
             });
         }
     );
