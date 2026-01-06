@@ -275,6 +275,7 @@ public class AuthService(
         else
             await notificationService.SendSms(new SmsNotificationDto()
             {
+                Phone = destination,
                 Title = "Verification Code",
                 Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
             });
