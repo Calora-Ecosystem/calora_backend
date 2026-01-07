@@ -125,8 +125,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
     public async Task<BaseResponseDto> CreateTransaction(CreateTransactionDto dto)
     {
         var orderId = long.Parse(dto.Account.OrderId);
-        
-        await using var dbTransaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
 
         var checkResult = await CheckPerformTransaction(new CheckPerformTransactionDto()
         {
@@ -148,6 +147,8 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
                 Error = ResponseErrors.TransactionCanNotBePerformed,
             };
 
+        await using var dbTransaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
         if (transaction.ExternalId != null)
             return new ErrorResponseDto()
             {
@@ -157,7 +158,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         if (transaction.CreatedAt.AddHours(12) <= DateTime.Now)
         {
             transaction.Status = EnumPaymeTransactionStatus.Failed;
-            transaction.Reason = "Отмена по таймауту";
+            transaction.Reason = "4";
 
             await dbContext.SaveChangesAsync();
             await dbTransaction.CommitAsync();
@@ -240,18 +241,36 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
                 Error = ResponseErrors.TransactionNotFound,
             };
 
-        if (transaction.Status == EnumPaymeTransactionStatus.Done)
-            return new ErrorResponseDto()
-            {
-                Error = ResponseErrors.TransactionAlreadyDone
-            };
-
         var now = DateTimeOffset.Now;
 
-        transaction.CancelledAt = now.DateTime;
-        transaction.Status = EnumPaymeTransactionStatus.Cancelled;
+        if (transaction.Status == EnumPaymeTransactionStatus.Created)
+        {
+            transaction.CancelledAt = now.DateTime;
+            transaction.Status = EnumPaymeTransactionStatus.Failed;
+            transaction.Reason = dto.Reason.ToString();
 
-        await dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync();
+        }
+        else if (transaction.Status != EnumPaymeTransactionStatus.Done)
+        {
+            return new ResultResponseDto<CancelTransactionResponseDto>()
+            {
+                Result = new CancelTransactionResponseDto()
+                {
+                    CancelTime = 0,
+                    State = (int)transaction.Status,
+                    Transaction = transaction.Id.ToString()
+                }
+            };
+        }
+        else
+        {
+            transaction.CancelledAt = now.DateTime;
+            transaction.Status = EnumPaymeTransactionStatus.Cancelled;
+            transaction.Reason = dto.Reason.ToString();
+
+            await dbContext.SaveChangesAsync();
+        }
 
         return new ResultResponseDto<CancelTransactionResponseDto>()
         {
