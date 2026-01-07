@@ -10,12 +10,14 @@ namespace Core.Brokers.FirebaseBroker;
 
 public static class ServiceCollectionExtensions
 {
-    public static void AddFirebaseAdmin(this IServiceCollection services)
+    public static IServiceCollection AddFirebaseAdmin(this IServiceCollection services)
     {
         services.AddSingleton(provider => FirebaseApp.Create(new AppOptions()
         {
             Credential = GoogleCredential.FromFile("Resources/calora-google.json")
         }));
         services.AddSingleton(provider => FirebaseMessaging.GetMessaging(provider.GetRequiredService<FirebaseApp>()));
+        
+        return services;
     }
 }

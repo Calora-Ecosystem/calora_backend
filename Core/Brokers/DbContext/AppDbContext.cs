@@ -1,6 +1,8 @@
 ﻿using BRB.Core.EF.DbContext;
 using Core.Entities;
 using Core.Entities.Auth;
+using Core.Entities.Billing;
+using Core.Entities.Billing.Enum;
 using Core.Entities.Course;
 using Core.Entities.FoodEntites;
 using Core.Entities.Notification;
@@ -57,6 +59,17 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<PushNotification> PushNotifications { get; set; }
     public DbSet<Reminder> Reminders { get; set; }
+
+    #endregion
+
+    #region Billing
+
+    public DbSet<Order> Orders { get; set; }
+    public DbSet<SubscriptionOrder> SubscriptionOrders { get; set; }
+    public DbSet<PlanExtra> PlanExtras { get; set; }
+    public DbSet<PlanFeature> PlanFeatures { get; set; }
+    public DbSet<Subscription> Subscriptions { get; set; }
+    public DbSet<ClickTransaction> ClickTransactions { get; set; }
 
     #endregion
 
