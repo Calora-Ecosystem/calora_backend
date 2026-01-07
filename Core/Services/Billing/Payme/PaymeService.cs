@@ -16,22 +16,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
 {
     public bool CheckFodValidRequestFromPayme(string authToken)
     {
-        try
-        {
-            var basicAuth = Convert.ToString(Convert.FromBase64String(authToken));
-            var parts = basicAuth!.Split(":");
-
-            if (parts.Length != 2) return false;
-
-            if (parts[0] != config.Value.Login || parts[1] != config.Value.Password) return false;
-
-            return true;
-        }
-        catch (Exception e)
-        {
-            Log.Error("Invalid request from payme: {Error}", e.Message);
-            return false;
-        }
+        return authToken == config.Value.AuthToken;
     }
 
     public async Task<BaseResponseDto> HandleAsync(BaseRequest request, string authToken)

@@ -9,6 +9,7 @@ public static class ConfigurationExtensions
     {
         serviceCollection
             .AddOptions<PaymeConfig>()
+            .BindConfiguration("Payme")
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
