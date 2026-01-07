@@ -4,6 +4,7 @@ public enum EnumPaymeTransactionStatus
 {
     Cancelled = -2,
     Failed = -1,
+    InternalCreated = 0,
     Created = 1,
     Done = 2,
 }
