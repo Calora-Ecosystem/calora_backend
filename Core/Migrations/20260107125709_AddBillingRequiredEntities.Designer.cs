@@ -15,7 +15,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Core.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260107122618_AddBillingRequiredEntities")]
+    [Migration("20260107125709_AddBillingRequiredEntities")]
     partial class AddBillingRequiredEntities
     {
         /// <inheritdoc />
@@ -493,10 +493,6 @@ namespace Core.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("status");
 
-                    b.Property<long>("TransactionId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("transaction_id");
-
                     b.Property<int>("Type")
                         .HasColumnType("integer")
                         .HasColumnName("type");
@@ -526,10 +522,12 @@ namespace Core.Migrations
 
             modelBuilder.Entity("Core.Entities.Billing.Payme.PaymeTransaction", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
+                        .HasColumnType("bigint")
                         .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<long>("Amount")
                         .HasColumnType("bigint")

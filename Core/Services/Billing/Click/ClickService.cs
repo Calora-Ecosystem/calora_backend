@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using BRB.Core.Common.Exceptions;
 using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
 using Core.Entities.Billing;
@@ -241,13 +242,16 @@ public class ClickService(
         await appDbContext.ClickTransactions
             .SingleOrDefaultAsync(ct => ct.Id == id);
 
-    public string MakeClickPaymentLink(long orderId, decimal amount)
+    public async Task<string> MakeClickPaymentLink(long orderId, decimal amount)
     {
+        var transaction = await appDbContext.ClickTransactions
+            .FirstOrDefaultAsync(x => x.OrderId == orderId) ?? throw new NotFoundException("Transaction not found");
+
         return
-            $"https://my.click.uz/services/pay?service_id={config.Value.ServiceId}&merchant_id={config.Value.MerchantId}&amount={amount}&transaction_param={orderId}";
+            $"https://my.click.uz/services/pay?service_id={config.Value.ServiceId}&merchant_id={config.Value.MerchantId}&amount={amount}&transaction_param={transaction.Id}";
     }
 
-    public async Task<ClickTransaction> CreateTransaction(Order order)
+    public async Task<long> CreateTransaction(Order order)
     {
         var transaction = new ClickTransaction()
         {
@@ -261,6 +265,6 @@ public class ClickService(
         transaction = appDbContext.ClickTransactions.Add(transaction).Entity;
         await appDbContext.SaveChangesAsync();
 
-        return transaction;
+        return transaction.Id;
     }
 }
