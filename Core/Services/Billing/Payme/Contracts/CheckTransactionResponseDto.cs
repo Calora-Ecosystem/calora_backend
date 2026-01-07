@@ -9,5 +9,5 @@ public class CheckTransactionResponseDto
     [JsonPropertyName("cancel_time")] public long CancelTime { get; set; }
     public string Transaction { get; set; } = null!;
     public int State { get; set; }
-    public string? Reason { get; set; } = null!;
+    public int? Reason { get; set; } = null!;
 }
