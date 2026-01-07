@@ -18,7 +18,7 @@ public class PaymeTransaction : AuditableModelBase<uint>
     public DateTime? PerformedAt { get; set; }
     public DateTime? CancelledAt { get; set; }
 
-    public string? Reason { get; set; }
+    public int? Reason { get; set; }
 
     [DeleteBehavior(DeleteBehavior.Restrict)]
     public Order Order { get; set; } = default!;

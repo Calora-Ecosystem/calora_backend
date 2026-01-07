@@ -126,7 +126,6 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
     {
         var orderId = long.Parse(dto.Account.OrderId);
 
-
         var checkResult = await CheckPerformTransaction(new CheckPerformTransactionDto()
         {
             Account = dto.Account,
@@ -158,7 +157,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         if (transaction.CreatedAt.AddHours(12) <= DateTime.Now)
         {
             transaction.Status = EnumPaymeTransactionStatus.Failed;
-            transaction.Reason = "4";
+            transaction.Reason = 4;
 
             await dbContext.SaveChangesAsync();
             await dbTransaction.CommitAsync();
@@ -203,7 +202,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         if (transaction.CreatedAt.AddHours(12) <= DateTime.Now)
         {
             transaction.Status = EnumPaymeTransactionStatus.Failed;
-            transaction.Reason = "Отмена по таймауту";
+            transaction.Reason = 4;
             await dbContext.SaveChangesAsync();
 
             return new ErrorResponseDto()
@@ -247,7 +246,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         {
             transaction.CancelledAt = now.DateTime;
             transaction.Status = EnumPaymeTransactionStatus.Failed;
-            transaction.Reason = dto.Reason.ToString();
+            transaction.Reason = dto.Reason;
 
             await dbContext.SaveChangesAsync();
         }
@@ -257,7 +256,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
             {
                 Result = new CancelTransactionResponseDto()
                 {
-                    CancelTime = 0,
+                    CancelTime = transaction.CancelledAt.HasValue ? DateTimeOffset.FromFileTime(transaction.CancelledAt.Value.ToFileTime()).ToUnixTimeMilliseconds() : 0,
                     State = (int)transaction.Status,
                     Transaction = transaction.Id.ToString()
                 }
@@ -267,7 +266,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         {
             transaction.CancelledAt = now.DateTime;
             transaction.Status = EnumPaymeTransactionStatus.Cancelled;
-            transaction.Reason = dto.Reason.ToString();
+            transaction.Reason = dto.Reason;
 
             await dbContext.SaveChangesAsync();
         }
