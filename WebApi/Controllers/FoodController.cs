@@ -1,6 +1,7 @@
 ﻿using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
 using Core;
+using Core.Attributes;
 using Core.Entities.FoodEntites;
 using Core.Enums;
 using Core.Services.Ai.Contracts;
@@ -24,8 +25,8 @@ public class FoodController(FoodService service) : AuthorizedController
     [HttpGet]
     [AllowAnonymous]
     [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetAllFoodDto>>), 200)]
-    public async Task<Wrapper> GetAllFoods([FromQuery] DataQueryRequest q, bool latest = false) =>
-        await service.GetAllFoods(this.HasAuthorized ? this.UserId : null, q, latest);
+    public async Task<Wrapper> GetAllFoods([FromQuery] GetAllFoodsQuery q) =>
+        await service.GetAllFoods(this.HasAuthorized ? this.UserId : null, q);
 
     [HttpGet("favourites")]
     [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetAllFoodDto>>), 200)]

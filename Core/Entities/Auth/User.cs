@@ -10,7 +10,8 @@ namespace Core.Entities.Auth;
 public class User : AuditableModelBase<long>
 {
     [MaxLength(300)] public string Name { get; set; } = null!;
-    [MaxLength(100)] public string Email { get; set; } = null!;
+    [MaxLength(100)] public string? Email { get; set; } = null!;
+    [MaxLength(50)] public string? Phone { get; set; }
     [MaxLength(64)] public string? Password { get; set; } = null!;
     [MaxLength(50)] public string? RToken { get; set; }
     public DateTime RTokenExpireAt { get; set; }

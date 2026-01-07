@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Core;
+using Core.Attributes;
 using Core.Enums;
 using Core.Services.Course.Common;
 using Core.Services.Course.Course;

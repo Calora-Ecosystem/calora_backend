@@ -4,11 +4,9 @@ using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Auth;
-using Core.Entities.Refs;
 using Core.Enums;
 using Core.Services.User.Contracts;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.IdentityModel.Tokens;
 using ResultWrapper.Library;
 
@@ -34,7 +32,8 @@ public class UserService(AppDbContext context)
     {
         var extra = await context.UserExtras
                         .Where(x => x.UserId == userId)
-                        .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.EntryWeight, x.Height, x.Bmi, x.Gender,
+                        .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.EntryWeight, x.Height,
+                            Math.Round(x.Bmi, 0), x.Gender,
                             x.BirthDate,
                             x.Photo, x.Name, x.ActivityLevel, x.Purpose))
                         .FirstOrDefaultAsync()
@@ -90,6 +89,13 @@ public class UserService(AppDbContext context)
             extra.Weight = dto.Weight;
 
             //Calculate user norms
+            //Weight
+            await CreateOrUpdateNorm(userId, new CreateUserNormDto()
+            {
+                Metric = EnumMetrics.Weight,
+                Value = dto.TargetWeight
+            });
+
             //Step
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
@@ -184,7 +190,7 @@ public class UserService(AppDbContext context)
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
                 Metric = EnumMetrics.Carb,
-                Value = (tdee - protein * 4 - fat * 9) / 4
+                Value = (2.5 + 0.5*(extra.ActivityLevel - EnumActivityLevel.Minimal)) * extra.Weight
             });
 
             context.UserExtras.Update(extra);
@@ -251,7 +257,7 @@ public class UserService(AppDbContext context)
                     }), general => general.Metric, arg => arg.Metric,
                 (general, arg2) => new UserProgressSummaryDto
                 {
-                    Metric = general.Metric, Target = Math.Round(general.Value,0),
+                    Metric = general.Metric, Target = Math.Round(general.Value, 0),
                     Progress = !arg2.IsNullOrEmpty() ? arg2.First().Sum : 0
                 })
             .ToListAsync();
@@ -322,7 +328,7 @@ public class UserService(AppDbContext context)
             .Sort(q)
             .ToDictionaryAsync(x => x.Date, x => x);
 
-        var result = Enumerable.Range(0, (to - from).Value.Days + 1).Select((x, i) =>
+        var result = Enumerable.Range(0, (to - from).Value.Days + 1).Select((_, i) =>
             byDate.TryGetValue(from.Value.AddDays(i), out var value)
                 ? value
                 : new GetDailyDto()
@@ -352,6 +358,14 @@ public class UserService(AppDbContext context)
 
         context.UserDailies.Update(existing);
         await context.SaveChangesAsync();
+    }
+
+    public async Task ResetDaily(long userId, DateTime date)
+    {
+        await context
+            .UserDailies
+            .Where(x => x.UserId == userId && x.Date.Date == date.Date)
+            .ExecuteDeleteAsync();
     }
 
     // public async Task UpdateDaily(long userId, EnumMetrics metric, DateTime date, UpdateUserDailyDto dto)
@@ -450,7 +464,7 @@ group by ung.user_id
             _ => 10 * extra.Weight + 6.25 * extra.Height - 5 * extra.Age - 161
         };
 
-        const double activityValueDistancePerLevel = 1.75;
+        const double activityValueDistancePerLevel = 0.175;
         const double activityValueMin = 1.2;
 
         var activityValue = (extra.ActivityLevel - EnumActivityLevel.Minimal) * activityValueDistancePerLevel +

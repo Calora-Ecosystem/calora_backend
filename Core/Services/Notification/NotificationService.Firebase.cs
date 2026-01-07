@@ -32,23 +32,33 @@ public partial class NotificationService
     public async Task SendPush(long notificationId)
     {
         var notification = await dbContext.PushNotifications.GetByIdOrThrowsNotFoundException(notificationId);
-        var fcmTokens = await dbContext.Devices.Where(x => x.UserId == notification.UserId && x.FcmToken != null).Select(x => x.FcmToken!)
+        var fcmTokens = await dbContext.Devices.Where(x => x.UserId == notification.UserId && x.FcmToken != null)
+            .Select(x => x.FcmToken!)
             .ToListAsync();
 
-        var response = await SendPush(fcmTokens, new FirebaseAdmin.Messaging.Notification()
+        if (fcmTokens.Count == 0)
         {
-            Title = notification.Title,
-            Body = notification.Description,
-            ImageUrl = notification.Image
-        }, notification.Meta);
+            notification.SentAt = DateTime.Now;
+            notification.SuccessCount = 0;
+            notification.FailureCount = 0;
+        }
+        else
+        {
+            var response = await SendPush(fcmTokens, new FirebaseAdmin.Messaging.Notification()
+            {
+                Title = notification.Title,
+                Body = notification.Description,
+                ImageUrl = notification.Image
+            }, notification.Meta);
 
-        notification.SentAt = DateTime.Now;
-        notification.SuccessCount = response.SuccessCount;
-        notification.FailureCount = response.FailureCount;
+            notification.SentAt = DateTime.Now;
+            notification.SuccessCount = response.SuccessCount;
+            notification.FailureCount = response.FailureCount;
+        }
 
         await dbContext.SaveChangesAsync();
     }
-    
+
     public async Task EnqueueNotifications()
     {
         (await dbContext.PushNotifications

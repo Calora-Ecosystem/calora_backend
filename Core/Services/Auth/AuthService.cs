@@ -1,20 +1,26 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using BRB.Core.Common.Attributes;
 using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Helpers;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
+using Core.Brokers.Apple;
 using Core.Brokers.DbContext;
 using Core.Brokers.EmailBroker;
 using Core.Constants;
 using Core.Entities.Auth;
 using Core.Enums;
+using Core.Helpers;
 using Core.Services.Auth.Contracts;
+using Core.Services.Auth.Enums;
 using Core.Services.Notification;
 using Core.Services.Notification.Contracts;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -32,9 +38,89 @@ public class AuthService(
     IWebHostEnvironment environment,
     DeviceService deviceService,
     IOptions<AuthConfig> authConfig,
-    NotificationService notificationService)
+    NotificationService notificationService,
+    AppleClient appleClient
+)
 {
-    public async Task<object> RegisterAsync(RegisterDto dto)
+    public async Task<object> SignInWithGoogle(SsoSignInDto dto)
+    {
+        var payload = await GoogleJsonWebSignature.ValidateAsync(dto.SsoToken);
+
+        var user = await dbContext.Users
+            .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, payload.Email)) ?? new Entities.Auth.User()
+        {
+            Name = payload.Name,
+            Email = payload.Email,
+            Roles = [nameof(EnumRole.User)]
+        };
+
+        var hasNewUser = user.Id == 0;
+
+        user = dbContext.Users.Update(user).Entity;
+        await dbContext.SaveChangesAsync();
+
+        return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+    }
+
+    public async Task<object> SignInWithAppleToken(SsoSignInDto dto)
+    {
+        var jwkSet = await appleClient.FetchAppleJwkSet();
+
+        Debug.WriteLine(jwkSet);
+
+        var parts = dto.SsoToken
+            .Split(".")
+            .Take(2)
+            .Select(x => JsonSerializer.Deserialize<JsonElement>(Base64UrlEncoder.Decode(x)))
+            .ToArray();
+
+        if (parts.Length < 2)
+            throw new UnauthorizedException("Invalid token");
+
+        var kid = parts[0].GetProperty("kid").GetString() ?? throw new UnauthorizedException("Invalid token");
+        var exp = parts[1].GetProperty("exp").GetInt64();
+        var email = parts[1].GetProperty("email").GetString() ?? throw new UnauthorizedException("Invalid token");
+        var emailVerified = parts[1].GetProperty("email_verified").GetBoolean();
+        var aud = parts[1].GetProperty("aud").GetString() ?? throw new UnauthorizedException("Invalid token");
+        var iss = parts[1].GetProperty("iss").GetString() ?? throw new UnauthorizedException("Invalid token");
+
+        if (aud != "uz.zingo.app")
+            throw new UnauthorizedException("Invalid audience");
+
+        if (!iss.EndsWith("appleid.apple.com"))
+            throw new UnauthorizedException("Invalid issuer");
+
+#if !DEBUG
+        var expDate = DateTimeOffset.FromUnixTimeSeconds(exp);
+        Debug.WriteLine(expDate);
+        
+        if (expDate <= DateTime.Now)
+            throw new UnauthorizedException("Token expired");
+#endif
+
+        if (jwkSet.Keys.All(x => x.KeyId != kid))
+            throw new UnauthorizedException("Invalid token kid");
+
+        if (email.IsNullOrEmpty() || !emailVerified)
+            throw new UnauthorizedException("Required claim principal not found");
+
+        var user = await dbContext.Users
+            .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, email)) ?? new Entities.Auth.User()
+        {
+            Name = "Anonymous",
+            Email = email,
+            Roles = [nameof(EnumRole.User)]
+        };
+
+        var hasNewUser = user.Id == 0;
+
+        user = dbContext.Users.Update(user).Entity;
+        await dbContext.SaveChangesAsync();
+
+        return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+    }
+
+    public async Task<object> RegisterViaEmailAsync(RegisterViaEmailDto dto)
     {
         var userExists = await dbContext.Users.AnyAsync(x => EF.Functions.ILike(x.Email, dto.Email));
         if (userExists)
@@ -51,22 +137,34 @@ public class AuthService(
 
         await dbContext.SaveChangesAsync();
 
-        return await this.SendVerificationCode(user);
+        return await this.SendVerificationCode(EnumChannel.Email, user);
     }
 
-    public async Task<object> SignInAsync(SignInDto dto)
+    public async Task<object> RegisterViaPhoneAsync(RegisterViaPhoneDto dto)
     {
-        if (!memoryCache.TryGetValue(dto.VerificationCode.ToString(), out string? otp))
-            throw new NotFoundException("Otp not found or expired");
+        var validPhone = FormatHelper.MakeValidPhone(dto.Phone);
 
-        memoryCache.Remove(dto.VerificationCode.ToString());
+        var userExists = await dbContext.Users.AnyAsync(x => x.Phone == validPhone);
+        if (userExists)
+            throw new AlreadyExistsException("User already exists");
 
-        if (environment.IsProduction())
-            if (dto.Code.IsNullOrEmpty() || otp.IsNullOrEmpty() || otp != dto.Code)
-                throw new NotFoundException("Otp didn't match");
-            else ;
-        else if (dto.Code != "777777")
-            throw new NotFoundException("Otp didn't match");
+        var user = new Entities.Auth.User()
+        {
+            Name = "Anonymous",
+            Phone = dto.Phone,
+            Roles = [nameof(EnumRole.User)]
+        };
+
+        user = dbContext.Users.Add(user).Entity;
+
+        await dbContext.SaveChangesAsync();
+
+        return await this.SendVerificationCode(EnumChannel.Phone, user);
+    }
+
+    public async Task<object> SignInViaEmailAsync(SignInViaEmailDto dto)
+    {
+        VerifyOtp(dto.VerificationCode.ToString(), dto.Code);
 
         var user = await dbContext.Users
             .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, dto.Email)) ?? new Entities.Auth.User()
@@ -81,11 +179,51 @@ public class AuthService(
         user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
 
+        return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+    }
+
+    public async Task<object> SignInViaPhoneAsync(SignInViaPhoneDto dto)
+    {
+        var validPhone = FormatHelper.MakeValidPhone(dto.Phone);
+        VerifyOtp(dto.VerificationCode.ToString(), dto.Code);
+        var user = await dbContext.Users
+            .FirstOrDefaultAsync(x => x.Phone == dto.Phone) ?? new Entities.Auth.User()
+        {
+            Name = "Anonymous",
+            Phone = validPhone,
+            Roles = [nameof(EnumRole.User)]
+        };
+
+        var hasNewUser = user.Id == 0;
+
+        user = dbContext.Users.Update(user).Entity;
+        await dbContext.SaveChangesAsync();
+
+        return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
+    }
+
+    public void VerifyOtp(string verificationCode, string code)
+    {
+        if (!memoryCache.TryGetValue(verificationCode, out string? otp))
+            throw new NotFoundException("Otp not found or expired");
+
+        memoryCache.Remove(verificationCode);
+
+        if (environment.IsProduction())
+            if (code.IsNullOrEmpty() || otp.IsNullOrEmpty() || otp != code)
+                throw new NotFoundException("Otp didn't match");
+            else ;
+        else if (code != "777777")
+            throw new NotFoundException("Otp didn't match");
+    }
+
+    public async Task<object> GenerateTokens(Entities.Auth.User user, DeviceDto deviceInfo, bool hasNewUser)
+    {
         Device? device = null;
 
         await dbContext.Transactional(async () =>
         {
-            device = await deviceService.CreateOrUpdateDeviceAndGet(user.Id, dto.DeviceInfo);
+            device = await deviceService.CreateOrUpdateDeviceAndGet(user.Id, deviceInfo);
             await LogSignInfo(user.Id, device.Id);
         });
 
@@ -107,12 +245,17 @@ public class AuthService(
         };
     }
 
-    public async Task<object> SendVerificationCode(Entities.Auth.User user)
+    public async Task<object> SendVerificationCode(EnumChannel channel, Entities.Auth.User user)
     {
-        return await this.SendVerificationCode(user.Email);
+        return await this.SendVerificationCode(channel, (channel switch
+        {
+            EnumChannel.Email => user.Email,
+            EnumChannel.Phone => user.Phone,
+            _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, null)
+        })!);
     }
 
-    public async Task<object> SendVerificationCode(string email)
+    public async Task<object> SendVerificationCode(EnumChannel channel, string destination)
     {
         var expireDate = DateTime.Now.AddMinutes(2);
         var code = Guid.NewGuid().ToString();
@@ -122,19 +265,20 @@ public class AuthService(
 
         memoryCache.Set(code, otp, expireDate);
 
-        try
-        {
+        if (channel == EnumChannel.Email)
             await notificationService.SendMailAsync(new EmailNotificationWithoutUserDto()
             {
-                Email = email,
+                Email = destination,
                 Title = "Verification Code",
                 Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
             });
-        }
-        catch (Exception e)
-        {
-            Log.Error("Mail Sending Error: {0}", e);
-        }
+        else
+            await notificationService.SendSms(new SmsNotificationDto()
+            {
+                Phone = destination,
+                Title = "Verification Code",
+                Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
+            });
 
         return new
         {
@@ -183,7 +327,7 @@ public class AuthService(
         var sessionId = Guid.NewGuid().ToString();
 
         user.Roles.ForEach(role => claims.Add(new Claim(ClaimTypes.Role, role)));
-        claims.Add(new Claim(ClaimTypes.Email, user.Email));
+        // claims.Add(new Claim(ClaimTypes.Email, user.Email));
         claims.Add(new Claim(CustomClaims.DeviceId, deviceId.ToString()));
         claims.Add(new Claim(CustomClaims.UserId, user.Id.ToString()));
         claims.Add(new Claim(CustomClaims.SessionId, sessionId));

@@ -1,6 +1,8 @@
 using System.Reflection;
 using BRB.Core.EF.Extensions;
+using Core.Brokers.Apple;
 using Core.Brokers.EmailBroker;
+using Core.Brokers.EskizBroker;
 using Core.Services.Auth;
 using Core.Services.Auth.Contracts;
 using Core.Services.Billing.Click;
@@ -28,6 +30,12 @@ public static class CoreConfiguration
             .AddOptions<AuthConfig>()
             .BindConfiguration("Auth")
             .ValidateOnStart();
+
+        builder
+            .Services
+            .AddAppleClient()
+            .AddEskizClient()
+            ;
 
         return builder;
     }
@@ -70,7 +78,7 @@ public static class CoreConfiguration
             service => service.EnqueueNotifications(), app.Environment.IsProduction() ? "*/10 * * * *" : "* * * * *");
 
         RecurringJob.AddOrUpdate<ReminderService>("check_reminders",
-            service => service.CheckReminders(), "*/30 * * * *");
+            service => service.CheckReminders(), "*/31 * * * *");
 
         return app;
     }

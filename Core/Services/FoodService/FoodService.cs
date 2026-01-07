@@ -56,7 +56,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
 
     #region Food
 
-    public async Task<Wrapper> GetAllFoods(long? userId, DataQueryRequest q, bool latest = false)
+    public async Task<Wrapper> GetAllFoods(long? userId, GetAllFoodsQuery q)
     {
         var queryable = dbContext.Foods.AsQueryable();
 
@@ -69,6 +69,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
             fIds = await dbContext.UserExtras.Where(x => x.UserId == userId.Value)
                 .SelectMany(x => x.FavouriteFoods.Select(food => food.Id)).ToListAsync();
 
+        var latest = q.Latest;
         if (latest)
         {
             if (!userId.HasValue)
@@ -82,6 +83,19 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                 .Take(10);
 
             queryable = queryable.Where(x => ids.Contains(x.Id));
+        }
+
+        if (q.IsUserFood.HasValue && q.IsUserFood.Value)
+        {
+            if (!userId.HasValue)
+                throw new BadRequestException("Authorized user required");
+            queryable = queryable.Where(x => x.UserId == userId);
+        }
+        if (q.IsFavourite.HasValue && q.IsFavourite.Value)
+        {
+            if (!userId.HasValue)
+                throw new BadRequestException("Authorized user required");
+            queryable = queryable.Where(x => fIds.Contains(x.Id));
         }
         
         var resultQuery = queryable
@@ -383,30 +397,41 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
 
         nutrients.ForEach(x =>
         {
-            x.Value.Protein = x.Value.Protein * x.Value.Weight / 100;
-            x.Value.Kcal = x.Value.Kcal * x.Value.Weight / 100;
-            x.Value.Carb = x.Value.Carb * x.Value.Weight / 100;
-            x.Value.Fat = x.Value.Fat * x.Value.Weight / 100;
+            x.Value.Protein = Math.Round(x.Value.Protein * x.Value.Weight / 100, 0);
+            x.Value.Kcal = Math.Round(x.Value.Kcal * x.Value.Weight / 100, 0);
+            x.Value.Carb = Math.Round(x.Value.Carb * x.Value.Weight / 100, 0);
+            x.Value.Fat = Math.Round(x.Value.Fat * x.Value.Weight / 100, 0);
         });
 
-        var nutrientsNorm = await dbContext.UserNormByMenus
-            .AsNoTracking()
-            .Where(x => x.UserId == userId)
-            .GroupBy(x => x.Menu)
-            .ToDictionaryAsync(x => x.Key, x => new NutrientSummaryDto
+        var nutrientsNorm = Enum.GetValues<EnumMenu>()
+            .ToDictionary(x => x, menu => new NutrientSummaryDto()
             {
-                Menu = x.Key, Kcal = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Kcal).Value,
-                Fat = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Fat).Value,
-                Protein = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Protein).Value,
-                Carb = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Carb).Value,
-                Weight = x.First(foodMetric => foodMetric.Metric == EnumMetrics.Weight).Value
+                Menu = menu,
+                Kcal = Math.Round(menu switch
+                {
+                    EnumMenu.Breakfast => kcalNorm.Value * 0.25,
+                    EnumMenu.Lunch => kcalNorm.Value * 0.35,
+                    EnumMenu.Dinner => kcalNorm.Value * 0.30,
+                    EnumMenu.Snack => kcalNorm.Value * 0.10,
+                    _ => throw new ArgumentOutOfRangeException(nameof(menu), menu, null)
+                }, 0),
+                Carb = 0,
+                Fat = 0,
+                Protein = 0,
+                Weight = 0
             });
-
-
+        
+        
         return new SummaryDto
         {
             KcalNorm = kcalNorm, NutrientsNorm = nutrientsNorm, Nutrients = nutrients,
-            SumKcal = nutrients.Values.Sum(x => x.Kcal),
+            Sum = new Dictionary<EnumMetrics, double>()
+            {
+                { EnumMetrics.Kcal, nutrients.Values.Sum(x => x.Kcal) },
+                { EnumMetrics.Carb, nutrients.Values.Sum(x => x.Carb) },
+                { EnumMetrics.Protein, nutrients.Values.Sum(x => x.Protein) },
+                { EnumMetrics.Fat, nutrients.Values.Sum(x => x.Fat) },
+            },
             Date = date
         };
     }
