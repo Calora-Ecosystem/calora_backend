@@ -23,6 +23,7 @@ builder
     .AddFileService()
     .AddGeminiAi()
     .AddFirebaseAdmin()
+    .AddClickService()
     ;
 
 builder.Services.AddRateLimiter(options =>
