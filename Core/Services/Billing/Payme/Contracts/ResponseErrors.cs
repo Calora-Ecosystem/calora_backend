@@ -10,7 +10,7 @@ public static class ResponseErrors
             {
                 En = "Method not found",
                 Ru = "Запрашиваемый метод не найден. В RPC-запросе имя запрашиваемого метода содержится в поле data",
-                Uz = ""
+                Uz = "Ko'rsatma topilmadi."
             },
         };
 
@@ -22,7 +22,7 @@ public static class ResponseErrors
             {
                 En = "Error while parsing JSON.",
                 Ru = "Ошибка парсинга JSON.",
-                Uz = ""
+                Uz = "Ma'lumotlarni qayta ishlashda xatolik yuz berdi."
             },
         };
 
@@ -35,7 +35,7 @@ public static class ResponseErrors
                 En = "Internal error.",
                 Ru =
                     "Системная (внутренняя ошибка). Ошибку следует использовать в случае системных сбоев: отказа базы данных, отказа файловой системы, неопределенного поведения и т.д.",
-                Uz = ""
+                Uz = "Tizim xatosi."
             },
         };
 
@@ -46,7 +46,7 @@ public static class ResponseErrors
             Message = new MessageDto()
             {
                 En = "Order not found.",
-                Ru = "",
+                Ru = "Заказ не найден.",
                 Uz = "Buyurtma topilmadi."
             },
         };
