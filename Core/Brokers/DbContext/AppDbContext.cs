@@ -3,6 +3,7 @@ using Core.Entities;
 using Core.Entities.Auth;
 using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
+using Core.Entities.Billing.Payme;
 using Core.Entities.Course;
 using Core.Entities.FoodEntites;
 using Core.Entities.Notification;
@@ -70,6 +71,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<PlanFeature> PlanFeatures { get; set; }
     public DbSet<Subscription> Subscriptions { get; set; }
     public DbSet<ClickTransaction> ClickTransactions { get; set; }
+    public DbSet<PaymeTransaction> PaymeTransactions { get; set; }
 
     #endregion
 

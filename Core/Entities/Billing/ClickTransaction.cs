@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using BRB.Core.Common.Models.Base;
 using Core.Entities.Billing.Enum;
+using Microsoft.EntityFrameworkCore;
 
 namespace Core.Entities.Billing;
 
@@ -23,5 +24,6 @@ public class ClickTransaction : AuditableModelBase<uint>
 
     [ForeignKey(nameof(Order))] public required long OrderId { get; set; }
 
+    [DeleteBehavior(DeleteBehavior.Restrict)]
     public Order Order { get; set; } = default!;
 }
