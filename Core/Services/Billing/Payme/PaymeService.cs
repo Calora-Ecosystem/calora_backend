@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Data;
+using System.Text.Json;
 using BRB.Core.Common.Exceptions;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -124,6 +125,8 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
     public async Task<BaseResponseDto> CreateTransaction(CreateTransactionDto dto)
     {
         var orderId = long.Parse(dto.Account.OrderId);
+        
+        await using var dbTransaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
         var checkResult = await CheckPerformTransaction(new CheckPerformTransactionDto()
         {
@@ -138,12 +141,6 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
 
         var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId) ??
                           throw new NotFoundException("Transaction not found");
-        
-        if (transaction.ExternalId != null)
-            return new ErrorResponseDto()
-            {
-                Error = ResponseErrors.TransactionAlreadyCreated,
-            };
 
         if (transaction.Status != EnumPaymeTransactionStatus.Created)
             return new ErrorResponseDto()
@@ -151,11 +148,19 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
                 Error = ResponseErrors.TransactionCanNotBePerformed,
             };
 
+        if (transaction.ExternalId != null)
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.TransactionAlreadyCreated,
+            };
+
         if (transaction.CreatedAt.AddHours(12) <= DateTime.Now)
         {
             transaction.Status = EnumPaymeTransactionStatus.Failed;
             transaction.Reason = "Отмена по таймауту";
+
             await dbContext.SaveChangesAsync();
+            await dbTransaction.CommitAsync();
 
             return new ErrorResponseDto()
             {
@@ -171,6 +176,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         transaction.CreatedAt = now.DateTime;
 
         await dbContext.SaveChangesAsync();
+        await dbTransaction.CommitAsync();
 
         return new ResultResponseDto<CreateTransactionResponseDto>()
         {
