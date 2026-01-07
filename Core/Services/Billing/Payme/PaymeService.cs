@@ -1,8 +1,9 @@
 ﻿using System.Text.Json;
 using BRB.Core.EF.Attributes;
-using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
+using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
+using Core.Entities.Billing.Payme;
 using Core.Services.Billing.Payme.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -66,6 +67,7 @@ public class PaymeService(AppDbContext dbContext)
         var order = await dbContext.Orders.FirstOrDefaultAsync(x =>
             x.Id == orderId && x.Status == EnumOrderStatus.Pending);
 
+
         if (order is null)
             return new ErrorResponseDto()
             {
@@ -79,6 +81,23 @@ public class PaymeService(AppDbContext dbContext)
                 Error = ResponseErrors.WrongAmount,
             };
 
+        var transaction = dbContext.PaymeTransactions.FirstOrDefault(x => x.OrderId == orderId);
+
+        if (transaction is null)
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.OrderNotFound,
+            };
+
         return new ResultResponseDto<AllowResultDto>() { Result = new AllowResultDto() { Allow = true } };
+    }
+
+    public async Task CreateTransaction(Order order)
+    {
+        var paymeTransaction = new PaymeTransaction()
+            { OrderId = order.Id, Amount = order.Amount, Status = EnumPaymeTransactionStatus.Created };
+
+        paymeTransaction = dbContext.PaymeTransactions.Add(paymeTransaction).Entity;
+        await dbContext.SaveChangesAsync();
     }
 }

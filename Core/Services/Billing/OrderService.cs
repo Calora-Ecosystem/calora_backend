@@ -6,6 +6,7 @@ using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
 using Core.Services.Billing.Click;
 using Core.Services.Billing.Contracts;
+using Core.Services.Billing.Payme;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -50,14 +51,15 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
 
             dbContext.Add(subscriptionOrder);
 
-            var transaction = dto.Provider switch
+            await (dto.Provider switch
             {
                 EnumPaymentProviders.Click => serviceProvider.GetRequiredService<ClickService>()
                     .CreateTransaction(order),
+                EnumPaymentProviders.Payme => serviceProvider.GetRequiredService<PaymeService>()
+                    .CreateTransaction(order),
                 _ => throw new Exception("Provider not found")
-            };
+            });
 
-            order.TransactionId = transaction.Id;
             await dbContext.SaveChangesAsync();
         });
 
@@ -126,11 +128,12 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
                         .FirstOrDefaultAsync(x => x.Id == orderId && x.UserId == userId)
                     ?? throw new NotFoundException("Order not found");
 
-        return order.Provider switch
+        return await (order.Provider switch
         {
             EnumPaymentProviders.Click => serviceProvider.GetRequiredService<ClickService>()
-                .MakeClickPaymentLink(order.TransactionId, order.Amount),
+                .MakeClickPaymentLink(order.Id, order.Amount),
+            EnumPaymentProviders.Payme => Task.FromResult("change-me"),
             _ => throw new Exception("Provider not found")
-        };
+        });
     }
 }

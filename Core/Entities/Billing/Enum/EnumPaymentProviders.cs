@@ -2,5 +2,6 @@
 
 public enum EnumPaymentProviders
 {
-    Click = 1
+    Click = 1,
+    Payme
 }

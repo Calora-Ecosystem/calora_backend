@@ -15,6 +15,5 @@ public class Order : AuditableModelBase<long>
     public EnumPaymentProviders Provider { get; set; }
     public EnumOrderType Type { get; set; }
     public EnumOrderStatus Status { get; set; }
-    public long TransactionId { get; set; }
     public User User { get; set; } = null!;
 }

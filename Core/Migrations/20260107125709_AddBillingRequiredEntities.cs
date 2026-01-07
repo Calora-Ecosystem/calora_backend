@@ -23,7 +23,6 @@ namespace Core.Migrations
                     provider = table.Column<int>(type: "integer", nullable: false),
                     type = table.Column<int>(type: "integer", nullable: false),
                     status = table.Column<int>(type: "integer", nullable: false),
-                    transaction_id = table.Column<long>(type: "bigint", nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     updated_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
@@ -120,7 +119,8 @@ namespace Core.Migrations
                 name: "payme_transactions",
                 columns: table => new
                 {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     external_id = table.Column<string>(type: "character varying(25)", maxLength: 25, nullable: false),
                     external_created_at = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     amount = table.Column<long>(type: "bigint", nullable: false),
