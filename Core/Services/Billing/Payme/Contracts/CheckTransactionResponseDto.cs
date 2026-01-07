@@ -1,10 +1,12 @@
-﻿namespace Core.Services.Billing.Payme.Contracts;
+﻿using System.Text.Json.Serialization;
+
+namespace Core.Services.Billing.Payme.Contracts;
 
 public class CheckTransactionResponseDto
 {
-    public long CreateTime { get; set; }
-    public long PerformTime { get; set; }
-    public long CancelTime { get; set; }
+    [JsonPropertyName("create_time")] public long CreateTime { get; set; }
+    [JsonPropertyName("perform_time")] public long PerformTime { get; set; }
+    [JsonPropertyName("cancel_time")] public long CancelTime { get; set; }
     public string Transaction { get; set; } = null!;
     public int State { get; set; }
     public string? Reason { get; set; } = null!;
