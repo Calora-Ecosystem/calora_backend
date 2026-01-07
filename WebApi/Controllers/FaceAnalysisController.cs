@@ -1,5 +1,5 @@
 ﻿using BRB.Core.Common.Exceptions;
-using Core;
+using Core.Attributes;
 using Core.Enums;
 using Core.Services.Ai.Contracts;
 using Core.Services.File.Contracts;

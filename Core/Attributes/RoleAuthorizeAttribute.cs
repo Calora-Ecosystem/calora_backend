@@ -21,7 +21,7 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
 
     public void OnAuthorization(AuthorizationFilterContext context)
     {
-        context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Unauthorized;
+        context.HttpContext.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
         var endpoint = context.ActionDescriptor.EndpointMetadata;
 
         if (endpoint.OfType<IAllowAnonymous>().Any())
@@ -35,7 +35,7 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
         var user = context.HttpContext.User;
         if (user?.Identity is not { IsAuthenticated: true })
         {
-            context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Unauthorized;
+            context.HttpContext.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
             context.Result = new ObjectResult(new Wrapper(new UnauthorizedException()));
             return;
         }
@@ -50,7 +50,7 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
 
             if (sessionId == null || userId == null)
             {
-                context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Unauthorized;
+                context.HttpContext.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
                 context.Result =
                     new ObjectResult(new Wrapper(new SessionExpiredException(), HttpStatusCode.Unauthorized));
                 return;
@@ -60,7 +60,7 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
 
             if (!cache.TryGetValue($"session:{userId}:{sessionId}", out var session) || session == null)
             {
-                context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Unauthorized;
+                context.HttpContext.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
                 context.Result =
                     new ObjectResult(new Wrapper(new SessionExpiredException(), HttpStatusCode.Unauthorized));
                 return;
@@ -69,10 +69,11 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
 
         if (attr.Roles.Any(role => user.IsInRole(role.ToString())))
         {
-            return;
+            if (attr.Plans == null)
+                return;
         }
-        
-        
+
+
         if (attr.Plans != null)
         {
             if (!attr.Plans.Any())
@@ -84,11 +85,12 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
                 attr.Plans!.Contains(Enum.Parse<EnumSPlans>(plan)))
                 return;
 
+            context.HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
             context.Result =
                 new ObjectResult(new Wrapper(new ForbiddenException("You don't have access to this resource")));
         }
-        
-        context.HttpContext.Response.StatusCode = (int) HttpStatusCode.Forbidden;
+
+        context.HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
         context.Result = new ObjectResult(new Wrapper(new ForbiddenException(), HttpStatusCode.Forbidden));
     }
 }
