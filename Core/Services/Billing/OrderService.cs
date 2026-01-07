@@ -56,7 +56,7 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
                 EnumPaymentProviders.Click => serviceProvider.GetRequiredService<ClickService>()
                     .CreateTransaction(order),
                 EnumPaymentProviders.Payme => serviceProvider.GetRequiredService<PaymeService>()
-                    .CreateTransaction(order),
+                    .CreateInternalTransaction(order),
                 _ => throw new Exception("Provider not found")
             });
 

@@ -51,6 +51,30 @@ public static class ResponseErrors
             },
         };
 
+    public static ErrorDto TransactionNotFound =>
+        new ErrorDto()
+        {
+            Code = -31003,
+            Message = new MessageDto()
+            {
+                En = "Transaction not found.",
+                Ru = "Транзакция не найдена.",
+                Uz = "Amaliyot topilmadi."
+            },
+        };
+    
+    public static ErrorDto TransactionAlreadyDone =>
+        new ErrorDto()
+        {
+            Code = -31003,
+            Message = new MessageDto()
+            {
+                En = "Transaction already done.",
+                Ru = "Заказ выполнен.",
+                Uz = "Amaliyot allaqachon bajarilgan."
+            },
+        };
+
     public static ErrorDto WrongAmount =>
         new ErrorDto()
         {

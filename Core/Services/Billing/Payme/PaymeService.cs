@@ -103,13 +103,136 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         if (transaction is null)
             return new ErrorResponseDto()
             {
-                Error = ResponseErrors.OrderNotFound,
+                Error = ResponseErrors.TransactionNotFound,
             };
 
         return new ResultResponseDto<AllowResultDto>() { Result = new AllowResultDto() { Allow = true } };
     }
 
-    public async Task CreateTransaction(Order order)
+    public async Task<BaseResponseDto> CreateTransaction(CreateTransactionDto dto)
+    {
+        var orderId = long.Parse(dto.Account.OrderId);
+
+        var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId);
+
+        if (transaction is null)
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.TransactionNotFound,
+            };
+
+        var now = DateTimeOffset.Now;
+
+        transaction.ExternalId = dto.Id;
+        transaction.ExternalCreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(dto.Time).DateTime;
+        transaction.Status = EnumPaymeTransactionStatus.Created;
+        transaction.CreatedAt = now.DateTime;
+
+        await dbContext.SaveChangesAsync();
+
+        return new ResultResponseDto<CreateTransactionResponseDto>()
+        {
+            Result = new CreateTransactionResponseDto()
+            {
+                CreateTime = now.ToUnixTimeMilliseconds(),
+                State = (int)transaction.Status,
+                Transaction = transaction.Id.ToString()
+            }
+        };
+    }
+
+    public async Task<BaseResponseDto> PerformTransaction(PerformTransactionDto dto)
+    {
+        var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.ExternalId == dto.Id);
+
+        if (transaction is null)
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.TransactionNotFound,
+            };
+
+        var now = DateTimeOffset.Now;
+
+        transaction.Status = EnumPaymeTransactionStatus.Done;
+        transaction.PerformedAt = now.DateTime;
+
+        return new ResultResponseDto<PerformResponseDto>()
+        {
+            Result = new PerformResponseDto()
+            {
+                PerformTime = now.ToUnixTimeMilliseconds(),
+                State = (int)transaction.Status,
+                Transaction = transaction.Id.ToString()
+            }
+        };
+    }
+
+    public async Task<BaseResponseDto> CancelTransaction(CancelTransactionRequestDto dto)
+    {
+        var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x =>
+            x.ExternalId == dto.Id);
+
+        if (transaction is null)
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.TransactionNotFound,
+            };
+
+        if (transaction.Status == EnumPaymeTransactionStatus.Done)
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.TransactionAlreadyDone
+            };
+
+        var now = DateTimeOffset.Now;
+
+        transaction.CancelledAt = now.DateTime;
+        transaction.Status = EnumPaymeTransactionStatus.Cancelled;
+
+        await dbContext.SaveChangesAsync();
+
+        return new ResultResponseDto<CancelTransactionResponseDto>()
+        {
+            Result = new CancelTransactionResponseDto()
+            {
+                CancelTime = now.ToUnixTimeMilliseconds(),
+                State = (int)transaction.Status,
+                Transaction = transaction.Id.ToString()
+            }
+        };
+    }
+
+
+    public async Task<BaseResponseDto> CheckTransaction(CheckTransactionRequestDto dto)
+    {
+        var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x =>
+            x.ExternalId == dto.Id);
+
+        if (transaction is null)
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.TransactionNotFound,
+            };
+
+        return new ResultResponseDto<CheckTransactionResponseDto>()
+        {
+            Result = new CheckTransactionResponseDto()
+            {
+                CancelTime = transaction.CancelledAt.HasValue
+                    ? DateTimeOffset.FromFileTime(transaction.CancelledAt.Value.ToFileTime()).ToUnixTimeMilliseconds()
+                    : 0,
+                PerformTime = transaction.PerformedAt.HasValue
+                    ? DateTimeOffset.FromFileTime(transaction.PerformedAt.Value.ToFileTime()).ToUnixTimeMilliseconds()
+                    : 0,
+                CreateTime = DateTimeOffset.FromFileTime(transaction.CreatedAt.ToFileTime()).ToUnixTimeMilliseconds(),
+                State = (int)transaction.Status,
+                Transaction = transaction.Id.ToString(),
+                Reason = transaction.Reason
+            }
+        };
+    }
+
+    public async Task CreateInternalTransaction(Order order)
     {
         var paymeTransaction = new PaymeTransaction()
             { OrderId = order.Id, Amount = order.Amount, Status = EnumPaymeTransactionStatus.Created };
