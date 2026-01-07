@@ -71,7 +71,7 @@ public static class ResponseErrors
             {
                 En = "Unauthorized.",
                 Ru = "Недостаточно привилегий для выполнения метода.",
-                Uz = ""
+                Uz = "Ruxsat yo'q."
             },
         };
 }
