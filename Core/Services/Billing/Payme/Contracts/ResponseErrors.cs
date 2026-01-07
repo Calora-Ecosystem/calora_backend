@@ -62,4 +62,16 @@ public static class ResponseErrors
                 Uz = "Noto'g'ri summa."
             },
         };
+
+    public static ErrorDto Unathorized =>
+        new ErrorDto()
+        {
+            Code = -32504,
+            Message = new MessageDto()
+            {
+                En = "Unauthorized.",
+                Ru = "Недостаточно привилегий для выполнения метода.",
+                Uz = ""
+            },
+        };
 }

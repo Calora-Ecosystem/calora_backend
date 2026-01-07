@@ -6,15 +6,47 @@ using Core.Entities.Billing.Enum;
 using Core.Entities.Billing.Payme;
 using Core.Services.Billing.Payme.Contracts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace Core.Services.Billing.Payme;
 
 [Injectable]
-public class PaymeService(AppDbContext dbContext)
+public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
 {
-    public async Task<BaseResponseDto> HandleAsync(BaseRequest request)
+    public bool CheckFodValidRequestFromPayme(string authToken)
     {
+        try
+        {
+            var basicAuth = Convert.ToString(Convert.FromBase64String(authToken));
+            var parts = basicAuth!.Split(":");
+
+            if (parts.Length != 2) return false;
+
+            if (parts[0] != config.Value.Login || parts[1] != config.Value.Password) return false;
+
+            return true;
+        }
+        catch (Exception e)
+        {
+            Log.Error("Invalid request from payme: {Error}", e.Message);
+            return false;
+        }
+    }
+
+    public async Task<BaseResponseDto> HandleAsync(BaseRequest request, string authToken)
+    {
+#if !DEBUG
+        if (!CheckFodValidRequestFromPayme(authToken))
+        {
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.Unathorized,
+                Id = request.Id
+            };
+        }
+#endif
+
         var methodInfo = this.GetType().GetMethod(request.Method);
 
         if (methodInfo is null)
