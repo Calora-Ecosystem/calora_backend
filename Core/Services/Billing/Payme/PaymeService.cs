@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using BRB.Core.Common.Exceptions;
 using BRB.Core.EF.Attributes;
+using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
@@ -110,8 +111,12 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
                 Error = ResponseErrors.TransactionNotFound,
             };
 
-        transaction.CreatedAt = DateTime.Now;
-        await dbContext.SaveChangesAsync();
+        if (transaction.Status == EnumPaymeTransactionStatus.InternalCreated)
+        {
+            transaction.CreatedAt = DateTime.Now;
+            transaction.Status = EnumPaymeTransactionStatus.Created;
+            await dbContext.SaveChangesAsync();
+        }
 
         return new ResultResponseDto<AllowResultDto>() { Result = new AllowResultDto() { Allow = true } };
     }
@@ -129,11 +134,18 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         if (checkResult is ErrorResponseDto)
             return checkResult;
 
+        var order = await dbContext.Orders.GetByIdOrThrowsNotFoundException(orderId);
+
         var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId) ??
                           throw new NotFoundException("Transaction not found");
+        
+        if (transaction.ExternalId != null)
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.TransactionAlreadyCreated,
+            };
 
-
-        if (transaction.Status == EnumPaymeTransactionStatus.Created)
+        if (transaction.Status != EnumPaymeTransactionStatus.Created)
             return new ErrorResponseDto()
             {
                 Error = ResponseErrors.TransactionCanNotBePerformed,
@@ -180,6 +192,18 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
             {
                 Error = ResponseErrors.TransactionNotFound,
             };
+
+        if (transaction.CreatedAt.AddHours(12) <= DateTime.Now)
+        {
+            transaction.Status = EnumPaymeTransactionStatus.Failed;
+            transaction.Reason = "Отмена по таймауту";
+            await dbContext.SaveChangesAsync();
+
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.TransactionCanNotBePerformed,
+            };
+        }
 
         var now = DateTimeOffset.Now;
 

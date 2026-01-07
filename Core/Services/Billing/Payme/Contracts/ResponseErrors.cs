@@ -63,6 +63,18 @@ public static class ResponseErrors
             },
         };
     
+    public static ErrorDto TransactionAlreadyCreated =>
+        new ErrorDto()
+        {
+            Code = -31050,
+            Message = new MessageDto()
+            {
+                En = "Transaction already created.",
+                Ru = "Транзакция уже создана.",
+                Uz = "Amaliyot allaqachon yaratildi."
+            },
+        };
+    
     public static ErrorDto TransactionAlreadyDone =>
         new ErrorDto()
         {
