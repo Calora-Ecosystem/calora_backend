@@ -5,6 +5,8 @@ using Core.Services.Billing;
 using Core.Services.Billing.Click;
 using Core.Services.Billing.Click.Contracts;
 using Core.Services.Billing.Contracts;
+using Core.Services.Billing.Payme;
+using Core.Services.Billing.Payme.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResultWrapper.Library;
@@ -14,7 +16,8 @@ namespace WebApi.Controllers;
 
 [ApiController]
 [Route("billing")]
-public class BillingController(OrderService orderService, ClickService clickService) : AuthorizedController
+public class BillingController(OrderService orderService, ClickService clickService, PaymeService paymeService)
+    : AuthorizedController
 {
     #region Orders
 
@@ -73,6 +76,16 @@ public class BillingController(OrderService orderService, ClickService clickServ
         };
 
         var response = await clickService.HandleAsync(request);
+
+        return Ok(response);
+    }
+
+
+    [HttpPost("payme")]
+    [AllowAnonymous]
+    public async Task<IActionResult> HandleClickRequest([FromBody] BaseRequest request)
+    {
+        var response = await paymeService.HandleAsync(request);
 
         return Ok(response);
     }
