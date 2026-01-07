@@ -66,7 +66,7 @@ public static class ResponseErrors
     public static ErrorDto TransactionAlreadyDone =>
         new ErrorDto()
         {
-            Code = -31003,
+            Code = -31007,
             Message = new MessageDto()
             {
                 En = "Transaction already done.",
