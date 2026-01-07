@@ -10,6 +10,7 @@ using Core.Services.Billing.Payme.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResultWrapper.Library;
+using Serilog;
 using WebCore.Controller;
 
 namespace WebApi.Controllers;
@@ -80,12 +81,18 @@ public class BillingController(OrderService orderService, ClickService clickServ
         return Ok(response);
     }
 
+    #endregion
+
+    #region Payme
 
     [HttpPost("payme")]
     [AllowAnonymous]
     public async Task<IActionResult> HandleClickRequest([FromBody] BaseRequest request)
     {
-        var response = await paymeService.HandleAsync(request);
+        var authHeaderRaw = this.Request.Headers.Authorization.ToString();
+        var basicAuthToken = authHeaderRaw.Replace("Basic ", "");
+
+        var response = await paymeService.HandleAsync(request, basicAuthToken);
 
         return Ok(response);
     }
