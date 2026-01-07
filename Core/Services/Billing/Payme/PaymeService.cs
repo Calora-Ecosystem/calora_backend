@@ -7,6 +7,7 @@ using Core.Entities.Billing.Payme;
 using Core.Services.Billing.Payme.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
 
 namespace Core.Services.Billing.Payme;
@@ -60,8 +61,11 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
             var resultTask = (Task<BaseResponseDto>)methodInfo.Invoke(this, [paramValue])!;
             var result = await resultTask;
             if (result is ErrorResponseDto error)
+            {
                 error.Id = request.Id;
 
+                return error;
+            }
 
             return result;
         }
@@ -120,6 +124,13 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
             {
                 Error = ResponseErrors.TransactionNotFound,
             };
+
+        if (transaction.ExternalId != null)
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.TransactionCanNotBePerformed,
+            };
+
 
         var now = DateTimeOffset.Now;
 

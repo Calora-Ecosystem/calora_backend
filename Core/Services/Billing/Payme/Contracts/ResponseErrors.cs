@@ -74,6 +74,18 @@ public static class ResponseErrors
                 Uz = "Amaliyot allaqachon bajarilgan."
             },
         };
+    
+    public static ErrorDto TransactionCanNotBePerformed =>
+        new ErrorDto()
+        {
+            Code = -31008,
+            Message = new MessageDto()
+            {
+                En = "Transaction can not be performed.",
+                Ru = "Невозможно выполнить операцию.",
+                Uz = "Amaliyotni bajarib bo'lmaydi."
+            },
+        };
 
     public static ErrorDto WrongAmount =>
         new ErrorDto()
