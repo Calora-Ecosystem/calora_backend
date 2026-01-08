@@ -2,9 +2,8 @@
 
 public enum EnumPaymeTransactionStatus
 {
-    Cancelled = -2,
-    Failed = -1,
-    InternalCreated = 0,
-    Created = 1,
-    Done = 2,
+    PaidCancelled = -2,
+    PendingCancelled = -1,
+    Pending = 1,
+    Paid = 2,
 }

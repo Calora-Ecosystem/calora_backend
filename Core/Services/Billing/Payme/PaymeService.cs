@@ -112,13 +112,6 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
                 Error = ResponseErrors.TransactionNotFound,
             };
 
-        if (transaction.Status == EnumPaymeTransactionStatus.InternalCreated)
-        {
-            transaction.CreatedAt = DateTime.Now;
-            transaction.Status = EnumPaymeTransactionStatus.Created;
-            await dbContext.SaveChangesAsync();
-        }
-
         return new ResultResponseDto<AllowResultDto>() { Result = new AllowResultDto() { Allow = true } };
     }
 
@@ -135,32 +128,24 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         if (checkResult is ErrorResponseDto)
             return checkResult;
 
-        var order = await dbContext.Orders.GetByIdOrThrowsNotFoundException(orderId);
-
         var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId) ??
                           throw new NotFoundException("Transaction not found");
 
-        if (transaction.Status != EnumPaymeTransactionStatus.Created)
+        if (transaction.Status != EnumPaymeTransactionStatus.Pending)
+        {
             return new ErrorResponseDto()
             {
                 Error = ResponseErrors.TransactionCanNotBePerformed,
             };
-
-        await using var dbTransaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-
-        if (transaction.ExternalId != null)
-            return new ErrorResponseDto()
-            {
-                Error = ResponseErrors.TransactionAlreadyCreated,
-            };
+        }
 
         if (transaction.CreatedAt.AddHours(12) <= DateTime.Now)
         {
-            transaction.Status = EnumPaymeTransactionStatus.Failed;
+            transaction.Status = EnumPaymeTransactionStatus.PendingCancelled;
+            transaction.CancelledAt = DateTime.Now;
             transaction.Reason = 4;
 
             await dbContext.SaveChangesAsync();
-            await dbTransaction.CommitAsync();
 
             return new ErrorResponseDto()
             {
@@ -168,21 +153,20 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
             };
         }
 
-        var now = DateTimeOffset.Now;
-
         transaction.ExternalId = dto.Id;
         transaction.ExternalCreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(dto.Time).DateTime;
-        transaction.Status = EnumPaymeTransactionStatus.Created;
-        transaction.CreatedAt = now.DateTime;
+        transaction.Status = EnumPaymeTransactionStatus.Pending;
 
         await dbContext.SaveChangesAsync();
-        await dbTransaction.CommitAsync();
 
         return new ResultResponseDto<CreateTransactionResponseDto>()
         {
             Result = new CreateTransactionResponseDto()
             {
-                CreateTime = now.ToUnixTimeMilliseconds(),
+                CreateTime = transaction.ExternalCreatedAt.HasValue
+                    ? DateTimeOffset.FromFileTime(transaction.ExternalCreatedAt.Value.ToFileTime())
+                        .ToUnixTimeMilliseconds()
+                    : 0,
                 State = (int)transaction.Status,
                 Transaction = transaction.Id.ToString()
             }
@@ -201,7 +185,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
 
         if (transaction.CreatedAt.AddHours(12) <= DateTime.Now)
         {
-            transaction.Status = EnumPaymeTransactionStatus.Failed;
+            transaction.Status = EnumPaymeTransactionStatus.PendingCancelled;
             transaction.Reason = 4;
             await dbContext.SaveChangesAsync();
 
@@ -213,7 +197,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
 
         var now = DateTimeOffset.Now;
 
-        transaction.Status = EnumPaymeTransactionStatus.Done;
+        transaction.Status = EnumPaymeTransactionStatus.Paid;
         transaction.PerformedAt = now.DateTime;
 
         await dbContext.SaveChangesAsync();
@@ -242,21 +226,24 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
 
         var now = DateTimeOffset.Now;
 
-        if (transaction.Status == EnumPaymeTransactionStatus.Created)
+        if (transaction.Status == EnumPaymeTransactionStatus.Pending)
         {
             transaction.CancelledAt = now.DateTime;
-            transaction.Status = EnumPaymeTransactionStatus.Failed;
+            transaction.Status = EnumPaymeTransactionStatus.PendingCancelled;
             transaction.Reason = dto.Reason;
 
             await dbContext.SaveChangesAsync();
         }
-        else if (transaction.Status != EnumPaymeTransactionStatus.Done)
+        else if (transaction.Status != EnumPaymeTransactionStatus.Paid)
         {
             return new ResultResponseDto<CancelTransactionResponseDto>()
             {
                 Result = new CancelTransactionResponseDto()
                 {
-                    CancelTime = transaction.CancelledAt.HasValue ? DateTimeOffset.FromFileTime(transaction.CancelledAt.Value.ToFileTime()).ToUnixTimeMilliseconds() : 0,
+                    CancelTime = transaction.CancelledAt.HasValue
+                        ? DateTimeOffset.FromFileTime(transaction.CancelledAt.Value.ToFileTime())
+                            .ToUnixTimeMilliseconds()
+                        : 0,
                     State = (int)transaction.Status,
                     Transaction = transaction.Id.ToString()
                 }
@@ -265,7 +252,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         else
         {
             transaction.CancelledAt = now.DateTime;
-            transaction.Status = EnumPaymeTransactionStatus.Cancelled;
+            transaction.Status = EnumPaymeTransactionStatus.PaidCancelled;
             transaction.Reason = dto.Reason;
 
             await dbContext.SaveChangesAsync();
@@ -304,7 +291,10 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
                 PerformTime = transaction.PerformedAt.HasValue
                     ? DateTimeOffset.FromFileTime(transaction.PerformedAt.Value.ToFileTime()).ToUnixTimeMilliseconds()
                     : 0,
-                CreateTime = DateTimeOffset.FromFileTime(transaction.CreatedAt.ToFileTime()).ToUnixTimeMilliseconds(),
+                CreateTime = transaction.ExternalCreatedAt.HasValue
+                    ? DateTimeOffset.FromFileTime(transaction.ExternalCreatedAt.Value.ToFileTime())
+                        .ToUnixTimeMilliseconds()
+                    : 0,
                 State = (int)transaction.Status,
                 Transaction = transaction.Id.ToString(),
                 Reason = transaction.Reason
@@ -315,7 +305,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
     public async Task CreateInternalTransaction(Order order)
     {
         var paymeTransaction = new PaymeTransaction()
-            { OrderId = order.Id, Amount = order.Amount, Status = EnumPaymeTransactionStatus.InternalCreated };
+            { OrderId = order.Id, Amount = order.Amount, Status = EnumPaymeTransactionStatus.Pending };
 
         paymeTransaction = dbContext.PaymeTransactions.Add(paymeTransaction).Entity;
         await dbContext.SaveChangesAsync();
