@@ -132,7 +132,8 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
         {
             EnumPaymentProviders.Click => serviceProvider.GetRequiredService<ClickService>()
                 .MakeClickPaymentLink(order.Id, order.Amount),
-            EnumPaymentProviders.Payme => Task.FromResult("change-me"),
+            EnumPaymentProviders.Payme => serviceProvider.GetRequiredService<PaymeService>()
+                .MakeClickPaymentLink(order.Id, order.Amount),
             _ => throw new Exception("Provider not found")
         });
     }

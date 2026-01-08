@@ -1,8 +1,7 @@
-﻿using System.Data;
+﻿using System.Text;
 using System.Text.Json;
 using BRB.Core.Common.Exceptions;
 using BRB.Core.EF.Attributes;
-using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
@@ -10,7 +9,6 @@ using Core.Entities.Billing.Payme;
 using Core.Services.Billing.Payme.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using Serilog;
 
 namespace Core.Services.Billing.Payme;
@@ -405,5 +403,17 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
 
         paymeTransaction = dbContext.PaymeTransactions.Add(paymeTransaction).Entity;
         await dbContext.SaveChangesAsync();
+    }
+
+    public async Task<string> MakeClickPaymentLink(long orderId, long orderAmount)
+    {
+        var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId) ??
+                          throw new NotFoundException("Transaction not found");
+
+        var data = $"m={config.Value.MerchantId};ac.order_id={transaction.Id.ToString()};a={transaction.Amount}";
+        var base64Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(data));
+        var uri = new Uri(config.Value.CheckoutUrl);
+
+        return $"{uri.GetLeftPart(UriPartial.Authority)}/{base64Data}";
     }
 }
