@@ -63,12 +63,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         {
             var resultTask = (Task<BaseResponseDto>)methodInfo.Invoke(this, [paramValue])!;
             var result = await resultTask;
-            if (result is ErrorResponseDto error)
-            {
-                error.Id = request.Id;
-
-                return error;
-            }
+            result.Id = request.Id;
 
             return result;
         }
@@ -183,10 +178,33 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
                 Error = ResponseErrors.TransactionNotFound,
             };
 
+        if (transaction.Status != EnumPaymeTransactionStatus.Pending)
+        {
+            if (transaction.Status != EnumPaymeTransactionStatus.Paid)
+                return new ErrorResponseDto()
+                {
+                    Error = ResponseErrors.TransactionCanNotBePerformed,
+                };
+
+            return new ResultResponseDto<PerformResponseDto>()
+            {
+                Result = new PerformResponseDto()
+                {
+                    PerformTime = transaction.PerformedAt.HasValue
+                        ? DateTimeOffset.FromFileTime(transaction.PerformedAt.Value.ToFileTime())
+                            .ToUnixTimeMilliseconds()
+                        : 0,
+                    State = (int)transaction.Status,
+                    Transaction = transaction.Id.ToString()
+                }
+            };
+        }
+
         if (transaction.CreatedAt.AddHours(12) <= DateTime.Now)
         {
             transaction.Status = EnumPaymeTransactionStatus.PendingCancelled;
             transaction.Reason = 4;
+            transaction.CancelledAt = DateTime.Now;
             await dbContext.SaveChangesAsync();
 
             return new ErrorResponseDto()
@@ -233,8 +251,19 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
             transaction.Reason = dto.Reason;
 
             await dbContext.SaveChangesAsync();
+
+            return new ResultResponseDto<CancelTransactionResponseDto>()
+            {
+                Result = new CancelTransactionResponseDto()
+                {
+                    CancelTime = now.ToUnixTimeMilliseconds(),
+                    State = (int)transaction.Status,
+                    Transaction = transaction.Id.ToString()
+                }
+            };
         }
-        else if (transaction.Status != EnumPaymeTransactionStatus.Paid)
+
+        if (transaction.Status != EnumPaymeTransactionStatus.Paid)
         {
             return new ResultResponseDto<CancelTransactionResponseDto>()
             {
@@ -249,14 +278,14 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
                 }
             };
         }
-        else
-        {
-            transaction.CancelledAt = now.DateTime;
-            transaction.Status = EnumPaymeTransactionStatus.PaidCancelled;
-            transaction.Reason = dto.Reason;
 
-            await dbContext.SaveChangesAsync();
-        }
+        //ToDo: implement cancel transaction va it's order
+
+        transaction.CancelledAt = now.DateTime;
+        transaction.Status = EnumPaymeTransactionStatus.PaidCancelled;
+        transaction.Reason = dto.Reason;
+
+        await dbContext.SaveChangesAsync();
 
         return new ResultResponseDto<CancelTransactionResponseDto>()
         {
@@ -301,6 +330,51 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
             }
         };
     }
+
+
+    public async Task<BaseResponseDto> GetStatement(GetStatementRequestDto dto)
+    {
+        var fromDate = DateTimeOffset.FromUnixTimeMilliseconds(dto.From);
+        var toDate = DateTimeOffset.FromUnixTimeMilliseconds(dto.To);
+
+        var transactions = await dbContext.PaymeTransactions
+            .Where(x => x.CreatedAt >= fromDate && x.CreatedAt <= toDate)
+            .Select(x => new GetStatementTransaction()
+            {
+                Id = x.ExternalId!,
+                Time = DateTimeOffset.FromFileTime(DateTime.Now.ToFileTime()).ToUnixTimeMilliseconds(),
+                Amount = x.Amount,
+                AccountBaseDto = new AccountBaseDto()
+                {
+                    OrderId = x.OrderId.ToString(),
+                },
+                CreateTime = x.ExternalCreatedAt.HasValue
+                    ? DateTimeOffset.FromFileTime(x.ExternalCreatedAt.Value.ToFileTime())
+                        .ToUnixTimeMilliseconds()
+                    : 0,
+                PerformTime = x.PerformedAt.HasValue
+                    ? DateTimeOffset.FromFileTime(x.PerformedAt.Value.ToFileTime())
+                        .ToUnixTimeMilliseconds()
+                    : 0,
+                CancelTime = x.CancelledAt.HasValue
+                    ? DateTimeOffset.FromFileTime(x.CancelledAt.Value.ToFileTime())
+                        .ToUnixTimeMilliseconds()
+                    : 0,
+                Transaction = x.Id.ToString(),
+                State = (int)x.Status,
+                Reason = x.Reason
+            })
+            .ToListAsync();
+
+        return new ResultResponseDto<GetStatementResponseDto>()
+        {
+            Result = new GetStatementResponseDto()
+            {
+                Transactions = transactions
+            }
+        };
+    }
+
 
     public async Task CreateInternalTransaction(Order order)
     {
