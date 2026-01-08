@@ -125,7 +125,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
             };
         }
 
-        if (transaction.ExternalId != dto.Id)
+        if (transaction.ExternalId != null && transaction.ExternalId != dto.Id)
             return new ErrorResponseDto()
             {
                 Error = ResponseErrors.TransactionAlreadyCreated,
