@@ -190,7 +190,7 @@ public class UserService(AppDbContext context)
             await CreateOrUpdateNorm(userId, new CreateUserNormDto()
             {
                 Metric = EnumMetrics.Carb,
-                Value = (2.5 + 0.5*(extra.ActivityLevel - EnumActivityLevel.Minimal)) * extra.Weight
+                Value = (2.5 + 0.5 * (extra.ActivityLevel - EnumActivityLevel.Minimal)) * extra.Weight
             });
 
             context.UserExtras.Update(extra);
@@ -448,8 +448,9 @@ group by ung.user_id
 
         var distance = double.Round((extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/) * totalFoots, 1);
         var kcal = double.Round(extra.Weight * distance / 1000 * (extra.Gender == EnumGender.Male ? 1.06 : 0.98), 1);
-
-        return new GetStepMetricsDto(userId, totalFoots, distance, kcal);
+        var duration =  TimeSpan.FromHours(distance / 1000 * 5.1 /* km/hour */);
+        
+        return new GetStepMetricsDto(userId, totalFoots, distance, kcal, duration);
     }
 
     #endregion
