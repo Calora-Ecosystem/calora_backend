@@ -114,6 +114,15 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
     {
         var orderId = long.Parse(dto.Account.OrderId);
 
+        var checkResult = await CheckPerformTransaction(new CheckPerformTransactionDto()
+        {
+            Amount = dto.Amount,
+            Account = dto.Account
+        });
+
+        if (checkResult is ErrorResponseDto)
+            return checkResult;
+
         var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId) ??
                           throw new NotFoundException("Transaction not found");
 
@@ -160,15 +169,6 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
                 Error = ResponseErrors.TransactionCanNotBePerformed,
             };
         }
-
-        var checkResult = await CheckPerformTransaction(new CheckPerformTransactionDto()
-        {
-            Amount = dto.Amount,
-            Account = dto.Account
-        });
-
-        if (checkResult is ErrorResponseDto)
-            return checkResult;
 
         transaction.ExternalId = dto.Id;
         transaction.ExternalCreatedAt = DateTimeOffset.FromUnixTimeMilliseconds(dto.Time).DateTime;
