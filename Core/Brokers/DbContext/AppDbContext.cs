@@ -46,6 +46,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<Workout> Workouts { get; set; }
     public DbSet<UserStepStat> UserStepStats { get; set; }
     public DbSet<Computation> Computations { get; set; }
+    public DbSet<WorkoutComputationIndex> WorkoutComputationIndices { get; set; }
 
     #endregion
 

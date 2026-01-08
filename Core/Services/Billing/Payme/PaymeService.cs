@@ -14,7 +14,7 @@ using Serilog;
 namespace Core.Services.Billing.Payme;
 
 [Injectable]
-public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
+public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config, OrderService orderService)
 {
     public bool CheckFodValidRequestFromPayme(string authToken)
     {
@@ -232,6 +232,8 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
                 Error = ResponseErrors.TransactionCanNotBePerformed,
             };
         }
+
+        await orderService.AcceptPaymentAsync(transaction.OrderId);
 
         var now = DateTimeOffset.Now;
 
