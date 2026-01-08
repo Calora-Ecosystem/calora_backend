@@ -187,7 +187,7 @@ public class AuthService(
         var validPhone = FormatHelper.MakeValidPhone(dto.Phone);
         VerifyOtp(dto.VerificationCode.ToString(), dto.Code);
         var user = await dbContext.Users
-            .FirstOrDefaultAsync(x => x.Phone == dto.Phone) ?? new Entities.Auth.User()
+            .FirstOrDefaultAsync(x => x.Phone == validPhone) ?? new Entities.Auth.User()
         {
             Name = "Anonymous",
             Phone = validPhone,
