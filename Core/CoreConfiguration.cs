@@ -7,6 +7,7 @@ using Core.Services.Auth;
 using Core.Services.Auth.Contracts;
 using Core.Services.Billing.Click;
 using Core.Services.Billing.Payme.Extensions;
+using Core.Services.Course.Workout;
 using Core.Services.Notification;
 using Hangfire;
 using Microsoft.AspNetCore.Builder;
@@ -73,14 +74,18 @@ public static class CoreConfiguration
 
     public static WebApplication AddRecurringJobs(this WebApplication app)
     {
-        if (app.Environment.IsDevelopment())
-            return app;
+        if (!app.Environment.IsDevelopment())
+        {
+            RecurringJob.AddOrUpdate<NotificationService>("enqueue_notifications",
+                service => service.EnqueueNotifications(),
+                app.Environment.IsProduction() ? "*/10 * * * *" : "* * * * *");
 
-        RecurringJob.AddOrUpdate<NotificationService>("enqueue_notifications",
-            service => service.EnqueueNotifications(), app.Environment.IsProduction() ? "*/10 * * * *" : "* * * * *");
-
-        RecurringJob.AddOrUpdate<ReminderService>("check_reminders",
-            service => service.CheckReminders(), "*/31 * * * *");
+            RecurringJob.AddOrUpdate<ReminderService>("check_reminders",
+                service => service.CheckReminders(), "*/31 * * * *");
+        }
+        
+        RecurringJob.AddOrUpdate<WorkoutService>("index_workout_computations",
+            service => service.IndexWorkoutComputations(), "0 0 31 2 *");
 
         return app;
     }

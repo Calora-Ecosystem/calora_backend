@@ -1,15 +1,14 @@
 using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Models;
-using BRB.Core.Common.Models.Base;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Course;
 using Core.Entities.Course.Enum;
 using Core.Enums;
-using Core.Services.Course.Common;
 using Core.Services.Course.Workout.Contracts;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
 
@@ -18,7 +17,8 @@ namespace Core.Services.Course.Workout;
 [Injectable]
 public class WorkoutService(AppDbContext dbContext)
 {
-    public async Task<Wrapper> GetAll(long userId, DataQueryRequest query, long? courseId = null)
+    public async Task<Wrapper> GetAll(long userId, DataQueryRequest query, long? courseId = null,
+        EnumActivityLevel? level = null)
     {
         var q = dbContext.Workouts.AsQueryable();
 
@@ -26,6 +26,7 @@ public class WorkoutService(AppDbContext dbContext)
             q = q.Where(x => x.CourseId == courseId);
 
         return await q
+            .AsSingleQuery()
             .Select(x => new GetWorkoutDto()
             {
                 Id = x.Id,
@@ -42,7 +43,14 @@ public class WorkoutService(AppDbContext dbContext)
                     .Count(joined =>
                         joined.state.UserId == userId &&
                         joined.state.Type == EnumEntityType.Exercise),
-                TotalDurationInMin = x.Exercises.Sum(exercise => exercise.Duration.TotalMinutes),
+                TotalDurationInMin = level.HasValue
+                    ? dbContext
+                        .WorkoutComputationIndices
+                        .Where(i => i.EntityId == x.Id &&
+                                    i.Level == level.Value)
+                        .Sum(i => i.TotalDuration.TotalMinutes + i.TotalCounts * 1 /* 1 action 1 minute */
+                        )
+                    : 0,
                 TotalMetrics = x.Exercises
                     .Where(exercise => exercise.WorkoutId == x.Id)
                     .SelectMany(exercise => exercise.Metrics)
@@ -228,6 +236,49 @@ public class WorkoutService(AppDbContext dbContext)
         return defaultValues.Values.OrderBy(x => x.Activity).ToList();
     }
 
+    [AutomaticRetry(Attempts = 2)]
+    public async Task IndexWorkoutComputations()
+    {
+        var workoutIds = await dbContext.Workouts.Select(x => x.Id).ToListAsync();
+
+        foreach (var workoutId in workoutIds)
+        {
+            var exercisesIds = await dbContext.Exercises
+                .Where(x => x.WorkoutId == workoutId)
+                .Select(x => x.Id)
+                .ToListAsync();
+
+            foreach (var level in Enum.GetValues<EnumActivityLevel>())
+            {
+                var records = await dbContext.Computations
+                    .Where(x => exercisesIds.Contains(x.EntityId) && x.Type == EnumEntityType.Exercise &&
+                                x.Level == level)
+                    .Select(x => new { x.EntityId, x.Value, x.ComputationType })
+                    .ToListAsync();
+
+                var counts = records.Where(x => x.ComputationType == EnumComputationType.Count).Sum(x => x.Value);
+                var durations = TimeSpan.FromMinutes(records
+                    .Where(x => x.ComputationType == EnumComputationType.Duration).Sum(x => x.Value));
+
+                var index = await dbContext
+                                .WorkoutComputationIndices
+                                .FirstOrDefaultAsync(x =>
+                                    x.EntityId == workoutId && x.Level == level) ??
+                            new WorkoutComputationIndex()
+                            {
+                                EntityId = workoutId,
+                                Level = level,
+                            };
+
+                index.TotalCounts = Convert.ToInt32(counts);
+                index.TotalDuration = durations;
+
+                dbContext.Update(index);
+                await dbContext.SaveChangesAsync();
+            }
+        }
+    }
+
     public async Task CreateOrUpdateComputation(ComputationDto dto)
     {
         await (dto.Type switch
@@ -251,5 +302,7 @@ public class WorkoutService(AppDbContext dbContext)
 
         dbContext.Update(computation);
         await dbContext.SaveChangesAsync();
+
+        await IndexWorkoutComputations();
     }
 }
