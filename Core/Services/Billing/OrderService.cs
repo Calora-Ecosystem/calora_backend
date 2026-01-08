@@ -1,4 +1,5 @@
 ﻿using BRB.Core.Common.Exceptions;
+using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
@@ -9,6 +10,7 @@ using Core.Services.Billing.Contracts;
 using Core.Services.Billing.Payme;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using ResultWrapper.Library;
 
 namespace Core.Services.Billing;
 
@@ -64,6 +66,24 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
         });
 
         return await this.MakePaymentLink(order.UserId, order.Id);
+    }
+
+    public async Task<Wrapper> GetOrders(DataQueryRequest q, long? userId = null)
+    {
+        var query = dbContext.Orders.AsQueryable();
+
+        if (userId is not null) query = query.Where(x => x.UserId == userId);
+
+        return await query
+            .Select(x => new GetMyOrdersDto
+            {
+                Id = x.Id, Status = x.Status, Amount = x.Amount,
+                Type = x.Type,
+                Provider = x.Provider,
+                CreatedAt = x.CreatedAt,
+                UpdatedAt = x.UpdatedAt
+            })
+            .GetByDataQueryAsync(q);
     }
 
     public async Task Remove(long userId, long orderId)

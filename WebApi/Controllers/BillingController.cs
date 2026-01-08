@@ -1,4 +1,5 @@
-﻿using Core;
+﻿using BRB.Core.Common.Models;
+using Core;
 using Core.Attributes;
 using Core.Enums;
 using Core.Services.Billing;
@@ -22,12 +23,22 @@ public class BillingController(OrderService orderService, ClickService clickServ
 {
     #region Orders
 
-    [HttpPost("order/subscription")]
+    [HttpGet("orders")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> GetAllOrders([FromQuery] DataQueryRequest query) =>
+        await orderService.GetOrders(query);
+
+    [HttpGet("orders/my")]
+    [RoleAuthorize(EnumRole.User)]
+    public async Task<Wrapper> GetMyOrders([FromQuery] DataQueryRequest query) =>
+        await orderService.GetOrders(query, this.UserId);
+
+    [HttpPost("orders/subscription")]
     [RoleAuthorize(EnumRole.User)]
     public async Task<Wrapper> CreateSubscriptionOrder([FromBody] CreateSubscriptionOrderDto dto) =>
         (await orderService.CreateSubscriptionOrder(this.UserId, dto), 200);
 
-    [HttpDelete("order/{orderId:long:min(1)}")]
+    [HttpDelete("orders/{orderId:long:min(1)}")]
     [RoleAuthorize(EnumRole.User)]
     public async Task<Wrapper> RemoveOrder(long orderId)
     {
@@ -35,7 +46,7 @@ public class BillingController(OrderService orderService, ClickService clickServ
         return 200;
     }
 
-    [HttpGet("order/{orderId:long:min(1)}/payment-link")]
+    [HttpGet("orders/{orderId:long:min(1)}/payment-link")]
     [RoleAuthorize(EnumRole.User)]
     public async Task<Wrapper> MakePaymentLink(long orderId) =>
         (await orderService.MakePaymentLink(this.UserId, orderId), 200);
