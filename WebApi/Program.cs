@@ -53,7 +53,7 @@ builder.Services.AddRateLimiter(options =>
             return RateLimitPartition.GetFixedWindowLimiter(userId, s => new FixedWindowRateLimiterOptions()
             {
                 AutoReplenishment = true,
-                PermitLimit = builder.Environment.IsProduction() ? 3 : 10,
+                PermitLimit = builder.Environment.IsProduction() ? 3 : 100,
                 Window = TimeSpan.FromHours(6),
             });
         }
