@@ -117,6 +117,28 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
         var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId) ??
                           throw new NotFoundException("Transaction not found");
 
+        if (transaction.ExternalId != null)
+        {
+            if (transaction.ExternalId != dto.Id)
+                return new ErrorResponseDto()
+                {
+                    Error = ResponseErrors.TransactionAlreadyCreated,
+                };
+
+            return new ResultResponseDto<CreateTransactionResponseDto>()
+            {
+                Result = new CreateTransactionResponseDto()
+                {
+                    CreateTime = transaction.ExternalCreatedAt.HasValue
+                        ? DateTimeOffset.FromFileTime(transaction.ExternalCreatedAt.Value.ToFileTime())
+                            .ToUnixTimeMilliseconds()
+                        : 0,
+                    State = (int)transaction.Status,
+                    Transaction = transaction.Id.ToString()
+                }
+            };
+        }
+
         if (transaction.Status != EnumPaymeTransactionStatus.Pending)
         {
             return new ErrorResponseDto()
@@ -124,12 +146,6 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
                 Error = ResponseErrors.TransactionCanNotBePerformed,
             };
         }
-
-        if (transaction.ExternalId != null && transaction.ExternalId != dto.Id)
-            return new ErrorResponseDto()
-            {
-                Error = ResponseErrors.TransactionAlreadyCreated,
-            };
 
         if (transaction.CreatedAt.AddHours(12) <= DateTime.Now)
         {
