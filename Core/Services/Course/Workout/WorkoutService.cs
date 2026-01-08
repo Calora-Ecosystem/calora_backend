@@ -17,7 +17,8 @@ namespace Core.Services.Course.Workout;
 [Injectable]
 public class WorkoutService(AppDbContext dbContext)
 {
-    public async Task<Wrapper> GetAll(long userId, DataQueryRequest query, long? courseId = null, EnumActivityLevel? level = null)
+    public async Task<Wrapper> GetAll(long userId, DataQueryRequest query, long? courseId = null,
+        EnumActivityLevel? level = null)
     {
         var q = dbContext.Workouts.AsQueryable();
 
@@ -42,12 +43,14 @@ public class WorkoutService(AppDbContext dbContext)
                     .Count(joined =>
                         joined.state.UserId == userId &&
                         joined.state.Type == EnumEntityType.Exercise),
-                TotalDurationInMin = level.HasValue ? dbContext
-                    .WorkoutComputationIndices
-                    .Where(i => i.EntityId == x.Id &&
-                                i.Level == level.Value)
-                    .Sum(i => i.TotalDuration.TotalMinutes + i.TotalCounts * 1 /* 1 action 1 minute */
-                    ) : 0,
+                TotalDurationInMin = level.HasValue
+                    ? dbContext
+                        .WorkoutComputationIndices
+                        .Where(i => i.EntityId == x.Id &&
+                                    i.Level == level.Value)
+                        .Sum(i => i.TotalDuration.TotalMinutes + i.TotalCounts * 1 /* 1 action 1 minute */
+                        )
+                    : 0,
                 TotalMetrics = x.Exercises
                     .Where(exercise => exercise.WorkoutId == x.Id)
                     .SelectMany(exercise => exercise.Metrics)
@@ -299,5 +302,7 @@ public class WorkoutService(AppDbContext dbContext)
 
         dbContext.Update(computation);
         await dbContext.SaveChangesAsync();
+
+        await IndexWorkoutComputations();
     }
 }
