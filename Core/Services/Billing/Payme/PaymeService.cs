@@ -119,17 +119,17 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config)
 
         if (transaction.Status != EnumPaymeTransactionStatus.Pending)
         {
-            if (transaction.ExternalId != null)
-                return new ErrorResponseDto()
-                {
-                    Error = ResponseErrors.TransactionAlreadyCreated,
-                };
-
             return new ErrorResponseDto()
             {
                 Error = ResponseErrors.TransactionCanNotBePerformed,
             };
         }
+
+        if (transaction.ExternalId != null)
+            return new ErrorResponseDto()
+            {
+                Error = ResponseErrors.TransactionAlreadyCreated,
+            };
 
         if (transaction.CreatedAt.AddHours(12) <= DateTime.Now)
         {
