@@ -376,6 +376,8 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
 
         date = date?.Date ?? DateTime.Now.Date;
 
+        const int defaultFoodWeightMetric = 400;
+
         var nutrients = await dbContext.DailyMenus
             .AsNoTracking()
             .Where(x => x.UserId == userId && x.Date == date)
@@ -391,14 +393,14 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                                               ?.Value ?? 0) / (dailyMenu.Food
                                               .Metrics
                                               .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
-                                              ?.Value ?? 400) *
+                                              ?.Value ?? defaultFoodWeightMetric) *
                                           dailyMenu.Weight),
                 Fat = x.Sum(dailyMenu => (dailyMenu.Food.Metrics
                                              .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Fat)
                                              ?.Value ?? 0) / (dailyMenu.Food
                                              .Metrics
                                              .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
-                                             ?.Value ?? 400) *
+                                             ?.Value ?? defaultFoodWeightMetric) *
                                          dailyMenu.Weight),
                 Protein = x.Sum(dailyMenu => (dailyMenu.Food.Metrics
                                                  .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Protein)
@@ -406,14 +408,14 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                                                  .Food
                                                  .Metrics
                                                  .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
-                                                 ?.Value ?? 400) *
+                                                 ?.Value ?? defaultFoodWeightMetric) *
                                              dailyMenu.Weight),
                 Carb = x.Sum(dailyMenu => (dailyMenu.Food.Metrics
                                               .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Carb)
                                               ?.Value ?? 0) / (dailyMenu.Food
                                               .Metrics
                                               .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
-                                              ?.Value ?? 400) *
+                                              ?.Value ?? defaultFoodWeightMetric) *
                                           dailyMenu.Weight),
             });
 
