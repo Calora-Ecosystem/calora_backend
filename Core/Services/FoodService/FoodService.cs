@@ -74,7 +74,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         {
             if (!userId.HasValue)
                 throw new BadRequestException("Authorized user required");
-            
+
             var ids = dbContext.DailyMenus
                 .Where(x => x.UserId == userId)
                 .OrderByDescending(x => x.Date)
@@ -91,13 +91,14 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                 throw new BadRequestException("Authorized user required");
             queryable = queryable.Where(x => x.UserId == userId);
         }
+
         if (q.IsFavourite.HasValue && q.IsFavourite.Value)
         {
             if (!userId.HasValue)
                 throw new BadRequestException("Authorized user required");
             queryable = queryable.Where(x => fIds.Contains(x.Id));
         }
-        
+
         var resultQuery = queryable
             .FilterByExpressions(q.FilteringExpression);
 
@@ -114,6 +115,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                 IsUserFood = x.UserId.HasValue
             }), await resultQuery.CountAsync());
     }
+
     public async Task<FoodDto> GetFoodById(long foodId, long? userId)
     {
         var food = await dbContext.Foods
@@ -289,7 +291,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
 
         if (!Enum.TryParse<EnumLanguage>(rawLanguage, true, out var language))
             language = EnumLanguage.Uzbek;
-        
+
         var stream = dto.File.OpenReadStream();
         byte[] buffer = new byte[dto.File.Length];
         await stream.ReadExactlyAsync(buffer, 0, buffer.Length);
@@ -374,6 +376,8 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
 
         date = date?.Date ?? DateTime.Now.Date;
 
+        const int defaultFoodWeightMetric = 400;
+
         var nutrients = await dbContext.DailyMenus
             .AsNoTracking()
             .Where(x => x.UserId == userId && x.Date == date)
@@ -384,23 +388,48 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
             {
                 Menu = x.Key,
                 Weight = x.Sum(dailyMenu => dailyMenu.Weight),
-                Kcal = x.Sum(dailyMenu => dailyMenu.Food.Metrics
-                    .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Kcal)?.Value ?? 0),
-                Fat = x.Sum(dailyMenu => dailyMenu.Food.Metrics
-                    .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Fat)?.Value ?? 0),
-                Protein = x.Sum(dailyMenu => dailyMenu.Food.Metrics
-                    .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Protein)?.Value ?? 0),
-                Carb = x.Sum(dailyMenu => dailyMenu.Food.Metrics
-                    .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Carb)?.Value ?? 0),
+                Kcal = x.Sum(dailyMenu => (dailyMenu.Food.Metrics
+                                              .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Kcal)
+                                              ?.Value ?? 0) / (dailyMenu.Food
+                                              .Metrics
+                                              .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
+                                              ?.Value ?? defaultFoodWeightMetric) *
+                                          dailyMenu.Weight),
+                Fat = x.Sum(dailyMenu => (dailyMenu.Food.Metrics
+                                             .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Fat)
+                                             ?.Value ?? 0) / (dailyMenu.Food
+                                             .Metrics
+                                             .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
+                                             ?.Value ?? defaultFoodWeightMetric) *
+                                         dailyMenu.Weight),
+                Protein = x.Sum(dailyMenu => (dailyMenu.Food.Metrics
+                                                 .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Protein)
+                                                 ?.Value ?? 0) / (dailyMenu
+                                                 .Food
+                                                 .Metrics
+                                                 .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
+                                                 ?.Value ?? defaultFoodWeightMetric) *
+                                             dailyMenu.Weight),
+                Carb = x.Sum(dailyMenu => (dailyMenu.Food.Metrics
+                                              .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Carb)
+                                              ?.Value ?? 0) / (dailyMenu.Food
+                                              .Metrics
+                                              .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
+                                              ?.Value ?? defaultFoodWeightMetric) *
+                                          dailyMenu.Weight),
             });
 
 
         nutrients.ForEach(x =>
         {
-            x.Value.Protein = Math.Round(x.Value.Protein * x.Value.Weight / 100, 0);
-            x.Value.Kcal = Math.Round(x.Value.Kcal * x.Value.Weight / 100, 0);
-            x.Value.Carb = Math.Round(x.Value.Carb * x.Value.Weight / 100, 0);
-            x.Value.Fat = Math.Round(x.Value.Fat * x.Value.Weight / 100, 0);
+            // x.Value.Protein = Math.Round(x.Value.Protein * x.Value.Weight / 100, 0);
+            // x.Value.Kcal = Math.Round(x.Value.Kcal * x.Value.Weight / 100, 0);
+            // x.Value.Carb = Math.Round(x.Value.Carb * x.Value.Weight / 100, 0);
+            // x.Value.Fat = Math.Round(x.Value.Fat * x.Value.Weight / 100, 0);
+            x.Value.Protein = Math.Round(x.Value.Protein, 0);
+            x.Value.Kcal = Math.Round(x.Value.Kcal, 0);
+            x.Value.Carb = Math.Round(x.Value.Carb, 0);
+            x.Value.Fat = Math.Round(x.Value.Fat, 0);
         });
 
         var nutrientsNorm = Enum.GetValues<EnumMenu>()
@@ -420,8 +449,8 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                 Protein = 0,
                 Weight = 0
             });
-        
-        
+
+
         return new SummaryDto
         {
             KcalNorm = kcalNorm, NutrientsNorm = nutrientsNorm, Nutrients = nutrients,
@@ -431,6 +460,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                 { EnumMetrics.Carb, nutrients.Values.Sum(x => x.Carb) },
                 { EnumMetrics.Protein, nutrients.Values.Sum(x => x.Protein) },
                 { EnumMetrics.Fat, nutrients.Values.Sum(x => x.Fat) },
+                { EnumMetrics.Weight, nutrients.Values.Sum(x => x.Weight) },
             },
             Date = date
         };
