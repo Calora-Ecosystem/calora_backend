@@ -247,6 +247,8 @@ public class ClickService(
         var transaction = await appDbContext.ClickTransactions
             .FirstOrDefaultAsync(x => x.OrderId == orderId) ?? throw new NotFoundException("Transaction not found");
 
+        amount /= 100; //convert to sum
+
         return
             $"https://my.click.uz/services/pay?service_id={config.Value.ServiceId}&merchant_id={config.Value.MerchantId}&amount={amount}&transaction_param={transaction.Id}";
     }
