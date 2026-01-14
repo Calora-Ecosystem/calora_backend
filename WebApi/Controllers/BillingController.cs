@@ -32,6 +32,12 @@ public class BillingController(OrderService orderService, ClickService clickServ
     [RoleAuthorize(EnumRole.User)]
     public async Task<Wrapper> GetMyOrders([FromQuery] DataQueryRequest query) =>
         await orderService.GetOrders(query, this.UserId);
+    
+    [HttpGet("orders/subscription/plans/{plan}")]
+    [RoleAuthorize(EnumRole.User)]
+    [ProducesResponseType<WrapperGeneric<GetPlanExtras>>(200)]
+    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, [FromQuery] DataQueryRequest query) =>
+        await orderService.GetPlanExtras(plan, query);
 
     [HttpPost("orders/subscription")]
     [RoleAuthorize(EnumRole.User)]

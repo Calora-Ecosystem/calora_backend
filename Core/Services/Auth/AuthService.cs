@@ -3,7 +3,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using BRB.Core.Common.Attributes;
 using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Helpers;
@@ -11,13 +10,13 @@ using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.Apple;
 using Core.Brokers.DbContext;
-using Core.Brokers.EmailBroker;
 using Core.Constants;
 using Core.Entities.Auth;
 using Core.Enums;
 using Core.Helpers;
 using Core.Services.Auth.Contracts;
 using Core.Services.Auth.Enums;
+using Core.Services.Common;
 using Core.Services.Notification;
 using Core.Services.Notification.Contracts;
 using Google.Apis.Auth;
@@ -27,14 +26,13 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Serilog;
 
 namespace Core.Services.Auth;
 
 [Injectable]
 public class AuthService(
     AppDbContext dbContext,
-    IMemoryCache memoryCache,
+    MemoryCacheManager memoryCache,
     IWebHostEnvironment environment,
     DeviceService deviceService,
     IOptions<AuthConfig> authConfig,
@@ -376,5 +374,11 @@ public class AuthService(
 
         dbContext.Users.Update(user);
         await dbContext.SaveChangesAsync();
+    }
+
+    public Task KillAllUserSessions(long userId)
+    {
+        memoryCache.RemoveByPrefix($"session:{userId}:*");
+        return Task.CompletedTask;
     }
 }

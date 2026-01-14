@@ -5,6 +5,8 @@ using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
+using Core.Enums;
+using Core.Services.Auth;
 using Core.Services.Billing.Click;
 using Core.Services.Billing.Contracts;
 using Core.Services.Billing.Payme;
@@ -15,13 +17,12 @@ using ResultWrapper.Library;
 namespace Core.Services.Billing;
 
 [Injectable]
-public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvider)
+public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvider, AuthService authService)
 {
     public async Task<string> CreateSubscriptionOrder(long userId, CreateSubscriptionOrderDto dto)
     {
         await dbContext.Users.ExistsOrThrowsNotFoundException(userId);
-        var planExtra = await dbContext.PlanExtras.FirstOrDefaultAsync(x => x.Plan == dto.Plan && x.IsActive) ??
-                        throw new NotFoundException("Active plan not found");
+        var planExtra = await dbContext.PlanExtras.GetByIdOrThrowsNotFoundException(dto.PlanExtraId);
 
         if (await dbContext.Orders
                 .AnyAsync(x => x.UserId == userId
@@ -48,7 +49,8 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
             var subscriptionOrder = new SubscriptionOrder()
             {
                 OrderId = order.Id,
-                Plan = planExtra.Plan
+                Plan = planExtra.Plan,
+                PlanExtraId = planExtra.Id
             };
 
             dbContext.Add(subscriptionOrder);
@@ -117,6 +119,7 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
     private async Task<bool> AcceptSubscriptionPaymentAsync(Order order)
     {
         var orderExtra = await dbContext.SubscriptionOrders
+            .Include(subscriptionOrder => subscriptionOrder.PlanExtra)
             .FirstOrDefaultAsync(x => x.OrderId == order.Id);
 
         if (orderExtra is null) return false;
@@ -127,12 +130,14 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
 
         if (planExtra is null) return false;
 
+        await authService.KillAllUserSessions(order.UserId);
+
         var subscription = new Subscription()
         {
             SubscriptionPlan = orderExtra.Plan,
             UserId = order.UserId,
             StartsAt = now,
-            EndsAt = now.Add(planExtra.Duration),
+            EndsAt = now.Add(orderExtra.PlanExtra.Duration),
             IsActive = true,
         };
 
@@ -156,5 +161,19 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
                 .MakeClickPaymentLink(order.Id, order.Amount),
             _ => throw new Exception("Provider not found")
         });
+    }
+
+    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, DataQueryRequest q)
+    {
+        return await dbContext
+            .PlanExtras
+            .Where(x => x.Plan == plan && x.IsActive)
+            .Select(x => new GetPlanExtras
+            {
+                Id = x.Id, Duration = x.Duration.TotalDays, IsActive = x.IsActive,
+                Plan = x.Plan,
+                CreatedAt = x.CreatedAt
+            })
+            .GetByDataQueryAsync(q);
     }
 }
