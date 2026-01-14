@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Core.Entities.Billing;
 
-[Index(nameof(Plan), IsUnique = true)]
+[Index(nameof(Plan))]
 public class PlanExtra : AuditableModelBase<long>
 {
     public EnumSPlans Plan { get; set; }

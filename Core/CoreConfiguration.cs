@@ -7,6 +7,7 @@ using Core.Services.Auth;
 using Core.Services.Auth.Contracts;
 using Core.Services.Billing.Click;
 using Core.Services.Billing.Payme.Extensions;
+using Core.Services.Common;
 using Core.Services.Course.Workout;
 using Core.Services.Notification;
 using Hangfire;
@@ -39,6 +40,8 @@ public static class CoreConfiguration
             .AddEskizClient()
             .AddPaymeConfig()
             ;
+
+        builder.Services.AddSingleton<MemoryCacheManager>();
 
         return builder;
     }
@@ -83,7 +86,7 @@ public static class CoreConfiguration
             RecurringJob.AddOrUpdate<ReminderService>("check_reminders",
                 service => service.CheckReminders(), "*/31 * * * *");
         }
-        
+
         RecurringJob.AddOrUpdate<WorkoutService>("index_workout_computations",
             service => service.IndexWorkoutComputations(), "0 0 31 2 *");
 
