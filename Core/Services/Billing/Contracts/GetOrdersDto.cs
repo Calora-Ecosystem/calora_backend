@@ -2,7 +2,7 @@
 
 namespace Core.Services.Billing.Contracts;
 
-public record GetMyOrdersDto
+public record GetOrdersDto
 {
     public long Id { get; set; }
     public EnumOrderStatus Status { get; set; }

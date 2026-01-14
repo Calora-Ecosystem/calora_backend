@@ -77,7 +77,7 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
         if (userId is not null) query = query.Where(x => x.UserId == userId);
 
         return await query
-            .Select(x => new GetMyOrdersDto
+            .Select(x => new GetOrdersDto
             {
                 Id = x.Id, Status = x.Status, Amount = x.Amount,
                 Type = x.Type,
