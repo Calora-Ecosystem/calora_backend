@@ -25,11 +25,13 @@ public class BillingController(OrderService orderService, ClickService clickServ
 
     [HttpGet("orders")]
     [RoleAuthorize(EnumRole.SuperAdmin)]
+    [ProducesResponseType<WrapperGeneric<GetOrdersDto>>(200)]
     public async Task<Wrapper> GetAllOrders([FromQuery] DataQueryRequest query) =>
         await orderService.GetOrders(query);
 
     [HttpGet("orders/my")]
     [RoleAuthorize(EnumRole.User)]
+    [ProducesResponseType<WrapperGeneric<GetOrdersDto>>(200)]
     public async Task<Wrapper> GetMyOrders([FromQuery] DataQueryRequest query) =>
         await orderService.GetOrders(query, this.UserId);
     
