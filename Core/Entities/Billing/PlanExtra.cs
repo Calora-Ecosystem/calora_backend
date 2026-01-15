@@ -10,5 +10,5 @@ public class PlanExtra : AuditableModelBase<long>
     public EnumSPlans Plan { get; set; }
     public long Fee { get; set; }
     public bool IsActive { get; set; }
-    public TimeSpan Duration { get; set; }
+    public int DurationInMonths { get; set; }
 }

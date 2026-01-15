@@ -6,7 +6,7 @@ namespace Core.Services.Billing.Contracts;
 public record GetPlanExtras
 {
     public long Id { get; set; }
-    [SwaggerSchema("Duration in days")]
+    [SwaggerSchema("Duration in months")]
     public double Duration { get; set; }
     public bool IsActive { get; set; }
     public EnumSPlans Plan { get; set; }

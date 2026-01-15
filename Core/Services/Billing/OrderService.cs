@@ -137,7 +137,7 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
             SubscriptionPlan = orderExtra.Plan,
             UserId = order.UserId,
             StartsAt = now,
-            EndsAt = now.Add(orderExtra.PlanExtra.Duration),
+            EndsAt = now.AddMonths(orderExtra.PlanExtra.DurationInMonths),
             IsActive = true,
         };
 
@@ -170,7 +170,7 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
             .Where(x => x.Plan == plan && x.IsActive)
             .Select(x => new GetPlanExtras
             {
-                Id = x.Id, Duration = x.Duration.TotalDays, IsActive = x.IsActive,
+                Id = x.Id, Duration = x.DurationInMonths, IsActive = x.IsActive,
                 Plan = x.Plan,
                 CreatedAt = x.CreatedAt
             })
