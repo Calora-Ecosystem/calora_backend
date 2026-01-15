@@ -187,7 +187,8 @@ public class ClickService(
                 ErrorNote = "Already paid",
             };
 
-        if (Math.Abs(request.Amount!.Value - transaction.Amount) > 0.01m)
+        var requestedAmount = request.Amount!.Value / 100;
+        if (Math.Abs(requestedAmount - transaction.Amount) > 0.01m)
             return new ClickResponse()
             {
                 Error = ClickErrorType.IncorrectParameterAmount,
