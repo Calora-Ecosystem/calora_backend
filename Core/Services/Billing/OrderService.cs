@@ -22,6 +22,10 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
     public async Task<string> CreateSubscriptionOrder(long userId, CreateSubscriptionOrderDto dto)
     {
         await dbContext.Users.ExistsOrThrowsNotFoundException(userId);
+
+        if (await dbContext.Subscriptions.AnyAsync(x => x.UserId == userId && x.IsActive))
+            throw new BadRequestException("You are already subscribed");
+
         var planExtra = await dbContext.PlanExtras.GetByIdOrThrowsNotFoundException(dto.PlanExtraId);
 
         if (await dbContext.Orders

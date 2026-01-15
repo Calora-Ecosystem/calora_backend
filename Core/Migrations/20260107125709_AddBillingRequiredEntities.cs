@@ -242,8 +242,7 @@ namespace Core.Migrations
             migrationBuilder.CreateIndex(
                 name: "ix_subscriptions_user_id",
                 table: "subscriptions",
-                column: "user_id",
-                unique: true);
+                column: "user_id");
         }
 
         /// <inheritdoc />
