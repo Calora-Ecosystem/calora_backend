@@ -40,8 +40,8 @@ public class ClickService(
 
     private async Task<ClickResponse?> Prepare(ClickRequest request)
     {
-        var transaction = uint.TryParse(request.OrderId, out var transactionId)
-            ? await FindById(transactionId)
+        var transaction = uint.TryParse(request.OrderId, out var orderId)
+            ? await FindByOrderId(orderId)
             : null;
 
         uint prepareId = 0;
@@ -81,7 +81,7 @@ public class ClickService(
     private async Task<ClickResponse?> Complete(ClickRequest request)
     {
         var transaction = uint.TryParse(request.OrderId, out var transactionId)
-            ? await FindById(transactionId)
+            ? await FindByOrderId(transactionId)
             : null;
 
         uint prepareId = 0;
@@ -171,7 +171,7 @@ public class ClickService(
 
         if (request.Action == 1)
         {
-            transaction = await FindById(request.MerchantPrepareId!.Value);
+            transaction = await FindByOrderId(request.MerchantPrepareId!.Value);
             if (transaction is null)
                 return new ClickResponse()
                 {
@@ -237,7 +237,7 @@ public class ClickService(
     private async Task<ClickTransaction?> FindByOrderId(long orderId) =>
         await appDbContext.ClickTransactions
             .Include(x => x.Order)
-            .SingleOrDefaultAsync(ct => ct.Id == orderId);
+            .SingleOrDefaultAsync(ct => ct.OrderId == orderId);
 
     private async Task<ClickTransaction?> FindById(uint id) =>
         await appDbContext.ClickTransactions
@@ -251,7 +251,7 @@ public class ClickService(
         amount /= 100; //convert to sum
 
         return
-            $"https://my.click.uz/services/pay?service_id={config.Value.ServiceId}&merchant_id={config.Value.MerchantId}&amount={amount}&transaction_param={transaction.Id}";
+            $"https://my.click.uz/services/pay?service_id={config.Value.ServiceId}&merchant_id={config.Value.MerchantId}&amount={amount}&transaction_param={transaction.OrderId}";
     }
 
     public async Task<long> CreateTransaction(Order order)
