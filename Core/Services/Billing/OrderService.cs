@@ -98,8 +98,24 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
                         x.Id == orderId && x.UserId == userId && x.Status == EnumOrderStatus.Pending)
                     ?? throw new NotFoundException("Order not found");
 
-        dbContext.Orders.Remove(order);
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.Transactional(async () =>
+        {
+            dbContext.Orders.Remove(order);
+
+            await (order.Provider switch
+            {
+                EnumPaymentProviders.Click => dbContext.ClickTransactions
+                    .Where(x => x.OrderId == order.Id)
+                    .ExecuteDeleteAsync(),
+                EnumPaymentProviders.Payme => dbContext.PaymeTransactions
+                    .Where(x => x.OrderId == order.Id)
+                    .ExecuteDeleteAsync(),
+                _ => throw new InvalidOperationException()
+            });
+
+            await dbContext.SaveChangesAsync();
+        });
     }
 
     public async Task<bool> AcceptPaymentAsync(long orderId)
