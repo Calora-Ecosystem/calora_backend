@@ -60,6 +60,7 @@ public class FoodController(FoodService service) : AuthorizedController
 
 
     [HttpPost("recognization")]
+    [RoleAuthorize(EnumRole.User, Plans = [EnumSPlans.Premium])]
     public async Task<WrapperGeneric<IEnumerable<FoodResultDto>>> RecognizeFood([FromForm] RecognizeFoodDto dto) =>
         (await service.RecognizeFood(dto), 200);
 
