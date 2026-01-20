@@ -9,4 +9,5 @@ public enum EnumClickTransactionState
     Rejected,
     Refunded,
     Error,
+    Cancelled
 }

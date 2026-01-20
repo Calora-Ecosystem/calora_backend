@@ -5,6 +5,7 @@ using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
+using Core.Entities.Billing.Payme;
 using Core.Enums;
 using Core.Services.Auth;
 using Core.Services.Billing.Click;
@@ -78,7 +79,8 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
     {
         var query = dbContext.Orders.AsQueryable();
 
-        if (userId is not null) query = query.Where(x => x.UserId == userId);
+        if (userId is not null) query = query
+            .Where(x => x.UserId == userId && x.Status == EnumOrderStatus.Pending);
 
         return await query
             .Select(x => new GetOrdersDto
@@ -97,20 +99,20 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
         var order = await dbContext.Orders.FirstOrDefaultAsync(x =>
                         x.Id == orderId && x.UserId == userId && x.Status == EnumOrderStatus.Pending)
                     ?? throw new NotFoundException("Order not found");
-
-
+        
         await dbContext.Transactional(async () =>
         {
-            dbContext.Orders.Remove(order);
+            order.Status = EnumOrderStatus.Canceled;
+            dbContext.Orders.Update(order);
 
             await (order.Provider switch
             {
                 EnumPaymentProviders.Click => dbContext.ClickTransactions
                     .Where(x => x.OrderId == order.Id)
-                    .ExecuteDeleteAsync(),
+                    .ExecuteUpdateAsync(x => x.SetProperty(o => o.State, EnumClickTransactionState.Cancelled)),
                 EnumPaymentProviders.Payme => dbContext.PaymeTransactions
                     .Where(x => x.OrderId == order.Id)
-                    .ExecuteDeleteAsync(),
+                    .ExecuteUpdateAsync(x => x.SetProperty(o => o.Status, EnumPaymeTransactionStatus.PaidCancelled)),
                 _ => throw new InvalidOperationException()
             });
 
