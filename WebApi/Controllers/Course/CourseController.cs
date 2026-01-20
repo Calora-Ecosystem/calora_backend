@@ -13,7 +13,7 @@ namespace WebApi.Controllers.Course;
 
 [ApiController]
 [Route("course")]
-[RoleAuthorize(EnumRole.User, Plans = [EnumSPlans.Premium])]
+[RoleAuthorize(EnumRole.User)]
 [ApiExplorerSettings(GroupName = "Course")]
 public class CourseController(CourseService service) : AuthorizedController
 {
