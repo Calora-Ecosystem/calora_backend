@@ -15,7 +15,8 @@ namespace WebApi.Controllers.Course;
 
 [ApiController]
 [Route("lessons")]
-[RoleAuthorize(EnumRole.User, Plans = [EnumSPlans.Premium])]
+// [RoleAuthorize(EnumRole.User, Plans = [EnumSPlans.Premium])]
+[RoleAuthorize(EnumRole.User)]
 [ApiExplorerSettings(GroupName = "Course")]
 public class LessonController(LessonService service, CourseService courseService) : AuthorizedController
 {
