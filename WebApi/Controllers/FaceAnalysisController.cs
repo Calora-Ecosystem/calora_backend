@@ -24,7 +24,7 @@ namespace WebApi.Controllers
         }
 
         [HttpPost("analyze")]
-        [RoleAuthorize(EnumRole.User, Plans = [EnumSPlans.Premium])]
+        [RoleAuthorize(EnumRole.User)]
         public async Task<WrapperGeneric<AnalyzeFaceDto>> Analyze([FromForm] UploadFileDto image)
         {
             var bytes = new byte[image.File.Length];
