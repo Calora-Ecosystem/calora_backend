@@ -73,6 +73,8 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<Subscription> Subscriptions { get; set; }
     public DbSet<ClickTransaction> ClickTransactions { get; set; }
     public DbSet<PaymeTransaction> PaymeTransactions { get; set; }
+    public DbSet<Coupon> Coupons { get; set; }
+    public DbSet<CouponUsage> CouponUsages { get; set; }
 
     #endregion
 
