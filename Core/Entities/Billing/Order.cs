@@ -16,4 +16,6 @@ public class Order : AuditableModelBase<long>
     public EnumOrderType Type { get; set; }
     public EnumOrderStatus Status { get; set; }
     public User User { get; set; } = null!;
+    [ForeignKey(nameof(Coupon))] public long? CouponId { get; set; }
+    public Coupon? Coupon { get; set; } = null!;
 }

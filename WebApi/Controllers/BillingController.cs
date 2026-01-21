@@ -1,5 +1,4 @@
 ﻿using BRB.Core.Common.Models;
-using Core;
 using Core.Attributes;
 using Core.Enums;
 using Core.Services.Billing;
@@ -11,14 +10,17 @@ using Core.Services.Billing.Payme.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResultWrapper.Library;
-using Serilog;
 using WebCore.Controller;
 
 namespace WebApi.Controllers;
 
 [ApiController]
 [Route("billing")]
-public class BillingController(OrderService orderService, ClickService clickService, PaymeService paymeService)
+public class BillingController(
+    OrderService orderService,
+    ClickService clickService,
+    PaymeService paymeService,
+    CouponService couponService)
     : AuthorizedController
 {
     #region Orders
@@ -34,15 +36,16 @@ public class BillingController(OrderService orderService, ClickService clickServ
     [ProducesResponseType<WrapperGeneric<GetOrdersDto>>(200)]
     public async Task<Wrapper> GetMyOrders([FromQuery] DataQueryRequest query) =>
         await orderService.GetOrders(query, this.UserId);
-    
+
     [HttpGet("orders/subscription/plans/{plan}")]
     [RoleAuthorize(EnumRole.User)]
-    [ProducesResponseType<WrapperGeneric<GetPlanExtras>>(200)]
+    [ProducesResponseType<WrapperGeneric<IEnumerable<GetPlanExtras>>>(200)]
     public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, [FromQuery] DataQueryRequest query) =>
         await orderService.GetPlanExtras(plan, query);
 
     [HttpPost("orders/subscription")]
     [RoleAuthorize(EnumRole.User)]
+    [ProducesResponseType<WrapperGeneric<CreateSubscriptionOrderResponseDto>>(200)]
     public async Task<Wrapper> CreateSubscriptionOrder([FromBody] CreateSubscriptionOrderDto dto) =>
         (await orderService.CreateSubscriptionOrder(this.UserId, dto), 200);
 
@@ -58,6 +61,36 @@ public class BillingController(OrderService orderService, ClickService clickServ
     [RoleAuthorize(EnumRole.User)]
     public async Task<Wrapper> MakePaymentLink(long orderId) =>
         (await orderService.MakePaymentLink(this.UserId, orderId), 200);
+
+    #endregion
+
+    #region Coupons
+
+    [HttpGet("coupons")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    [ProducesResponseType<WrapperGeneric<IEnumerable<GetCouponsDto>>>(200)]
+    public async Task<Wrapper> GetAllCoupons([FromQuery] DataQueryRequest query) =>
+        await couponService.GetAll(query);
+
+    [HttpGet("coupons/{couponId:long:min(1)}/usages")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    [ProducesResponseType<WrapperGeneric<IEnumerable<GetCouponUsagesDto>>>(200)]
+    public async Task<Wrapper> GetAllCouponUsages(long couponId, [FromQuery] DataQueryRequest query) =>
+        await couponService.GetCouponUsages(couponId, query);
+
+    [HttpGet("coupons/check")]
+    [RoleAuthorize(EnumRole.User)]
+    [ProducesResponseType<WrapperGeneric<CheckCouponDto>>(200)]
+    public async Task<Wrapper> CheckCoupon([FromQuery] string code) =>
+        (await couponService.CheckCoupon(this.UserId, code), 200);
+
+    [HttpPost("coupons")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> CreateOrUpdateCoupon([FromBody] CreateOrUpdateCouponDto dto)
+    {
+        await couponService.CreateOrUpdate(dto);
+        return 200;
+    }
 
     #endregion
 

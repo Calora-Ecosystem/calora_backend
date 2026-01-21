@@ -18,9 +18,14 @@ using ResultWrapper.Library;
 namespace Core.Services.Billing;
 
 [Injectable]
-public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvider, AuthService authService)
+public class OrderService(
+    AppDbContext dbContext,
+    IServiceProvider serviceProvider,
+    AuthService authService,
+    CouponService couponService)
 {
-    public async Task<string> CreateSubscriptionOrder(long userId, CreateSubscriptionOrderDto dto)
+    public async Task<CreateSubscriptionOrderResponseDto> CreateSubscriptionOrder(long userId,
+        CreateSubscriptionOrderDto dto)
     {
         await dbContext.Users.ExistsOrThrowsNotFoundException(userId);
 
@@ -36,6 +41,7 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
             throw new BadRequestException("Pending subscription order already exists");
 
         Order order = null!;
+        bool paymentRequired = true;
 
         await dbContext.Transactional(async () =>
         {
@@ -46,9 +52,10 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
                 Provider = dto.Provider,
                 UserId = userId,
                 Status = EnumOrderStatus.Pending,
+                CouponId = dto.CouponId
             };
 
-            dbContext.Add(order);
+            order = dbContext.Add(order).Entity;
             await dbContext.SaveChangesAsync();
 
             var subscriptionOrder = new SubscriptionOrder()
@@ -59,6 +66,22 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
             };
 
             dbContext.Add(subscriptionOrder);
+
+            if (dto.CouponId.HasValue)
+            {
+                order.Amount =
+                    await couponService.ApplyCoupon(order.Amount, order.Id, order.UserId, dto.CouponId.Value);
+                dbContext.Orders.Update(order);
+            }
+
+            await dbContext.SaveChangesAsync();
+
+            if (order.Amount == 0)
+            {
+                await this.AcceptPaymentAsync(order.Id);
+                paymentRequired = false;
+                return;
+            }
 
             await (dto.Provider switch
             {
@@ -72,15 +95,27 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
             await dbContext.SaveChangesAsync();
         });
 
-        return await this.MakePaymentLink(order.UserId, order.Id);
+        if (!paymentRequired)
+            return new CreateSubscriptionOrderResponseDto()
+            {
+                PaymentRequired = false,
+                PaymentLink = "payment not required"
+            };
+
+        return new CreateSubscriptionOrderResponseDto()
+        {
+            PaymentRequired = true,
+            PaymentLink = await this.MakePaymentLink(order.UserId, order.Id)
+        };
     }
 
     public async Task<Wrapper> GetOrders(DataQueryRequest q, long? userId = null)
     {
         var query = dbContext.Orders.AsQueryable();
 
-        if (userId is not null) query = query
-            .Where(x => x.UserId == userId && x.Status == EnumOrderStatus.Pending);
+        if (userId is not null)
+            query = query
+                .Where(x => x.UserId == userId && x.Status == EnumOrderStatus.Pending);
 
         return await query
             .Select(x => new GetOrdersDto
@@ -99,7 +134,7 @@ public class OrderService(AppDbContext dbContext, IServiceProvider serviceProvid
         var order = await dbContext.Orders.FirstOrDefaultAsync(x =>
                         x.Id == orderId && x.UserId == userId && x.Status == EnumOrderStatus.Pending)
                     ?? throw new NotFoundException("Order not found");
-        
+
         await dbContext.Transactional(async () =>
         {
             order.Status = EnumOrderStatus.Canceled;
