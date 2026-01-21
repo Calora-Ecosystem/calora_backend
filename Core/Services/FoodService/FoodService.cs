@@ -337,7 +337,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
 
             item.Metrics
                 .Where(x => x.Metric != EnumMetrics.Weight)
-                .ForEach(x => x.Value *= diff);
+                .ForEach(x => x.Value = Math.Round(x.Value * diff, 0));
         });
 
         return result;
