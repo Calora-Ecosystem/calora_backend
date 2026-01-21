@@ -6,7 +6,7 @@ public record GetNormDto
 {
     public long UserId { get; }
     public EnumMetrics Metric { get; }
-    public double Value { get; }
+    public double Value { get; set; }
 
     public GetNormDto(EnumMetrics metric, double value)
     {
