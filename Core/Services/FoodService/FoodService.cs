@@ -20,6 +20,8 @@ namespace Core.Services.FoodService;
 [Injectable]
 public class FoodService(AppDbContext dbContext, AiService aiService, IHttpContextAccessor contextAccessor)
 {
+    private const int DefaultFoodWeightMetric = 400;
+
     #region Category
 
     public async Task<Wrapper> GetAllCategory(DataQueryRequest q)
@@ -313,7 +315,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
 
         if (menu.HasValue) query = query.Where(x => x.Menu == menu.Value);
 
-        return await query
+        var result = await query
             .Select(x => new GetMenuFoodsDto
             {
                 Menu = x.Menu, Date = x.Date, FoodId = x.FoodId,
@@ -322,16 +324,32 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                 CategoryName = x.Food.Category.Name,
                 CoverUrl = x.Food.CoverUrl,
                 Weight = x.Weight,
-                Metrics = x.Food.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
+                Metrics = x.Food.Metrics.Select(foodMetrics =>
+                    new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 UserId = x.Food.UserId
             })
             .GetByDataQueryAsync(q);
+
+        result.Item1.ForEach(item =>
+        {
+            var diff = item.Weight / (item.Metrics.FirstOrDefault(x => x.Metric == EnumMetrics.Weight)?.Value ??
+                                      DefaultFoodWeightMetric);
+
+            item.Metrics
+                .Where(x => x.Metric != EnumMetrics.Weight)
+                .ForEach(x => x.Value *= diff);
+        });
+
+        return result;
     }
 
     public async Task<DailyMenu> AddDailyMenuItem(long userId, AddDailyMenuDto dto)
     {
-        if (!await dbContext.Foods.AnyAsync(x => x.Id == dto.FoodId && (!x.UserId.HasValue || x.UserId == userId)))
-            throw new NotFoundException("Food not found");
+        var food = await dbContext.Foods
+                       .Include(x => x.Metrics)
+                       .FirstOrDefaultAsync(x =>
+                           x.Id == dto.FoodId && (!x.UserId.HasValue || x.UserId == userId)) ??
+                   throw new NotFoundException("Food not found");
 
         var date = dto.Date?.Date ?? DateTime.Now.Date;
 
@@ -348,7 +366,6 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         menuItem.Date = date;
         menuItem.FoodId = dto.FoodId;
         menuItem.Weight = dto.WeightInGr;
-
         menuItem = dbContext.DailyMenus.Update(menuItem).Entity;
         await dbContext.SaveChangesAsync();
 
@@ -376,8 +393,6 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
 
         date = date?.Date ?? DateTime.Now.Date;
 
-        const int defaultFoodWeightMetric = 400;
-
         var nutrients = await dbContext.DailyMenus
             .AsNoTracking()
             .Where(x => x.UserId == userId && x.Date == date)
@@ -393,14 +408,14 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                                               ?.Value ?? 0) / (dailyMenu.Food
                                               .Metrics
                                               .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
-                                              ?.Value ?? defaultFoodWeightMetric) *
+                                              ?.Value ?? DefaultFoodWeightMetric) *
                                           dailyMenu.Weight),
                 Fat = x.Sum(dailyMenu => (dailyMenu.Food.Metrics
                                              .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Fat)
                                              ?.Value ?? 0) / (dailyMenu.Food
                                              .Metrics
                                              .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
-                                             ?.Value ?? defaultFoodWeightMetric) *
+                                             ?.Value ?? DefaultFoodWeightMetric) *
                                          dailyMenu.Weight),
                 Protein = x.Sum(dailyMenu => (dailyMenu.Food.Metrics
                                                  .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Protein)
@@ -408,14 +423,14 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                                                  .Food
                                                  .Metrics
                                                  .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
-                                                 ?.Value ?? defaultFoodWeightMetric) *
+                                                 ?.Value ?? DefaultFoodWeightMetric) *
                                              dailyMenu.Weight),
                 Carb = x.Sum(dailyMenu => (dailyMenu.Food.Metrics
                                               .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Carb)
                                               ?.Value ?? 0) / (dailyMenu.Food
                                               .Metrics
                                               .FirstOrDefault(foodMetric => foodMetric.Metric == EnumMetrics.Weight)
-                                              ?.Value ?? defaultFoodWeightMetric) *
+                                              ?.Value ?? DefaultFoodWeightMetric) *
                                           dailyMenu.Weight),
             });
 
