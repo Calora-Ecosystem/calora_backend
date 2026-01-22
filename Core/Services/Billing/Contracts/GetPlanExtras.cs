@@ -12,4 +12,5 @@ public record GetPlanExtras
     public EnumSPlans Plan { get; set; }
     public DateTime CreatedAt { get; set; }
     public long Fee { get; set; }
+    public bool IsPopular { get; set; }
 }
