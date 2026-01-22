@@ -229,6 +229,7 @@ public class OrderService(
             {
                 Id = x.Id, Duration = x.DurationInMonths, IsActive = x.IsActive,
                 Plan = x.Plan,
+                Fee = x.Fee,
                 CreatedAt = x.CreatedAt
             })
             .GetByDataQueryAsync(q);
