@@ -11,4 +11,5 @@ public record GetPlanExtras
     public bool IsActive { get; set; }
     public EnumSPlans Plan { get; set; }
     public DateTime CreatedAt { get; set; }
+    public long Fee { get; set; }
 }
