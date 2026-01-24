@@ -448,7 +448,7 @@ group by ung.user_id
 
         var distance = Math.Round((extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/) * totalFoots / 1000, 1); //km
         var kcal = Math.Round(extra.Weight * distance * (extra.Gender == EnumGender.Male ? 1.06 : 0.98), 1);
-        var duration = Math.Round(distance / 5.1, 0); // 5.1 km/hour; duration is hour
+        var duration = Math.Round(distance / 5.1, 1); // 5.1 km/hour; duration is hour
 
         return new GetStepMetricsDto(userId, totalFoots, distance, kcal, duration);
     }
