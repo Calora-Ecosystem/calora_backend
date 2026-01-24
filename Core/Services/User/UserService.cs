@@ -19,7 +19,7 @@ public class UserService(AppDbContext context)
     {
         var user = await context.Users
                        .Where(x => x.Id == userId)
-                       .Select(x => new GetUserDto(x.Id, x.Email, x.Roles))
+                       .Select(x => new GetUserDto(x.Id, x.Email ?? x.Phone, x.Roles))
                        .FirstOrDefaultAsync()
                    ?? throw new NotFoundException("User not found.");
 
