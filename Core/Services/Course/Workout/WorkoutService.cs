@@ -120,7 +120,7 @@ public class WorkoutService(AppDbContext dbContext)
                 Assets = x.Assets,
                 Duration = x.Duration,
                 IsDone = dbContext.CourseItemStates.Any(sh =>
-                    sh.EntityId == sh.Id && sh.UserId == userId && sh.Type == EnumEntityType.Exercise),
+                    sh.EntityId == x.Id && sh.UserId == userId && sh.Type == EnumEntityType.Exercise),
                 Order = x.Order
             })
             .OrderBy(x => x.Order)

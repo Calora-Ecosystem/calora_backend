@@ -31,7 +31,7 @@ public class LessonService(AppDbContext dbContext)
                 Description = x.Description,
                 Order = x.Order,
                 IsFinished = dbContext.CourseItemStates
-                    .Any(courseItemState => courseItemState.EntityId == courseItemState.Id && courseItemState.Type == EnumEntityType.Lesson),
+                    .Any(courseItemState => courseItemState.EntityId == x.Id && courseItemState.Type == EnumEntityType.Lesson),
                 Assets = x.Assets
             })
             .OrderBy(x => x.Order)
