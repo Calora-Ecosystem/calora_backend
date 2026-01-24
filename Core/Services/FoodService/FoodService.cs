@@ -77,13 +77,13 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
             if (!userId.HasValue)
                 throw new BadRequestException("Authorized user required");
 
-            var ids = (await dbContext.DailyMenus
-                    .Where(x => x.UserId == userId)
-                    .OrderByDescending(x => x.Date)
-                    .Select(x => x.Id)
-                    .Take(10)
-                    .ToListAsync())
-                .Distinct();
+            var ids = await dbContext.DailyMenus
+                .Where(x => x.UserId == userId)
+                .OrderByDescending(x => x.Date)
+                .Select(x => x.FoodId)
+                .Distinct()
+                .Take(10)
+                .ToListAsync();
 
             queryable = queryable.Where(x => ids.Contains(x.Id));
         }
