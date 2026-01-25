@@ -378,7 +378,7 @@ public class AuthService(
 
     public Task KillAllUserSessions(long userId)
     {
-        memoryCache.RemoveByPrefix($"session:{userId}:*");
+        memoryCache.RemoveByPrefix($"session:{userId}:");
         return Task.CompletedTask;
     }
 }
