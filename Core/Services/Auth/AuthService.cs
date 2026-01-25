@@ -317,8 +317,9 @@ public class AuthService(
     private async Task<string> MakeJwtFromUser(long userId, long deviceId)
     {
         var user = await dbContext.Users
-            .Include(x => x.Subscription)
             .GetByIdOrThrowsNotFoundException(userId);
+
+        var subscription = await dbContext.Subscriptions.FirstOrDefaultAsync(x => x.UserId == user.Id && x.IsActive);
 
         var claims = new List<Claim>();
 
@@ -330,7 +331,7 @@ public class AuthService(
         claims.Add(new Claim(CustomClaims.UserId, user.Id.ToString()));
         claims.Add(new Claim(CustomClaims.SessionId, sessionId));
         claims.Add(new Claim(CustomClaims.Plan,
-            (user.Subscription?.SubscriptionPlan ?? EnumSPlans.Free).ToString().ToLowerInvariant()));
+            (subscription?.SubscriptionPlan ?? EnumSPlans.Free).ToString().ToLowerInvariant()));
 
         var expires = DateTime.Now.AddHours(authConfig.Value.ATokenExpireInHours);
 
