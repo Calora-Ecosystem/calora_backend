@@ -18,12 +18,12 @@ public class UserExtra : ModelBase<long>
     public double Bmi { get; set; }
     public EnumGender Gender { get; set; }
     public DateTime BirthDate { get; set; }
-    
-    [NotMapped]
-    public int Age => DateTime.Now.Year - BirthDate.Year;
+
+    [NotMapped] public int Age => DateTime.Now.Year - BirthDate.Year;
     public User User { get; set; } = null!;
     public EnumPurpose Purpose { get; set; }
     public string? Photo { get; set; }
+    public EnumPhysicalActivity? PhysicalActivity { get; set; }
     public EnumActivityLevel ActivityLevel { get; set; } = EnumActivityLevel.Medium;
     public EnumLanguage Language { get; set; } = EnumLanguage.Uzbek;
     [MaxLength(100)] public string Name { get; set; } = null!;

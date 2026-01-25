@@ -18,6 +18,7 @@ public class CreateUserExtraDto
     public string? Photo { get; set; }
     public EnumLanguage Language { get; set; }
     public EnumActivityLevel ActivityLevel { get; set; }
+    public EnumPhysicalActivity? PhysicalActivity { get; set; }
     public EnumPurpose Purpose { get; set; }
     public double TargetWeight { get; set; }
 }
