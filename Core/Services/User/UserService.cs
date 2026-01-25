@@ -35,7 +35,7 @@ public class UserService(AppDbContext context)
                         .Select(x => new GetUserExtraDto(x.UserId, x.Weight, x.EntryWeight, x.Height,
                             Math.Round(x.Bmi, 0), x.Gender,
                             x.BirthDate,
-                            x.Photo, x.Name, x.ActivityLevel, x.Purpose))
+                            x.Photo, x.Name, x.ActivityLevel, x.Purpose, x.PhysicalActivity))
                         .FirstOrDefaultAsync()
                     ?? throw new NotFoundException("User not found.");
 
@@ -64,6 +64,7 @@ public class UserService(AppDbContext context)
             extra.Name = dto.Name;
             extra.Language = dto.Language;
             extra.ActivityLevel = dto.ActivityLevel;
+            extra.PhysicalActivity = dto.PhysicalActivity;
 
             if (extra.Id == 0 || dto.Purpose != extra.Purpose)
             {
