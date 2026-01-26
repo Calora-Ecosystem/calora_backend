@@ -41,7 +41,7 @@ public class ClickService(
     private async Task<ClickResponse?> Prepare(ClickRequest request)
     {
         var transaction = uint.TryParse(request.OrderId, out var orderId)
-            ? await FindByOrderId(orderId)
+            ? await FindById(orderId)
             : null;
 
         uint prepareId = 0;
@@ -81,7 +81,7 @@ public class ClickService(
     private async Task<ClickResponse?> Complete(ClickRequest request)
     {
         var transaction = uint.TryParse(request.OrderId, out var transactionId)
-            ? await FindByOrderId(transactionId)
+            ? await FindById(transactionId)
             : null;
 
         uint prepareId = 0;
@@ -171,7 +171,7 @@ public class ClickService(
 
         if (request.Action == 1)
         {
-            transaction = await FindByOrderId(request.MerchantPrepareId!.Value);
+            transaction = await FindById(request.MerchantPrepareId!.Value);
             if (transaction is null)
                 return new ClickResponse()
                 {
@@ -251,7 +251,7 @@ public class ClickService(
         amount /= 100; //convert to sum
 
         return
-            $"https://my.click.uz/services/pay?service_id={config.Value.ServiceId}&merchant_id={config.Value.MerchantId}&amount={amount}&transaction_param={transaction.OrderId}";
+            $"https://my.click.uz/services/pay?service_id={config.Value.ServiceId}&merchant_id={config.Value.MerchantId}&amount={amount}&transaction_param={transaction.Id}";
     }
 
     public async Task<long> CreateTransaction(Order order)
