@@ -160,7 +160,7 @@ public class ClickService(
                 ErrorNote = "SIGN CHECK FAILED!"
             };
 
-        var transaction = await FindByOrderId(long.Parse(request.OrderId!));
+        var transaction = await FindById(uint.Parse(request.OrderId!));
 
         if (transaction is null)
             return new ClickResponse()
