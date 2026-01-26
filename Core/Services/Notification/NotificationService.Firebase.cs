@@ -5,6 +5,7 @@ using Core.Services.Notification.Contracts;
 using FirebaseAdmin.Messaging;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 namespace Core.Services.Notification;
 
@@ -45,16 +46,25 @@ public partial class NotificationService
         }
         else
         {
-            var response = await SendPush(fcmTokens, new FirebaseAdmin.Messaging.Notification()
+            try
             {
-                Title = notification.Title,
-                Body = notification.Description,
-                ImageUrl = notification.Image
-            }, notification.Meta);
+                var response = await SendPush(fcmTokens, new FirebaseAdmin.Messaging.Notification()
+                {
+                    Title = notification.Title,
+                    Body = notification.Description,
+                    ImageUrl = notification.Image
+                }, notification.Meta);
 
-            notification.SentAt = DateTime.Now;
-            notification.SuccessCount = response.SuccessCount;
-            notification.FailureCount = response.FailureCount;
+                notification.SentAt = DateTime.Now;
+                notification.SuccessCount = response.SuccessCount;
+                notification.FailureCount = response.FailureCount;
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Error while sending push notification");
+                notification.SuccessCount = -1;
+                notification.FailureCount = -1;
+            }
         }
 
         await dbContext.SaveChangesAsync();
