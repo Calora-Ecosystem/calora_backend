@@ -10,7 +10,5 @@ public class PushNotification : Notification
     public DateTime? SentAt { get; set; }
     public DateTime? Scheduled { get; set; }
     public int FailureCount { get; set; }
-    [MaxLength(500)]
-    public string? FailureMessage { get; set; }
     public int SuccessCount { get; set; }
 }
