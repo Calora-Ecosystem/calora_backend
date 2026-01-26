@@ -29,6 +29,7 @@ public partial class NotificationService
         };
     }
 
+    [AutomaticRetry(Attempts = 3)]
     public async Task SendPush(long notificationId)
     {
         var notification = await dbContext.PushNotifications.GetByIdOrThrowsNotFoundException(notificationId);
@@ -59,6 +60,7 @@ public partial class NotificationService
         await dbContext.SaveChangesAsync();
     }
 
+    [AutomaticRetry(Attempts = 2)]
     public async Task EnqueueNotifications()
     {
         (await dbContext.PushNotifications
