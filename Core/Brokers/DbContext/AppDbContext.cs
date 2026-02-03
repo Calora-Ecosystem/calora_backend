@@ -61,6 +61,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<PushNotification> PushNotifications { get; set; }
     public DbSet<Reminder> Reminders { get; set; }
+    public DbSet<ReminderMessage> ReminderMessages { get; set; }
 
     #endregion
 
