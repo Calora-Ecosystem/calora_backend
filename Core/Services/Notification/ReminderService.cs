@@ -56,7 +56,7 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
 
     public async Task CheckReminders()
     {
-        var now = DateTime.Now;
+        var now = DateTimeOffset.Now;
         var nowSpan = now.TimeOfDay;
         var windowEnd = now.AddMinutes(CheckReminderWindowInMin);
         var windowEndSpan = windowEnd.TimeOfDay;
@@ -73,7 +73,7 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
                 UserId = x.UserId,
                 Description = "",
                 Title = $"Reminding: {x.Type}{(x.Menu.HasValue ? $"-{x.Menu}" : "")}",
-                Scheduled = x.Type == EnumMomentType.Water ? null : now.Add(x.Time - nowSpan)
+                Scheduled = x.Type == EnumMomentType.Water ? null : now.Add(x.Time - nowSpan).DateTime
             }));
     }
 
