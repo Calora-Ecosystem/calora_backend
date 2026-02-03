@@ -7,6 +7,7 @@ using Core.Brokers.DbContext;
 using Core.Brokers.EmailBroker;
 using Core.Brokers.EskizBroker;
 using Core.Entities.Notification;
+using Core.Enums;
 using Core.Services.Notification.Contracts;
 using FirebaseAdmin.Messaging;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +16,11 @@ using ResultWrapper.Library;
 namespace Core.Services.Notification;
 
 [Injectable]
-public partial class NotificationService(EmailClient emailClient, FirebaseMessaging firebase, AppDbContext dbContext, EskizClient eskizClient)
+public partial class NotificationService(
+    EmailClient emailClient,
+    FirebaseMessaging firebase,
+    AppDbContext dbContext,
+    EskizClient eskizClient)
 {
     public async Task<int> GetUnreadNotificationsCount(long userId)
     {
@@ -72,5 +77,25 @@ public partial class NotificationService(EmailClient emailClient, FirebaseMessag
 
         dbContext.Update(notification);
         await dbContext.SaveChangesAsync();
+    }
+
+    public async Task FireForReminderEvent(Reminder reminder, DateTime? scheduled = null)
+    {
+        var message =
+            await dbContext.ReminderMessages
+                .FirstOrDefaultAsync(x => x.Type == reminder.Type && x.Menu == reminder.Menu) ?? new ReminderMessage()
+            {
+                Title = $"Reminding: {reminder.Type}{(reminder.Menu.HasValue ? $"-{reminder.Menu}" : "")}"
+            };
+
+        var notification = new PushNotificationDto()
+        {
+            UserId = reminder.UserId,
+            Description = message.Description,
+            Title = message.Title,
+            Scheduled = scheduled
+        };
+
+        await this.CreateOrUpdatePushNotification(notification);
     }
 }
