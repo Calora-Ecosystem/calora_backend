@@ -14,6 +14,8 @@ namespace Core.Services.Notification;
 [Injectable]
 public class ReminderService(AppDbContext dbContext, NotificationService notificationService)
 {
+    //>1 and <= 60
+    public const int CheckReminderWindowInMin = 30;
     public async Task<Wrapper> GetAllByUserId(long userId, DataQueryRequest q)
     {
         return await dbContext.Reminders
@@ -56,12 +58,14 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
     {
         var now = DateTime.Now;
         var nowSpan = now.TimeOfDay;
+        var windowEnd = now.AddMinutes(CheckReminderWindowInMin);
+        var windowEndSpan = windowEnd.TimeOfDay;
 
         await (await dbContext.Reminders
                 .Where(x =>
                     x.Type == EnumMomentType.Water
                         ? x.Time.Hours != 0 && nowSpan.Hours % x.Time.Hours == 0
-                        : (x.Time - nowSpan).TotalMinutes <= 30
+                        : x.Time > nowSpan && x.Time <= windowEndSpan
                 )
                 .ToListAsync())
             .ForEachAsync(x => notificationService.CreateOrUpdatePushNotification(new PushNotificationDto()

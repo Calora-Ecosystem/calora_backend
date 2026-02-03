@@ -84,7 +84,7 @@ public static class CoreConfiguration
                 app.Environment.IsProduction() ? "*/10 * * * *" : "* * * * *");
 
             RecurringJob.AddOrUpdate<ReminderService>("check_reminders",
-                service => service.CheckReminders(), "*/31 * * * *");
+                service => service.CheckReminders(), $"*/{ReminderService.CheckReminderWindowInMin - 1} * * * *");
         }
 
         RecurringJob.AddOrUpdate<WorkoutService>("index_workout_computations",
