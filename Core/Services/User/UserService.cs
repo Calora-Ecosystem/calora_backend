@@ -344,6 +344,9 @@ public class UserService(AppDbContext context)
 
     public async Task CreateOrUpdateDaily(long userId, CreateUserDailyDto dto)
     {
+        if (dto.Value <= 0)
+            return;
+        
         var existing = await context.UserDailies
             .FirstOrDefaultAsync(x =>
                 x.UserId == userId &&
