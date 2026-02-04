@@ -30,8 +30,7 @@ public partial class NotificationService(
     public async Task<Wrapper> GetAllNotifications(long userId, DataQueryRequest q)
     {
         var query = dbContext.PushNotifications
-            .Where(x => x.UserId == userId);
-
+            .Where(x => x.UserId == userId && x.SentAt.HasValue);
 
         return (await query
             .OrderByDescending(x => x.SentAt)
@@ -42,7 +41,7 @@ public partial class NotificationService(
                 Description = x.Description,
                 Image = x.Image,
                 HasRead = x.HasRead,
-                SentAt = x.CreatedAt
+                SentAt = x.SentAt!.Value
             })
             .ToListAsync(), await query.CountAsync());
     }
