@@ -11,19 +11,28 @@ public class DeviceService(AppDbContext dbContext)
 {
     public async Task<Device> CreateOrUpdateDeviceAndGet(long userId, DeviceDto deviceDto)
     {
-        var device = (await dbContext.Devices
-            .FirstOrDefaultAsync(x => x.UserId == userId && x.Key == deviceDto.Key)) ?? new Device()
+        Device device = null!;
+
+        await dbContext.Transactional(async () =>
         {
-            Key = deviceDto.Key,
-            UserId = userId
-        };
+            await dbContext.Devices.Where(x => x.UserId == userId)
+                .ExecuteUpdateAsync(x => x.SetProperty(y => y.IsActive, false));
+
+            device = (await dbContext.Devices
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.Key == deviceDto.Key)) ?? new Device()
+            {
+                Key = deviceDto.Key,
+                UserId = userId
+            };
+
+            device.Name = deviceDto.Name;
+            device.FcmToken = deviceDto.FcmToken;
+            device.IsActive = true;
+
+            device = dbContext.Update(device).Entity;
+            await dbContext.SaveChangesAsync();
+        });
         
-        device.Name = deviceDto.Name;
-        device.FcmToken = deviceDto.FcmToken;
-
-        device = dbContext.Update(device).Entity;
-        await dbContext.SaveChangesAsync();
-
         return device;
     }
 }
