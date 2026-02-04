@@ -355,7 +355,7 @@ public class UserService(AppDbContext context)
             Date = dto.Date.Date,
         };
 
-        existing.Value = Math.Max(dto.Value, existing.Value); //qiymat faqat oshib borishi lozim.
+        existing.Value = Math.Max(dto.Value, existing.Value); //daily qiymat faqat oshib borishi lozim.
 
         context.UserDailies.Update(existing);
         await context.SaveChangesAsync();
