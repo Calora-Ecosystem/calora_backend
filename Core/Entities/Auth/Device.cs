@@ -14,5 +14,6 @@ public class Device : AuditableModelBase<long>
 
     [MaxLength(150)] public string Name { get; set; } = null!;
     public string? FcmToken { get; set; }
+    public bool IsActive { get; set; } = false;
     public User User { get; set; } = null!;
 }

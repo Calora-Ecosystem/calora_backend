@@ -292,6 +292,9 @@ public class AuthService(
             && x.RTokenExpireAt > DateTime.Now
             && x.RToken == rToken) ?? throw new NotFoundException("User or refresh token not found");
 
+        if (!await dbContext.Devices.AnyAsync(x => x.Id == deviceId && x.UserId == userId && x.IsActive))
+            throw new NotFoundException("device_is_not_active_or_not_found");
+
         var accessToken = await MakeJwtFromUser(user.Id, deviceId);
         var refreshToken = PasswordHelper.Encrypt(Guid.NewGuid().ToString());
 
@@ -346,6 +349,7 @@ public class AuthService(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authConfig.Value.SecretKey)),
                 SecurityAlgorithms.HmacSha256));
 
+        memoryCache.RemoveByPrefix($"session:{user.Id}:");
         memoryCache.Set($"session:{user.Id}:{sessionId}", DateTime.Now.Ticks, expires);
 
         var hash = new JwtSecurityTokenHandler().WriteToken(token);
