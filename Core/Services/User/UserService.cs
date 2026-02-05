@@ -1,4 +1,5 @@
-﻿using BRB.Core.Common.Exceptions;
+﻿using System.Data;
+using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -344,21 +345,31 @@ public class UserService(AppDbContext context)
 
     public async Task CreateOrUpdateDaily(long userId, CreateUserDailyDto dto)
     {
-        var existing = await context.UserDailies
-            .FirstOrDefaultAsync(x =>
-                x.UserId == userId &&
-                x.Metric == dto.Metric &&
-                x.Date.Date == dto.Date.Date) ?? new UserDaily()
+        var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
         {
-            UserId = userId,
-            Metric = dto.Metric,
-            Date = dto.Date.Date,
-        };
+            var existing = await context.UserDailies
+                .FirstOrDefaultAsync(x =>
+                    x.UserId == userId &&
+                    x.Metric == dto.Metric &&
+                    x.Date.Date == dto.Date.Date) ?? new UserDaily()
+            {
+                UserId = userId,
+                Metric = dto.Metric,
+                Date = dto.Date.Date,
+            };
 
-        existing.Value = Math.Max(dto.Value, existing.Value); //daily qiymat faqat oshib borishi lozim.
+            existing.Value = Math.Max(dto.Value, existing.Value); //daily qiymat faqat oshib borishi lozim.
 
-        context.UserDailies.Update(existing);
-        await context.SaveChangesAsync();
+            context.UserDailies.Update(existing);
+            await context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task ResetDaily(long userId, DateTime date)
