@@ -31,6 +31,13 @@ public class NotificationController(NotificationService notificationService) : A
         await notificationService.MarkAsRead(this.UserId, notificationId);
         return 200;
     }
+    
+    [HttpPut("mark-as-read/all")]
+    public async Task<Wrapper> MarkReadAll()
+    {
+        await notificationService.MarkAsReadAll(this.UserId);
+        return 200;
+    }
 
     [HttpPost]
     [ProducesResponseType(typeof(WrapperGeneric<int>), 200)]

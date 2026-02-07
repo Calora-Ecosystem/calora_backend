@@ -54,6 +54,15 @@ public partial class NotificationService(
             .ExecuteUpdateAsync(x =>
                 x.SetProperty(notification => notification.HasRead, notification => true));
     }
+    
+    public async Task MarkAsReadAll(long userId)
+    {
+        await dbContext
+            .Notifications
+            .Where(x => x.UserId == userId && !x.HasRead)
+            .ExecuteUpdateAsync(x =>
+                x.SetProperty(notification => notification.HasRead, notification => true));
+    }
 
     public async Task CreateOrUpdatePushNotification(PushNotificationDto dto)
     {
