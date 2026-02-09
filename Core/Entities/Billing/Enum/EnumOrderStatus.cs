@@ -4,5 +4,5 @@ public enum EnumOrderStatus
 {
     Pending = 1,
     Confirmed,
-    Canceled
+    Cancelled
 }

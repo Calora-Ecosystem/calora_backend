@@ -137,7 +137,7 @@ public class OrderService(
 
         await dbContext.Transactional(async () =>
         {
-            order.Status = EnumOrderStatus.Canceled;
+            order.Status = EnumOrderStatus.Cancelled;
             dbContext.Orders.Update(order);
 
             await (order.Provider switch
@@ -167,7 +167,7 @@ public class OrderService(
             _ => throw new Exception("Order type not found")
         });
 
-        order.Status = result ? EnumOrderStatus.Confirmed : EnumOrderStatus.Canceled;
+        order.Status = result ? EnumOrderStatus.Confirmed : EnumOrderStatus.Cancelled;
         await dbContext.SaveChangesAsync();
 
         return result;
