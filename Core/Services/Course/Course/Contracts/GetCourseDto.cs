@@ -15,5 +15,5 @@ public record GetCourseDto
     public decimal Order { get; set; }
     public Asset[] Assets { get; set; } = null!;
     public long Price { get; set; }
-    public MultiLanguageField Info { get; set; } = null!;
+    public MultiLanguageField? Info { get; set; } = null!;
 }
