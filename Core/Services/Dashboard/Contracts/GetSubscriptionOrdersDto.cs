@@ -12,6 +12,6 @@ public record GetSubscriptionOrdersDto
     public long PlanExtraId { get; set; }
     public int PlanExtraDurationInMonths { get; set; }
     public EnumOrderStatus OrderStatus { get; set; }
-    public long Amount { get; set; }
+    public double Amount { get; set; }
     public DateTime CreatedAt { get; set; }
 }
