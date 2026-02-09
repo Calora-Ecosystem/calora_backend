@@ -83,7 +83,7 @@ public class DashboardService(AppDbContext context)
                 PlanExtraId = x.PlanExtra.Id,
                 PlanExtraDurationInMonths = x.PlanExtra.DurationInMonths,
                 OrderStatus = x.Order.Status,
-                Amount = x.Order.Amount,
+                Amount = Math.Round(x.Order.Amount / 100d, 2),
                 CreatedAt = x.Order.CreatedAt
             })
             .GetByDataQueryAsync(query);
