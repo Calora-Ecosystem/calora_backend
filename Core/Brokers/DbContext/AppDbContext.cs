@@ -10,6 +10,7 @@ using Core.Entities.Notification;
 using Core.Entities.Refs;
 using Core.Services.Course.Workout.Contracts;
 using Microsoft.EntityFrameworkCore;
+using Version = Core.Entities.Refs.Version;
 
 namespace Core.Brokers.DbContext;
 
@@ -53,6 +54,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     #region References
 
     public DbSet<Purpose> Purposes { get; set; }
+    public DbSet<Version> Versions { get; set; }
 
     #endregion
 

@@ -45,7 +45,7 @@ public class AuthService(
         var payload = await GoogleJsonWebSignature.ValidateAsync(dto.SsoToken);
 
         var user = await dbContext.Users
-            .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, payload.Email)) ?? new Entities.Auth.User()
+            .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, payload.Email)) ?? new Entities.Auth.User()
         {
             Name = payload.Name,
             Email = payload.Email,
@@ -103,7 +103,7 @@ public class AuthService(
             throw new UnauthorizedException("Required claim principal not found");
 
         var user = await dbContext.Users
-            .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, email)) ?? new Entities.Auth.User()
+            .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, email)) ?? new Entities.Auth.User()
         {
             Name = "Anonymous",
             Email = email,
@@ -120,7 +120,7 @@ public class AuthService(
 
     public async Task<object> RegisterViaEmailAsync(RegisterViaEmailDto dto)
     {
-        var userExists = await dbContext.Users.AnyAsync(x => EF.Functions.ILike(x.Email, dto.Email));
+        var userExists = await dbContext.Users.AnyAsync(x => x.Email != null && EF.Functions.ILike(x.Email, dto.Email));
         if (userExists)
             throw new AlreadyExistsException("User already exists");
 
@@ -165,7 +165,7 @@ public class AuthService(
         VerifyOtp(dto.VerificationCode.ToString(), dto.Code);
 
         var user = await dbContext.Users
-            .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Email, dto.Email)) ?? new Entities.Auth.User()
+            .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, dto.Email)) ?? new Entities.Auth.User()
         {
             Name = "Anonymous",
             Email = dto.Email,
