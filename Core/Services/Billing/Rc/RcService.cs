@@ -1,7 +1,6 @@
 ﻿using System.Text;
 using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Extensions;
-using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
 using Core.Services.Billing.Rc.Contracts;
 using Microsoft.Extensions.Options;
@@ -21,8 +20,14 @@ public class RcService(AppDbContext dbContext, OrderService orderService, IOptio
         if (authorization.IsNullOrEmpty())
             throw new UnauthorizedException();
 
+        var parts = authorization!.Split();
+
+        if (parts.Length != 2) throw new UnauthorizedException();
+
+        if (!parts[0].Equals("Basic", StringComparison.InvariantCultureIgnoreCase)) throw new UnauthorizedException();
+
         var equals = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Value.Login}:{options.Value.Password}"))
-            .Equals(authorization, StringComparison.InvariantCultureIgnoreCase);
+            .Equals(parts[1], StringComparison.InvariantCultureIgnoreCase);
 
         if (!equals) throw new UnauthorizedException();
     }
