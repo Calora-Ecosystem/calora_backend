@@ -105,7 +105,7 @@ public class BillingController(
     [AllowAnonymous]
     public async Task<Wrapper> HandleRcRequest()
     {
-        rcService.ValidateAuthentication(this.Request.Headers.Authorization.FirstOrDefault());
+        rcService.ValidateAuthentication(this.Request.Headers.Authorization.ToString());
 
         using var reader = new StreamReader(Request.Body);
         var json = await reader.ReadToEndAsync();
