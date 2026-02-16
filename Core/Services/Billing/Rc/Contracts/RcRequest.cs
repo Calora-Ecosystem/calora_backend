@@ -19,8 +19,8 @@ public class Event
 
 public class SubscriberAttributes
 {
-    [JsonPropertyName("email")] public AttrItem Email { get; set; } = null!;
-    [JsonPropertyName("order_id")] public AttrItem OrderId { get; set; } = null!;
+    [JsonPropertyName("email")] public AttrItem? Email { get; set; } = null!;
+    [JsonPropertyName("order_id")] public AttrItem? OrderId { get; set; } = null!;
 }
 
 public class AttrItem
