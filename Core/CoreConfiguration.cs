@@ -7,6 +7,7 @@ using Core.Services.Auth;
 using Core.Services.Auth.Contracts;
 using Core.Services.Billing.Click;
 using Core.Services.Billing.Payme.Extensions;
+using Core.Services.Billing.Rc.Extensions;
 using Core.Services.Common;
 using Core.Services.Course.Workout;
 using Core.Services.Notification;
@@ -39,7 +40,8 @@ public static class CoreConfiguration
             .AddAppleClient()
             .AddEskizClient()
             .AddPaymeConfig()
-            ;
+            .AddRcConfig();
+        ;
 
         builder.Services.AddSingleton<MemoryCacheManager>();
 
