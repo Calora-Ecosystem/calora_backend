@@ -12,7 +12,7 @@ public class Event
 {
     public long EventTimestampMs { get; set; }
     public string ProductId { get; set; } = null!;
-    public SubscriberAttributes SubscriberAttribute { get; set; } = null!;
+    public SubscriberAttributes SubscriberAttributes { get; set; } = null!;
     public string Id { get; set; } = null!;
     public string AppId { get; set; } = null!;
 }
