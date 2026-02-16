@@ -1,4 +1,6 @@
-﻿using BRB.Core.Common.Models;
+﻿using System.Text.Json;
+using BRB.Core.Common.Exceptions;
+using BRB.Core.Common.Models;
 using Core.Attributes;
 using Core.Enums;
 using Core.Services.Billing;
@@ -7,6 +9,8 @@ using Core.Services.Billing.Click.Contracts;
 using Core.Services.Billing.Contracts;
 using Core.Services.Billing.Payme;
 using Core.Services.Billing.Payme.Contracts;
+using Core.Services.Billing.Rc;
+using Core.Services.Billing.Rc.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResultWrapper.Library;
@@ -20,6 +24,7 @@ public class BillingController(
     OrderService orderService,
     ClickService clickService,
     PaymeService paymeService,
+    RcService rcService,
     CouponService couponService)
     : AuthorizedController
 {
@@ -89,6 +94,32 @@ public class BillingController(
     public async Task<Wrapper> CreateOrUpdateCoupon([FromBody] CreateOrUpdateCouponDto dto)
     {
         await couponService.CreateOrUpdate(dto);
+        return 200;
+    }
+
+    #endregion
+
+    #region Rc
+
+    [HttpPost("rc")]
+    [AllowAnonymous]
+    public async Task<Wrapper> HandleRcRequest()
+    {
+        rcService.ValidateAuthentication(this.Request.Headers.Authorization.FirstOrDefault());
+
+        using var reader = new StreamReader(Request.Body);
+        var json = await reader.ReadToEndAsync();
+
+        var request = JsonSerializer.Deserialize<RcRequest>(json, new JsonSerializerOptions()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+            PropertyNameCaseInsensitive = true
+        });
+
+        if (request is null)
+            throw new BadRequestException("request invalid");
+
+        await rcService.HandleRequest(request);
         return 200;
     }
 
