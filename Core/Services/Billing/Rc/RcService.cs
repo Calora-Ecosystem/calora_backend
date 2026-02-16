@@ -11,6 +11,9 @@ public class RcService(AppDbContext dbContext, OrderService orderService, IOptio
 {
     public async Task HandleRequest(RcRequest request)
     {
+        if (request.Event.SubscriberAttribute.OrderId is null)
+            throw new BadRequestException("Order id required");
+
         var orderId = long.Parse(request.Event.SubscriberAttribute.OrderId.Value);
         await orderService.AcceptPaymentAsync(orderId);
     }
