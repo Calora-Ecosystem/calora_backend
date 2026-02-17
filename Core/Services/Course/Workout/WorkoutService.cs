@@ -66,6 +66,19 @@ public class WorkoutService(AppDbContext dbContext)
             .GetByDataQueryAsync(query);
     }
 
+    public async Task<GetWorkoutById> GetById(long id)
+    {
+        return await dbContext.Workouts
+            .Select(x => new GetWorkoutById
+            {
+                Id = x.Id, Title = x.Title, Description = x.Description,
+                HasRest = x.HasRest,
+                CourseId = x.CourseId,
+                Assets = x.Assets
+            })
+            .FirstOrDefaultAsync(x => x.Id == id) ?? throw new NotFoundException("Workout not found");
+    }
+
     public async Task<long> CrateOrUpdate(CreateOrUpdateWorkoutDto dto)
     {
         if (!dbContext.Courses.Any(x => x.Id == dto.CourseId && x.Type == EnumCourseType.Workout))

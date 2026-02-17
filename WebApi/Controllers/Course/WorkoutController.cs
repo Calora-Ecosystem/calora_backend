@@ -21,10 +21,15 @@ namespace WebApi.Controllers.Course;
 public class WorkoutController(WorkoutService service, CourseService courseService) : AuthorizedController
 {
     [HttpGet]
-    [ProducesResponseType(typeof(WrapperGeneric<GetWorkoutDto>), 200)]
+    [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetWorkoutDto>>), 200)]
     public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q,
         [FromQuery] EnumActivityLevel level = EnumActivityLevel.Minimal, [FromQuery] long? courseId = null) =>
         await service.GetAll(this.UserId, q, level: level, courseId: courseId);
+
+    [HttpGet("{workoutId:long:min(1)}")]
+    [ProducesResponseType(typeof(WrapperGeneric<GetWorkoutById>), 200)]
+    public async Task<Wrapper> GetById(long workoutId) =>
+        (await service.GetById(workoutId), 200);
 
     [HttpGet("computations")]
     [ProducesResponseType(typeof(WrapperGeneric<ComputationDto>), 200)]
