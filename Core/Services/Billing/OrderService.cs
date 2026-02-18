@@ -89,6 +89,7 @@ public class OrderService(
                     .CreateTransaction(order),
                 EnumPaymentProviders.Payme => serviceProvider.GetRequiredService<PaymeService>()
                     .CreateInternalTransaction(order),
+                EnumPaymentProviders.Iap => Task.CompletedTask,
                 _ => throw new Exception("Provider not found")
             });
 
@@ -148,6 +149,7 @@ public class OrderService(
                 EnumPaymentProviders.Payme => dbContext.PaymeTransactions
                     .Where(x => x.OrderId == order.Id)
                     .ExecuteUpdateAsync(x => x.SetProperty(o => o.Status, EnumPaymeTransactionStatus.PaidCancelled)),
+                EnumPaymentProviders.Iap => Task.CompletedTask,
                 _ => throw new InvalidOperationException()
             });
 
@@ -216,6 +218,7 @@ public class OrderService(
                 .MakeClickPaymentLink(order.Id, order.Amount),
             EnumPaymentProviders.Payme => serviceProvider.GetRequiredService<PaymeService>()
                 .MakeClickPaymentLink(order.Id, order.Amount),
+            EnumPaymentProviders.Iap => Task.FromResult("3rd party payment"),
             _ => throw new Exception("Provider not found")
         });
     }
