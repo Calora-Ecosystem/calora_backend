@@ -53,6 +53,14 @@ public class WorkoutController(WorkoutService service, CourseService courseServi
         return 200;
     }
 
+    [HttpPost("computations/batch")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> CreateOrUpdate(List<ComputationDto> dto)
+    {
+        await Task.WhenAll(dto.Select(service.CreateOrUpdateComputation).ToArray());
+        return 200;
+    }
+
     [HttpPut("finish/{workoutId:long:min(1)}")]
     public async Task<Wrapper> Finish(long workoutId)
     {
