@@ -39,6 +39,9 @@ public class OrderService(
                                && x.Type == EnumOrderType.Subscription
                                && x.Status == EnumOrderStatus.Pending))
             throw new BadRequestException("Pending subscription order already exists");
+        
+        if (dto.CouponId.HasValue)
+            await dbContext.Coupons.ExistsOrThrowsNotFoundException(dto.CouponId.Value);
 
         Order order = null!;
         bool paymentRequired = true;
