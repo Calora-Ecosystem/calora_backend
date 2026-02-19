@@ -74,7 +74,8 @@ public class WorkoutService(AppDbContext dbContext)
                 Id = x.Id, Title = x.Title, Description = x.Description,
                 HasRest = x.HasRest,
                 CourseId = x.CourseId,
-                Assets = x.Assets
+                Assets = x.Assets,
+                Order = x.Order
             })
             .FirstOrDefaultAsync(x => x.Id == id) ?? throw new NotFoundException("Workout not found");
     }

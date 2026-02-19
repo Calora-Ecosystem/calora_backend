@@ -11,4 +11,5 @@ public record GetWorkoutById
     public bool HasRest { get; set; }
     public long CourseId { get; set; }
     public Asset[] Assets { get; set; } = null!;
+    public decimal Order { get; set; }
 }
