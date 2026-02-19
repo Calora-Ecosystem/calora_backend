@@ -293,30 +293,31 @@ public class WorkoutService(AppDbContext dbContext)
         }
     }
 
-    public async Task CreateOrUpdateComputation(ComputationDto dto)
+    public async Task CreateOrUpdateComputation(List<ComputationDto> computations)
     {
-        await (dto.Type switch
+        foreach (var dto in computations)
         {
-            EnumEntityType.Exercise => dbContext.Exercises.ExistsOrThrowsNotFoundException(dto.EntityId),
-            EnumEntityType.Workout => dbContext.Workouts.ExistsOrThrowsNotFoundException(dto.EntityId),
-            _ => throw new BadRequestException("Invalid type of entity")
-        });
-
-        var computation = dto.Id.HasValue
-            ? await dbContext.Computations.GetByIdOrThrowsNotFoundException(dto.Id.Value)
-            : new Computation()
+            await (dto.Type switch
             {
-                Type = dto.Type,
-                EntityId = dto.EntityId,
-            };
+                EnumEntityType.Exercise => dbContext.Exercises.ExistsOrThrowsNotFoundException(dto.EntityId),
+                EnumEntityType.Workout => dbContext.Workouts.ExistsOrThrowsNotFoundException(dto.EntityId),
+                _ => throw new BadRequestException("Invalid type of entity")
+            });
 
-        computation.Level = dto.Activity;
-        computation.ComputationType = dto.ComputationType;
-        computation.Value = dto.Value;
+            var computation = dto.Id.HasValue
+                ? await dbContext.Computations.GetByIdOrThrowsNotFoundException(dto.Id.Value)
+                : dbContext.Add(new Computation()
+                {
+                    Type = dto.Type,
+                    EntityId = dto.EntityId,
+                }).Entity;
 
-        dbContext.Update(computation);
+            computation.Level = dto.Activity;
+            computation.ComputationType = dto.ComputationType;
+            computation.Value = dto.Value;
+        }
+
         await dbContext.SaveChangesAsync();
-
         await IndexWorkoutComputations();
     }
 }

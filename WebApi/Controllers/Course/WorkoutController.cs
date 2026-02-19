@@ -47,17 +47,9 @@ public class WorkoutController(WorkoutService service, CourseService courseServi
 
     [HttpPost("computations")]
     [RoleAuthorize(EnumRole.SuperAdmin)]
-    public async Task<Wrapper> CreateOrUpdate(ComputationDto dto)
+    public async Task<Wrapper> CreateOrUpdate([FromBody] List<ComputationDto> dto)
     {
         await service.CreateOrUpdateComputation(dto);
-        return 200;
-    }
-
-    [HttpPost("computations/batch")]
-    [RoleAuthorize(EnumRole.SuperAdmin)]
-    public async Task<Wrapper> CreateOrUpdate(List<ComputationDto> dto)
-    {
-        await Task.WhenAll(dto.Select(service.CreateOrUpdateComputation).ToArray());
         return 200;
     }
 
