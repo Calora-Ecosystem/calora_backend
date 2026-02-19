@@ -352,16 +352,15 @@ public class UserService(AppDbContext context)
                 .FirstOrDefaultAsync(x =>
                     x.UserId == userId &&
                     x.Metric == dto.Metric &&
-                    x.Date.Date == dto.Date.Date) ?? new UserDaily()
+                    x.Date.Date == dto.Date.Date) ?? context.Add(new UserDaily()
             {
                 UserId = userId,
                 Metric = dto.Metric,
                 Date = dto.Date.Date,
-            };
+            }).Entity;
 
             existing.Value = Math.Max(dto.Value, existing.Value); //daily qiymat faqat oshib borishi lozim.
-
-            context.UserDailies.Update(existing);
+            
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
         }
