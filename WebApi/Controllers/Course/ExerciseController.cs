@@ -23,6 +23,11 @@ public class ExerciseController(WorkoutService service, CourseService courseServ
     [ProducesResponseType(typeof(WrapperGeneric<GetExerciseDto>), 200)]
     public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q, long workoutId) =>
         await service.GetAllExercises(this.UserId, workoutId, q);
+
+    [HttpGet("{exerciseId:long:min(1)}")]
+    [ProducesResponseType(typeof(WrapperGeneric<GetExerciseByIdDto>), 200)]
+    public async Task<Wrapper> GetById(long exerciseId) =>
+        (await service.GetExerciseById(exerciseId), 200);
     
     [HttpGet("computations")]
     [ProducesResponseType(typeof(WrapperGeneric<ComputationDto>), 200)]

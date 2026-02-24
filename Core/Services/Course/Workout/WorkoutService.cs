@@ -122,6 +122,27 @@ public class WorkoutService(AppDbContext dbContext)
 
     #region Exercise
 
+    public async Task<GetExerciseByIdDto> GetExerciseById(long id)
+    {
+        return await dbContext.Exercises
+            .Select(x => new GetExerciseByIdDto
+            {
+                Id = x.Id,
+                WorkoutId = x.WorkoutId,
+                Title = x.Title,
+                Description = x.Description,
+                Assets = x.Assets,
+                Duration = x.Duration,
+                Order = x.Order,
+                Metrics = x.Metrics.Select(m => new ExerciseMetricDto
+                {
+                    Metric = m.Metric,
+                    Value = m.Value
+                }).ToList()
+            })
+            .FirstOrDefaultAsync(x => x.Id == id) ?? throw new NotFoundException("Exercise not found");
+    }
+
     public async Task<Wrapper> GetAllExercises(long userId, long workoutId, DataQueryRequest query)
     {
         return await dbContext
