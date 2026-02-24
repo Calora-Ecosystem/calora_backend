@@ -136,6 +136,7 @@ public class WorkoutService(AppDbContext dbContext)
                 Order = x.Order,
                 Metrics = x.Metrics.Select(m => new ExerciseMetricDto
                 {
+                    Id = m.Id,
                     Metric = m.Metric,
                     Value = m.Value
                 }).ToList()
