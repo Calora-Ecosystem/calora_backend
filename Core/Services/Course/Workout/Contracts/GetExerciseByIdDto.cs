@@ -20,4 +20,5 @@ public record ExerciseMetricDto
 {
     public EnumMetrics Metric { get; set; }
     public double Value { get; set; }
+    public long Id { get; set; }
 }
