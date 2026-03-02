@@ -35,7 +35,7 @@ public class WorkoutService(AppDbContext dbContext)
                 HasRest = x.HasRest,
                 TotalItems = x.Exercises.Count(),
                 DoneItems = dbContext.Exercises
-                    .Where(exercise => exercise.WorkoutId == exercise.Id)
+                    .Where(exercise => exercise.WorkoutId == x.Id)
                     .Join(dbContext.CourseItemStates,
                         e => e.Id,
                         h => h.EntityId,
