@@ -139,12 +139,25 @@ public class WorkoutService(AppDbContext dbContext)
                     Id = m.Id,
                     Metric = m.Metric,
                     Value = m.Value
-                }).ToList()
+                }).ToList(),
+                Computations = dbContext
+                    .Computations
+                    .Where(i => i.EntityId == x.Id && i.Type == EnumEntityType.Exercise)
+                    .Select(i => new ComputationDto()
+                    {
+                        Id = i.Id,
+                        Type = i.Type,
+                        ComputationType = i.ComputationType,
+                        EntityId = i.EntityId,
+                        Value = i.Value,
+                        Activity = i.Level
+                    }).ToList()
             })
             .FirstOrDefaultAsync(x => x.Id == id) ?? throw new NotFoundException("Exercise not found");
     }
 
-    public async Task<Wrapper> GetAllExercises(long userId, long workoutId, DataQueryRequest query)
+    public async Task<Wrapper> GetAllExercises(long userId, long workoutId, EnumActivityLevel? level,
+        DataQueryRequest query)
     {
         return await dbContext
             .Exercises
@@ -154,10 +167,19 @@ public class WorkoutService(AppDbContext dbContext)
                 Id = x.Id, WorkoutId = x.WorkoutId, Title = x.Title,
                 Description = x.Description,
                 Assets = x.Assets,
-                Duration = x.Duration,
                 IsDone = dbContext.CourseItemStates.Any(sh =>
                     sh.EntityId == x.Id && sh.UserId == userId && sh.Type == EnumEntityType.Exercise),
-                Order = x.Order
+                Order = x.Order,
+                Duration = TimeSpan.FromMinutes(level.HasValue
+                    ? dbContext
+                        .Computations
+                        .Where(i => i.EntityId == x.Id && i.Type == EnumEntityType.Exercise &&
+                                    i.Level == level.Value)
+                        .Sum(i => i.ComputationType == EnumComputationType.Duration
+                            ? i.Value
+                            : i.Value * 1 /* 1 action 1 minute */)
+                    : 0
+                )
             })
             .OrderBy(x => x.Order)
             .GetByDataQueryAsync(query);
