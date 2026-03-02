@@ -21,8 +21,8 @@ public class ExerciseController(WorkoutService service, CourseService courseServ
 {
     [HttpGet]
     [ProducesResponseType(typeof(WrapperGeneric<GetExerciseDto>), 200)]
-    public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q, long workoutId) =>
-        await service.GetAllExercises(this.UserId, workoutId, q);
+    public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q, long workoutId, EnumActivityLevel? level) =>
+        await service.GetAllExercises(this.UserId, workoutId, level, q);
 
     [HttpGet("{exerciseId:long:min(1)}")]
     [ProducesResponseType(typeof(WrapperGeneric<GetExerciseByIdDto>), 200)]

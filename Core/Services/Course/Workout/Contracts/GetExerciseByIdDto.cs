@@ -14,6 +14,7 @@ public record GetExerciseByIdDto
     public TimeSpan Duration { get; set; }
     public decimal Order { get; set; }
     public List<ExerciseMetricDto> Metrics { get; set; } = null!;
+    public List<ComputationDto> Computations { get; set; } = null!;
 }
 
 public record ExerciseMetricDto
