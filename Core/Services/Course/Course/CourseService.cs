@@ -22,8 +22,8 @@ public class CourseService(AppDbContext context)
             .Where(x => x.Gender == query.Gender || x.Gender == null)
             .Select(x => new GetCourseDto
             {
-                Id = x.Id, 
-                Title = x.Title, 
+                Id = x.Id,
+                Title = x.Title,
                 Description = x.Description,
                 Info = x.Info,
                 Gender = x.Gender,
@@ -80,8 +80,19 @@ public class CourseService(AppDbContext context)
                 break;
 
             case EnumEntityType.Workout:
+            {
                 await context.Workouts.ExistsOrThrowsNotFoundException(entityId);
+                var exerciseIds = await context.Exercises.Where(x => x.WorkoutId == entityId)
+                    .Select(x => x.Id)
+                    .ToListAsync();
+
+                var finishedExerciseCount = await context.CourseItemStates.CountAsync(x =>
+                    exerciseIds.Contains(x.EntityId) && x.UserId == userId && x.Type == EnumEntityType.Exercise);
+                if (exerciseIds.Count != finishedExerciseCount)
+                    throw new BadRequestException("Not all exercises are finished");
+                
                 break;
+            }
 
             case EnumEntityType.Exercise:
                 await context.Exercises.ExistsOrThrowsNotFoundException(entityId);
@@ -110,7 +121,7 @@ public class CourseService(AppDbContext context)
     {
         if (beforeItemId == null && afterItemId == null)
             throw new BadRequestException("Both before and after item id are null");
-        
+
         Func<long, long?, long?, Task> orderFunc = type switch
         {
             EnumCourseItemType.Course => ReorderItemAsync<Entities.Course.Course>,
