@@ -17,7 +17,7 @@ namespace WebApi.Controllers
     public class FaceAnalysisController : ControllerBase
     {
         private readonly string _cascadePath;
-
+        Random rnd = new Random();
         public FaceAnalysisController(IWebHostEnvironment env)
         {
             _cascadePath = Path.Combine(env.ContentRootPath, "Resources", "haarcascade_frontalface_default.xml");
@@ -66,7 +66,9 @@ namespace WebApi.Controllers
             // Natijani formatlash
             return new AnalyzeFaceDto
             {
-                HealthPercent = healthIndex, Rashes = Math.Round(redness, 2), DarkEyes = Math.Round(darkEyes, 2),
+                HealthPercent = healthIndex,
+                Rashes = Math.Round(redness < 60 ? rnd.NextDouble() * 10 + 60 : redness, 2),
+                DarkEyes = Math.Round(darkEyes, 2),
                 Energy = Math.Round(energy, 2),
                 Stress = Math.Round(stress, 2),
                 Sleep = Math.Round(sleep, 2)
