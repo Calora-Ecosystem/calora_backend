@@ -90,7 +90,7 @@ public class UserService(AppDbContext context)
                         UserId = userId
                     }).Entity;
                 
-                daily.Value = progress;
+                daily.Value += progress;
             }
 
             extra.Weight = dto.Weight;
