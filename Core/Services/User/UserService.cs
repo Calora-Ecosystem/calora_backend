@@ -79,13 +79,18 @@ public class UserService(AppDbContext context)
             else
             {
                 var progress = Math.Abs(dto.Weight - extra.Weight);
-                await context.UserDailies.AddAsync(new UserDaily()
-                {
-                    Metric = EnumMetrics.Weight,
-                    Date = DateTime.Now.Date,
-                    Value = progress,
-                    UserId = userId
-                });
+                var today = DateTime.Now.Date;
+                var daily = await context.UserDailies
+                    .FirstOrDefaultAsync(x =>
+                        x.UserId == userId && x.Metric == EnumMetrics.Weight && x.Date == today) ?? context.UserDailies
+                    .Add(new UserDaily()
+                    {
+                        Metric = EnumMetrics.Weight,
+                        Date = DateTime.Now.Date,
+                        UserId = userId
+                    }).Entity;
+                
+                daily.Value = progress;
             }
 
             extra.Weight = dto.Weight;
@@ -195,12 +200,9 @@ public class UserService(AppDbContext context)
                 Value = (2.5 + 0.5 * (extra.ActivityLevel - EnumActivityLevel.Minimal)) * extra.Weight
             });
 
-            context.UserExtras.Update(extra);
-
             var user = await context.Users.GetByIdOrThrowsNotFoundException(userId);
 
             user.Name = extra.Name;
-            context.Update(user);
 
             await context.SaveChangesAsync();
         });
@@ -360,7 +362,7 @@ public class UserService(AppDbContext context)
             }).Entity;
 
             existing.Value = Math.Max(dto.Value, existing.Value); //daily qiymat faqat oshib borishi lozim.
-            
+
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
         }
