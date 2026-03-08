@@ -60,8 +60,8 @@ builder.Services.AddRateLimiter(options =>
     );
 });
 
-builder.Services.AddHttpClient();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddHttpClient();
 #if !DEBUG
 builder.AddSwaggerServer("/api/");
 #endif
