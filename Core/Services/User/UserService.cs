@@ -48,11 +48,11 @@ public class UserService(AppDbContext context)
     public async Task CreateOrUpdateExtra(long userId, CreateUserExtraDto dto)
     {
         var extra = await context.UserExtras
-            .FirstOrDefaultAsync(x => x.UserId == userId) ?? new UserExtra()
+            .FirstOrDefaultAsync(x => x.UserId == userId) ?? context.Add(new UserExtra()
         {
             UserId = userId,
             EntryWeight = dto.Weight
-        };
+        }).Entity;
 
         await context.Transactional(async () =>
         {
