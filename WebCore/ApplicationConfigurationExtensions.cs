@@ -1,19 +1,23 @@
+using System.Net;
 using System.Reflection;
-using System.Reflection.Metadata;
+using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
-using BRB.Core.Common.Extensions;
+using BRB.Core.Common.Exceptions;
 using BRB.Core.Web.Fallback;
 using BRB.Core.Web.Filters;
 using BRB.Core.Web.Middlewares;
+using Hangfire;
+using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Npgsql;
+using ResultWrapper.Library;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
@@ -58,6 +62,7 @@ public static class ApplicationConfigurationExtensions
             {
                 options.ConfigObject.AdditionalItems.Add("persistAuthorization", true);
                 options.DocExpansion(DocExpansion.None);
+                options.EnableDeepLinking();
             });
         }
 
@@ -65,8 +70,22 @@ public static class ApplicationConfigurationExtensions
 
         app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
+
+        app.UseStaticFiles(new StaticFileOptions()
+        {
+            RequestPath = "/file",
+            HttpsCompression = HttpsCompressionMode.Compress,
+            ServeUnknownFileTypes = true,
+            OnPrepareResponse = (context) =>
+            {
+                context.Context.Response.Headers.Append("Cache-Control", $"public,max-age={2 * 24 * 60 * 60}");
+            }
+        });
+
+
         app.UseHealthChecks("/healthy");
         app.UseAuthorization();
+        // app.UseAuthentication();
         app.UseCustom404Page("");
         app.MapControllers();
 
@@ -86,7 +105,7 @@ public static class ApplicationConfigurationExtensions
         return builder;
     }
 
-    
+
     private static WebApplicationBuilder ConfigureKestrel(this WebApplicationBuilder builder)
     {
         builder.Services.Configure<KestrelServerOptions>(options => { options.Limits.MaxRequestBodySize = null; });
@@ -129,31 +148,6 @@ public static class ApplicationConfigurationExtensions
         return builder;
     }
 
-    private static WebApplicationBuilder AddDefaultConfiguredDbContext<T>(this WebApplicationBuilder builder, ServiceLifetime? lifetime = null) where T: DbContext 
-    {
-        var dataSourceBuilder =
-            new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("ConnectionString"))
-                .EnableDynamicJson();
-
-        if (lifetime is null)
-            builder.Services.AddDbContextPool<T>(optionsBuilder =>
-            {
-                optionsBuilder
-                    .UseNpgsql(
-                        dataSourceBuilder.Build(),
-                        options => { }).UseSnakeCaseNamingConvention();
-            });
-        else 
-            builder.Services.AddDbContext<T>(optionsBuilder =>
-            {
-                optionsBuilder
-                    .UseNpgsql(
-                        dataSourceBuilder.Build(),
-                        options => { }).UseSnakeCaseNamingConvention();
-            }, lifetime.Value, lifetime.Value);
-
-        return builder;
-    }
 
     private static WebApplicationBuilder ConfigureSwagger(this WebApplicationBuilder builder, string appName)
     {
@@ -197,10 +191,39 @@ public static class ApplicationConfigurationExtensions
                     }
                 }
             });
+
+            options.TagActionsBy(api =>
+            {
+                if (api.GroupName != null)
+                {
+                    return
+                    [
+                        api.GroupName
+                    ];
+                }
+
+                if (api.ActionDescriptor is ControllerActionDescriptor controllerActionDescriptor)
+                {
+                    return
+                    [
+                        controllerActionDescriptor.ControllerName
+                    ];
+                }
+
+                throw new InvalidOperationException("Unable to determine tag for endpoint.");
+            });
+
+            options.EnableAnnotations();
+            options.DocInclusionPredicate((name, api) => true);
+
+            var filePath = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetEntryAssembly()?.GetName().Name}.xml");
+            if (File.Exists(filePath))
+                options.IncludeXmlComments(filePath);
         });
 
         builder.Services.Configure<ApiBehaviorOptions>(options => { options.SuppressModelStateInvalidFilter = true; });
         builder.Services.AddCookiePolicy(options => { options.Secure = CookieSecurePolicy.Always; });
+
 
         return builder;
     }
@@ -219,7 +242,7 @@ public static class ApplicationConfigurationExtensions
         {
             options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals;
             options.JsonSerializerOptions.Converters.Add(new MultiLanguageFieldConverter(httpContextAccessor));
-            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false));
             options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         });
 
@@ -255,7 +278,7 @@ public static class ApplicationConfigurationExtensions
             .AddOptions<JwtOption>()
             .BindConfiguration("Auth")
             .ValidateOnStart();
-        
+
         builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -270,43 +293,47 @@ public static class ApplicationConfigurationExtensions
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero,
                     SaveSigninToken = true,
+                    RoleClaimType = ClaimTypes.Role,
                     IssuerSigningKey =
                         new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Auth:SecretKey"]!)),
                 };
 
-                // options.Events = new JwtBearerEvents
-                // {
-                //     OnMessageReceived = context =>
-                //     {
-                //         context.Token = context.Request.Cookies[Constant.Constants.ACCESS_TOKEN_KEY];
-                //
-                //         if (!builder.Environment.IsProduction() && context.Token.IsNullOrEmpty() &&
-                //             context.Request.Headers.Authorization.Count > 0)
-                //             context.Token = context.Request.Headers.Authorization[0]?.Split("Bearer ").FirstOrDefault();
-                //
-                //         return Task.CompletedTask;
-                //     }
-                // };
+                options.Events = new JwtBearerEvents
+                {
+                    OnChallenge = context =>
+                    {
+                        context.HandleResponse(); // ✅ DEFAULT RFC 9110 JSON NI O‘CHIRADI
+
+                        context.Response.StatusCode = 401;
+                        context.Response.ContentType = "application/json";
+
+                        var result = JsonSerializer.Serialize(
+                            new Wrapper(new UnauthorizedException(
+                                context.AuthenticateFailure is SecurityTokenExpiredException
+                                    ? "token_expired"
+                                    : "token_invalid"
+                            ), HttpStatusCode.Unauthorized)
+                        );
+
+                        return context.Response.WriteAsync(result);
+                    }
+                };
             });
 
 
-        // builder.Services.AddAuthorization(options =>
-        // {
-        //     //ToDo: add policies for needs
-        //     options.AddPolicy(Roles.Admin,
-        //         policyBuilder =>
-        //         {
-        //             policyBuilder.RequireAuthenticatedUser();
-        //             policyBuilder.RequireRole(Roles.Admin);
-        //         });
-        //     
-        //     options.AddPolicy(Roles.Client,
-        //         policyBuilder =>
-        //         {
-        //             policyBuilder.RequireAuthenticatedUser();
-        //             policyBuilder.RequireRole(Roles.Client, Roles.Admin);
-        //         });
-        // });
+        // builder.Services.AddAuthorizationBuilder()
+        //     .AddPolicy(nameof(EnumAuthPolicies.User), policyBuilder =>
+        //     {
+        //         policyBuilder.AddAuthenticationSchemes("Bearer");
+        //         policyBuilder.RequireAuthenticatedUser();
+        //         policyBuilder.RequireRole("SuperAdmin", "User");
+        //     })
+        //     .AddPolicy(nameof(EnumAuthPolicies.SuperAdmin), policyBuilder =>
+        //     {
+        //         policyBuilder.AddAuthenticationSchemes("Bearer");
+        //         policyBuilder.RequireAuthenticatedUser();
+        //         policyBuilder.RequireRole("SuperAdmin");
+        //     });
 
 
         return builder;
@@ -323,7 +350,6 @@ public static class ApplicationConfigurationExtensions
 
     private static WebApplicationBuilder AddRpcServices(this WebApplicationBuilder builder)
     {
-
         return builder;
     }
 
@@ -351,7 +377,7 @@ public static class ApplicationConfigurationExtensions
         builder.Services.AddHttpContextAccessor();
         return builder;
     }
-    
+
     public static WebApplication UseStaticFiles(this WebApplication app)
     {
         var cacheMaxAgeOneWeek = (60 * 60 * 24 * 7).ToString(); // 7 days = 1 week
@@ -369,5 +395,17 @@ public static class ApplicationConfigurationExtensions
         });
 
         return app;
+    }
+
+    public static WebApplicationBuilder AddHangfireDefault(this WebApplicationBuilder builder)
+    {
+        builder.Services.AddHangfire(configuration =>
+        {
+            configuration
+                .UseSerilogLogProvider()
+                .UseInMemoryStorage();
+        });
+        builder.Services.AddHangfireServer(options => { options.WorkerCount = 5; });
+        return builder;
     }
 }
