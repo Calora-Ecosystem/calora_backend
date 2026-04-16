@@ -82,7 +82,7 @@ public class AuthService(
         var aud = parts[1].GetProperty("aud").GetString() ?? throw new UnauthorizedException("Invalid token");
         var iss = parts[1].GetProperty("iss").GetString() ?? throw new UnauthorizedException("Invalid token");
 
-        if (aud != "uz.zingo.app")
+        if (aud != "ai.calora.app")
             throw new UnauthorizedException("Invalid audience");
 
         if (!iss.EndsWith("appleid.apple.com"))
