@@ -50,7 +50,11 @@ public class WorkoutService(AppDbContext dbContext)
                                     i.Level == level.Value)
                         .Sum(i => i.TotalDuration.TotalMinutes + i.TotalCounts * 1 /* 1 action 1 minute */
                         )
-                    : 0,
+                    : dbContext
+                        .WorkoutComputationIndices
+                        .Where(i => i.EntityId == x.Id)
+                        .Sum(i => i.TotalDuration.TotalMinutes + i.TotalCounts * 1 /* 1 action 1 minute */
+                        ),
                 TotalMetrics = x.Exercises
                     .Where(exercise => exercise.WorkoutId == x.Id)
                     .SelectMany(exercise => exercise.Metrics)

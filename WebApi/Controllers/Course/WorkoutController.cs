@@ -23,7 +23,7 @@ public class WorkoutController(WorkoutService service, CourseService courseServi
     [HttpGet]
     [ProducesResponseType(typeof(WrapperGeneric<IEnumerable<GetWorkoutDto>>), 200)]
     public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q,
-        [FromQuery] EnumActivityLevel level = EnumActivityLevel.Minimal, [FromQuery] long? courseId = null) =>
+        [FromQuery] EnumActivityLevel level, [FromQuery] long? courseId = null) =>
         await service.GetAll(this.UserId, q, level: level, courseId: courseId);
 
     [HttpGet("{workoutId:long:min(1)}")]
