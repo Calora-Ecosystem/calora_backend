@@ -10,6 +10,8 @@ using BRB.Core.Web.Filters;
 using BRB.Core.Web.Middlewares;
 using Hangfire;
 using Hangfire.MemoryStorage;
+using Hangfire.MemoryStorage.Database;
+using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +19,7 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Npgsql;
 using ResultWrapper.Library;
 using Serilog;
 using Serilog.Core;
@@ -402,8 +405,16 @@ public static class ApplicationConfigurationExtensions
         builder.Services.AddHangfire(configuration =>
         {
             configuration
-                .UseSerilogLogProvider()
-                .UseInMemoryStorage();
+                .UseSerilogLogProvider();
+
+            if (builder.Environment.IsDevelopment())
+                configuration.UseInMemoryStorage();
+            else
+                configuration.UsePostgreSqlStorage(options =>
+                {
+                    var connectionString = builder.Configuration.GetConnectionString("Default");
+                    options.UseNpgsqlConnection(connectionString);
+                });
         });
         builder.Services.AddHangfireServer(options => { options.WorkerCount = 5; });
         return builder;
