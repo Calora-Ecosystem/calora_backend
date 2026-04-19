@@ -75,7 +75,7 @@ public partial class NotificationService
     public async Task EnqueueNotifications()
     {
         (await dbContext.PushNotifications
-                .Where(x => !x.SentAt.HasValue)
+                .Where(x => !x.EnqueuedAt.HasValue)
                 .OrderBy(x => x.CreatedAt)
                 .ToListAsync())
             .ForEach(n =>
