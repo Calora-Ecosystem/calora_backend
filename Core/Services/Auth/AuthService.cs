@@ -45,12 +45,13 @@ public class AuthService(
         var payload = await GoogleJsonWebSignature.ValidateAsync(dto.SsoToken);
 
         var user = await dbContext.Users
-            .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, payload.Email)) ?? new Entities.Auth.User()
-        {
-            Name = payload.Name,
-            Email = payload.Email,
-            Roles = [nameof(EnumRole.User)]
-        };
+                       .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, payload.Email)) ??
+                   new Entities.Auth.User()
+                   {
+                       Name = payload.Name,
+                       Email = payload.Email,
+                       Roles = [nameof(EnumRole.User)]
+                   };
 
         var hasNewUser = user.Id == 0;
 
@@ -165,12 +166,13 @@ public class AuthService(
         VerifyOtp(dto.VerificationCode.ToString(), dto.Code);
 
         var user = await dbContext.Users
-            .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, dto.Email)) ?? new Entities.Auth.User()
-        {
-            Name = "Anonymous",
-            Email = dto.Email,
-            Roles = [nameof(EnumRole.User)]
-        };
+                       .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, dto.Email)) ??
+                   new Entities.Auth.User()
+                   {
+                       Name = "Anonymous",
+                       Email = dto.Email,
+                       Roles = [nameof(EnumRole.User)]
+                   };
 
         var hasNewUser = user.Id == 0;
 
@@ -367,6 +369,9 @@ public class AuthService(
     {
         var userId = claims.FirstOrDefault(x => x.Type == CustomClaims.UserId)?.Value ??
                      throw new UnauthorizedException();
+
+        var deviceId = claims.FirstOrDefault(x => x.Type == CustomClaims.DeviceId)?.Value;
+
         var session = claims.FirstOrDefault(x => x.Type == CustomClaims.SessionId)?.Value ??
                       throw new UnauthorizedException();
 
@@ -374,10 +379,21 @@ public class AuthService(
 
         memoryCache.Remove($"session:{user.Id}:{session}");
 
+        if (!deviceId.IsNullOrEmpty())
+        {
+            var id = long.Parse(deviceId!);
+
+            var device = dbContext.Devices.FirstOrDefault(x => x.Id == id && x.UserId == user.Id);
+            
+            if (device is not null)
+            {
+                device.IsActive = false;
+            }
+        }
+
         user.RToken = null;
         user.RTokenExpireAt = DateTime.MinValue;
 
-        dbContext.Users.Update(user);
         await dbContext.SaveChangesAsync();
     }
 
