@@ -7,6 +7,7 @@ public class PushNotification : Notification
 {
     public string? Image { get; set; } = null!;
     [Column(TypeName = "jsonb")] public Dictionary<string, string>? Meta { get; set; }
+    public DateTime? EnqueuedAt { get; set; }
     public DateTime? SentAt { get; set; }
     public DateTime? Scheduled { get; set; }
     public int FailureCount { get; set; }

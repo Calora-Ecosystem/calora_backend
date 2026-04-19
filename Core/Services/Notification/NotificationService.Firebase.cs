@@ -77,14 +77,16 @@ public partial class NotificationService
         (await dbContext.PushNotifications
                 .Where(x => !x.SentAt.HasValue)
                 .OrderBy(x => x.CreatedAt)
-                .Select(x => new { x.Id, x.Scheduled })
                 .ToListAsync())
             .ForEach(n =>
             {
+                n.EnqueuedAt = DateTime.Now;
                 if (n.Scheduled.HasValue)
                     BackgroundJob.Schedule<NotificationService>(x => x.SendPush(n.Id), n.Scheduled.Value);
                 else
                     BackgroundJob.Enqueue<NotificationService>(x => x.SendPush(n.Id));
             });
+
+        await dbContext.SaveChangesAsync();
     }
 }
