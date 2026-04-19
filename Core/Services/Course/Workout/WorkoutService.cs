@@ -178,12 +178,9 @@ public class WorkoutService(AppDbContext dbContext)
                     ? dbContext
                         .Computations
                         .Where(i => i.EntityId == x.Id && i.Type == EnumEntityType.Exercise &&
-                                    i.Level == level.Value)
-                        .Sum(i => i.ComputationType == EnumComputationType.Duration
-                            ? i.Value
-                            : i.Value * 1 /* 1 action 1 minute */)
-                    : 0
-                )
+                                    i.Level == level.Value && i.ComputationType == EnumComputationType.Duration)
+                        .Sum(i => i.Value)
+                    : 0)
             })
             .OrderBy(x => x.Order)
             .GetByDataQueryAsync(query);
