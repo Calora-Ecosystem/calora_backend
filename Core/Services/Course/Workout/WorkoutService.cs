@@ -165,6 +165,7 @@ public class WorkoutService(AppDbContext dbContext)
     {
         return await dbContext
             .Exercises
+            .AsSplitQuery()
             .Where(x => x.WorkoutId == workoutId)
             .Select(x => new GetExerciseDto
             {
@@ -174,13 +175,19 @@ public class WorkoutService(AppDbContext dbContext)
                 IsDone = dbContext.CourseItemStates.Any(sh =>
                     sh.EntityId == x.Id && sh.UserId == userId && sh.Type == EnumEntityType.Exercise),
                 Order = x.Order,
-                Duration = TimeSpan.FromMinutes(level.HasValue
-                    ? dbContext
-                        .Computations
-                        .Where(i => i.EntityId == x.Id && i.Type == EnumEntityType.Exercise &&
-                                    i.Level == level.Value && i.ComputationType == EnumComputationType.Duration)
-                        .Sum(i => i.Value)
-                    : 0)
+                Duration = TimeSpan.FromMinutes(0),
+                Computation = level.HasValue
+                    ? dbContext.Computations
+                        .Where(computation =>
+                            computation.EntityId == x.Id && computation.Type == EnumEntityType.Exercise &&
+                            computation.Level == level.Value)
+                        .Select(i => new ComputationDto()
+                        {
+                            ComputationType = i.ComputationType,
+                            Value = i.Value,
+                            Activity = i.Level
+                        }).FirstOrDefault()
+                    : null,
             })
             .OrderBy(x => x.Order)
             .GetByDataQueryAsync(query);
