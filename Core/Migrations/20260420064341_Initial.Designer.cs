@@ -15,8 +15,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Core.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251104014417_AlterTableUserExtraAddColumnEntryWeight")]
-    partial class AlterTableUserExtraAddColumnEntryWeight
+    [Migration("20260420064341_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -46,6 +46,10 @@ namespace Core.Migrations
                     b.Property<string>("FcmToken")
                         .HasColumnType("text")
                         .HasColumnName("fcm_token");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
 
                     b.Property<string>("Key")
                         .IsRequired()
@@ -129,7 +133,6 @@ namespace Core.Migrations
                         .HasColumnName("created_at");
 
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("email");
@@ -144,6 +147,11 @@ namespace Core.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("password");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("phone");
 
                     b.Property<string>("RToken")
                         .HasMaxLength(50)
@@ -203,8 +211,9 @@ namespace Core.Migrations
                     b.HasIndex("Date")
                         .HasDatabaseName("ix_user_dailies_date");
 
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_user_dailies_user_id");
+                    b.HasIndex("UserId", "Date", "Metric")
+                        .IsUnique()
+                        .HasDatabaseName("ix_user_dailies_user_id_date_metric");
 
                     b.ToTable("user_dailies", (string)null);
 
@@ -257,6 +266,10 @@ namespace Core.Migrations
                     b.Property<string>("Photo")
                         .HasColumnType("text")
                         .HasColumnName("photo");
+
+                    b.Property<int?>("PhysicalActivity")
+                        .HasColumnType("integer")
+                        .HasColumnName("physical_activity");
 
                     b.Property<int>("Purpose")
                         .HasColumnType("integer")
@@ -374,6 +387,521 @@ namespace Core.Migrations
                     b.ToTable("user_step_stats", (string)null);
                 });
 
+            modelBuilder.Entity("Core.Entities.Billing.ClickTransaction", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("CardToken")
+                        .HasColumnType("text")
+                        .HasColumnName("card_token");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("currency");
+
+                    b.Property<long>("Delivery")
+                        .HasColumnType("bigint")
+                        .HasColumnName("delivery");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("InvoiceId")
+                        .HasColumnType("text")
+                        .HasColumnName("invoice_id");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("PaymentId")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_id");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("phone_number");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer")
+                        .HasColumnName("state");
+
+                    b.Property<long>("Tax")
+                        .HasColumnType("bigint")
+                        .HasColumnName("tax");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("token");
+
+                    b.Property<decimal>("Total")
+                        .HasColumnType("numeric")
+                        .HasColumnName("total");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("text")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_click_transactions");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_click_transactions_order_id");
+
+                    b.ToTable("click_transactions", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.Coupon", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<List<long>>("AllowedUserIds")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("allowed_user_ids");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("ExpireAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("expire_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("OneTime")
+                        .HasColumnType("boolean")
+                        .HasColumnName("one_time");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Usages")
+                        .HasColumnType("integer")
+                        .HasColumnName("usages");
+
+                    b.HasKey("Id")
+                        .HasName("pk_coupons");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_coupons_code");
+
+                    b.ToTable("coupons", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.CouponUsage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<long>("CouponId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("coupon_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_coupon_usages");
+
+                    b.HasIndex("CouponId", "UserId", "OrderId")
+                        .HasDatabaseName("ix_coupon_usages_coupon_id_user_id_order_id");
+
+                    b.ToTable("coupon_usages", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.Order", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<long?>("CouponId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("coupon_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("integer")
+                        .HasColumnName("provider");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_orders");
+
+                    b.HasIndex("CouponId")
+                        .HasDatabaseName("ix_orders_coupon_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_orders_status");
+
+                    b.HasIndex("Type")
+                        .HasDatabaseName("ix_orders_type");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_orders_user_id");
+
+                    b.ToTable("orders", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.Payme.PaymeTransaction", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("ExternalCreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("external_created_at");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(25)
+                        .HasColumnType("character varying(25)")
+                        .HasColumnName("external_id");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_id");
+
+                    b.Property<DateTime?>("PerformedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("performed_at");
+
+                    b.Property<int?>("Reason")
+                        .HasColumnType("integer")
+                        .HasColumnName("reason");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_payme_transactions");
+
+                    b.HasIndex("ExternalId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_payme_transactions_external_id");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_payme_transactions_order_id");
+
+                    b.ToTable("payme_transactions", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.PlanExtra", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DurationInMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_in_months");
+
+                    b.Property<long>("Fee")
+                        .HasColumnType("bigint")
+                        .HasColumnName("fee");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<int>("Plan")
+                        .HasColumnType("integer")
+                        .HasColumnName("plan");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_plan_extras");
+
+                    b.HasIndex("Plan")
+                        .HasDatabaseName("ix_plan_extras_plan");
+
+                    b.ToTable("plan_extras", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.PlanFeature", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FeatureKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("feature_key");
+
+                    b.Property<string>("Limit")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("limit");
+
+                    b.Property<long>("PlanId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("plan_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_plan_features");
+
+                    b.HasIndex("PlanId", "FeatureKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_plan_features_plan_id_feature_key");
+
+                    b.ToTable("plan_features", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.Subscription", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("EndsAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("ends_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("starts_at");
+
+                    b.Property<int>("SubscriptionPlan")
+                        .HasColumnType("integer")
+                        .HasColumnName("subscription_plan");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_subscriptions");
+
+                    b.HasIndex("SubscriptionPlan")
+                        .HasDatabaseName("ix_subscriptions_subscription_plan");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_subscriptions_user_id");
+
+                    b.ToTable("subscriptions", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.SubscriptionOrder", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_id");
+
+                    b.Property<int>("Plan")
+                        .HasColumnType("integer")
+                        .HasColumnName("plan");
+
+                    b.Property<long>("PlanExtraId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("plan_extra_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_subscription_orders");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_subscription_orders_order_id");
+
+                    b.HasIndex("PlanExtraId")
+                        .HasDatabaseName("ix_subscription_orders_plan_extra_id");
+
+                    b.ToTable("subscription_orders", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Course.Computation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("ComputationType")
+                        .HasColumnType("integer")
+                        .HasColumnName("computation_type");
+
+                    b.Property<long>("EntityId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("entity_id");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer")
+                        .HasColumnName("level");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
+
+                    b.Property<double>("Value")
+                        .HasColumnType("double precision")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id")
+                        .HasName("pk_computations");
+
+                    b.HasIndex("EntityId")
+                        .HasDatabaseName("ix_computations_entity_id");
+
+                    b.ToTable("computations", (string)null);
+                });
+
             modelBuilder.Entity("Core.Entities.Course.Course", b =>
                 {
                     b.Property<long>("Id")
@@ -397,6 +925,10 @@ namespace Core.Migrations
                     b.Property<int?>("Gender")
                         .HasColumnType("integer")
                         .HasColumnName("gender");
+
+                    b.Property<MultiLanguageField>("Info")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("info");
 
                     b.Property<decimal>("Order")
                         .HasColumnType("decimal(10,3)")
@@ -635,10 +1167,6 @@ namespace Core.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("title");
 
-                    b.Property<long>("Type")
-                        .HasColumnType("bigint")
-                        .HasColumnName("type");
-
                     b.HasKey("Id")
                         .HasName("pk_workouts");
 
@@ -649,6 +1177,40 @@ namespace Core.Migrations
                         .HasDatabaseName("ix_workouts_order");
 
                     b.ToTable("workouts", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Course.WorkoutComputationIndex", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("EntityId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("entity_id");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer")
+                        .HasColumnName("level");
+
+                    b.Property<int>("TotalCounts")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_counts");
+
+                    b.Property<TimeSpan>("TotalDuration")
+                        .HasColumnType("interval")
+                        .HasColumnName("total_duration");
+
+                    b.HasKey("Id")
+                        .HasName("pk_workout_computation_indices");
+
+                    b.HasIndex("EntityId", "Level")
+                        .HasDatabaseName("ix_workout_computation_indices_entity_id_level");
+
+                    b.ToTable("workout_computation_indices", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.FoodEntites.DailyMenu", b =>
@@ -675,6 +1237,10 @@ namespace Core.Migrations
                     b.Property<long>("UserId")
                         .HasColumnType("bigint")
                         .HasColumnName("user_id");
+
+                    b.Property<int>("Weight")
+                        .HasColumnType("integer")
+                        .HasColumnName("weight");
 
                     b.HasKey("Id")
                         .HasName("pk_daily_menus");
@@ -786,6 +1352,61 @@ namespace Core.Migrations
                     b.ToTable("food_metrics", (string)null);
                 });
 
+            modelBuilder.Entity("Core.Entities.Notification.Notification", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Discriminator")
+                        .IsRequired()
+                        .HasMaxLength(21)
+                        .HasColumnType("character varying(21)")
+                        .HasColumnName("discriminator");
+
+                    b.Property<bool>("HasRead")
+                        .HasColumnType("boolean")
+                        .HasColumnName("has_read");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notifications");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_notifications_user_id");
+
+                    b.ToTable("notifications", (string)null);
+
+                    b.HasDiscriminator<string>("Discriminator").HasValue("Notification");
+
+                    b.UseTphMappingStrategy();
+                });
+
             modelBuilder.Entity("Core.Entities.Notification.Reminder", b =>
                 {
                     b.Property<long>("Id")
@@ -799,8 +1420,8 @@ namespace Core.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("menu");
 
-                    b.Property<TimeOnly>("Time")
-                        .HasColumnType("time without time zone")
+                    b.Property<TimeSpan>("Time")
+                        .HasColumnType("interval")
                         .HasColumnName("time");
 
                     b.Property<int>("Type")
@@ -818,6 +1439,40 @@ namespace Core.Migrations
                         .HasDatabaseName("ix_reminders_user_id");
 
                     b.ToTable("reminders", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Notification.ReminderMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<int?>("Menu")
+                        .HasColumnType("integer")
+                        .HasColumnName("menu");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("title");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_reminder_messages");
+
+                    b.ToTable("reminder_messages", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Refs.Purpose", b =>
@@ -853,6 +1508,43 @@ namespace Core.Migrations
                     b.ToTable("purposes", (string)null);
                 });
 
+            modelBuilder.Entity("Core.Entities.Refs.Version", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("key");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_versions");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_versions_key");
+
+                    b.ToTable("versions", (string)null);
+                });
+
             modelBuilder.Entity("FoodUserExtra", b =>
                 {
                     b.Property<long>("FavouriteFoodsId")
@@ -870,6 +1562,41 @@ namespace Core.Migrations
                         .HasDatabaseName("ix_food_user_extra_user_extra_id");
 
                     b.ToTable("food_user_extra", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Notification.PushNotification", b =>
+                {
+                    b.HasBaseType("Core.Entities.Notification.Notification");
+
+                    b.Property<DateTime?>("EnqueuedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("enqueued_at");
+
+                    b.Property<int>("FailureCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("failure_count");
+
+                    b.Property<string>("Image")
+                        .HasColumnType("text")
+                        .HasColumnName("image");
+
+                    b.Property<Dictionary<string, string>>("Meta")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("meta");
+
+                    b.Property<DateTime?>("Scheduled")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("scheduled");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("sent_at");
+
+                    b.Property<int>("SuccessCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("success_count");
+
+                    b.HasDiscriminator().HasValue("PushNotification");
                 });
 
             modelBuilder.Entity("Core.Entities.Auth.Device", b =>
@@ -942,6 +1669,94 @@ namespace Core.Migrations
                         .HasConstraintName("fk_user_step_stats_users_user_id");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.ClickTransaction", b =>
+                {
+                    b.HasOne("Core.Entities.Billing.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_click_transactions_orders_order_id");
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.Order", b =>
+                {
+                    b.HasOne("Core.Entities.Billing.Coupon", "Coupon")
+                        .WithMany()
+                        .HasForeignKey("CouponId")
+                        .HasConstraintName("fk_orders_coupons_coupon_id");
+
+                    b.HasOne("Core.Entities.Auth.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_orders_users_user_id");
+
+                    b.Navigation("Coupon");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.Payme.PaymeTransaction", b =>
+                {
+                    b.HasOne("Core.Entities.Billing.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_payme_transactions_orders_order_id");
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.PlanFeature", b =>
+                {
+                    b.HasOne("Core.Entities.Billing.PlanExtra", "PlanExtra")
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_plan_features_plan_extras_plan_id");
+
+                    b.Navigation("PlanExtra");
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.Subscription", b =>
+                {
+                    b.HasOne("Core.Entities.Auth.User", "User")
+                        .WithOne("Subscription")
+                        .HasForeignKey("Core.Entities.Billing.Subscription", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_subscriptions_users_user_id");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Core.Entities.Billing.SubscriptionOrder", b =>
+                {
+                    b.HasOne("Core.Entities.Billing.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_subscription_orders_orders_order_id");
+
+                    b.HasOne("Core.Entities.Billing.PlanExtra", "PlanExtra")
+                        .WithMany()
+                        .HasForeignKey("PlanExtraId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_subscription_orders_plan_extras_plan_extra_id");
+
+                    b.Navigation("Order");
+
+                    b.Navigation("PlanExtra");
                 });
 
             modelBuilder.Entity("Core.Entities.Course.Exercise", b =>
@@ -1044,6 +1859,18 @@ namespace Core.Migrations
                     b.Navigation("Food");
                 });
 
+            modelBuilder.Entity("Core.Entities.Notification.Notification", b =>
+                {
+                    b.HasOne("Core.Entities.Auth.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notifications_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Core.Entities.Notification.Reminder", b =>
                 {
                     b.HasOne("Core.Entities.Auth.User", "User")
@@ -1076,6 +1903,8 @@ namespace Core.Migrations
             modelBuilder.Entity("Core.Entities.Auth.User", b =>
                 {
                     b.Navigation("Extra");
+
+                    b.Navigation("Subscription");
                 });
 
             modelBuilder.Entity("Core.Entities.Course.Course", b =>
