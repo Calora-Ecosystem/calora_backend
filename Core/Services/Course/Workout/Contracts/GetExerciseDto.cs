@@ -13,4 +13,5 @@ public record GetExerciseDto
     public TimeSpan Duration { get; set; }
     public bool IsDone { get; set; }
     public decimal Order { get; set; }
+    public ComputationDto? Computation { get; set; }
 }
