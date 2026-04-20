@@ -21,6 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Migrations\" />
       <Folder Include="Services\Billing\Click\Enums\" />
       <Folder Include="Services\Billing\Payme\Exceptions\" />
     </ItemGroup>
