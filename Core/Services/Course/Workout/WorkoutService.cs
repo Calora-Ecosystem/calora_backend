@@ -181,7 +181,7 @@ public class WorkoutService(AppDbContext dbContext)
                         .Where(computation =>
                             computation.EntityId == x.Id && computation.Type == EnumEntityType.Exercise &&
                             computation.Level == level.Value)
-                        .Select(i => new ComputationDto()
+                        .Select(i => new ComputationShortDto()
                         {
                             ComputationType = i.ComputationType,
                             Value = i.Value,
