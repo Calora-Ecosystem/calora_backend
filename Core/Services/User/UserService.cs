@@ -44,7 +44,9 @@ public class UserService(AppDbContext context)
                     : null,
                 Extra = x.Extra != null
                     ? new UserExtraShortDto { Photo = x.Extra.Photo }
-                    : null
+                    : null,
+                CreatedAt = x.CreatedAt,
+                UpdatedAt = x.UpdatedAt,
             })
             .GetByDataQueryAsync(query);
     }

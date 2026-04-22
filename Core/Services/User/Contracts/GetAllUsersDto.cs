@@ -9,4 +9,6 @@ public record GetAllUsersDto
     public List<string> Roles { get; set; } = null!;
     public SubscriptionDto? Subscription { get; set; }
     public UserExtraShortDto? Extra { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
