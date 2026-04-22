@@ -244,8 +244,9 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
             food.CategoryId = dto.CategoryId;
             food.CoverUrl = dto.CoverUrl;
             food.Name = dto.Name;
+            food.Description = dto.Description;
 
-            food = dbContext.Foods.Update(food).Entity;
+            await dbContext.SaveChangesAsync();
 
             //clear food metrics
             await dbContext.FoodMetrics.Where(x => x.FoodId == food.Id).ExecuteDeleteAsync();
