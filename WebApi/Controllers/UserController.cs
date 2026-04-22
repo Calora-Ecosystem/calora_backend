@@ -31,6 +31,7 @@ public class UserController(UserService userService) : AuthorizedController
 
     [HttpGet]
     [ProducesResponseType<WrapperGeneric<IEnumerable<GetAllUsersDto>>>(200)]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> GetAllUsers([FromQuery] DataQueryRequest query) => await userService.GetAllUsers(query);
 
     #region Extras
