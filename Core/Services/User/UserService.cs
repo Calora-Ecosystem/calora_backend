@@ -27,6 +27,28 @@ public class UserService(AppDbContext context)
         return user;
     }
 
+    public async Task<Wrapper> GetAllUsers(DataQueryRequest query)
+    {
+        return await context.Users.Select(x => new GetAllUsersDto
+            {
+                Id = x.Id, Name = x.Name, Email = x.Email,
+                Phone = x.Phone,
+                Roles = x.Roles,
+                Subscription = x.Subscription != null
+                    ? new SubscriptionDto
+                    {
+                        Id = x.Subscription.Id, StartsAt = x.Subscription.StartsAt, EndsAt = x.Subscription.EndsAt,
+                        Plan = x.Subscription.SubscriptionPlan,
+                        IsActive = x.Subscription.IsActive
+                    }
+                    : null,
+                Extra = x.Extra != null
+                    ? new UserExtraShortDto { Photo = x.Extra.Photo }
+                    : null
+            })
+            .GetByDataQueryAsync(query);
+    }
+
     #region UserExtras
 
     public async Task<object> GetExtra(long userId)
@@ -89,7 +111,7 @@ public class UserService(AppDbContext context)
                         Date = DateTime.Now.Date,
                         UserId = userId
                     }).Entity;
-                
+
                 daily.Value += progress;
             }
 

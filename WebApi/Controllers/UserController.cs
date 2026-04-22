@@ -29,6 +29,11 @@ public class UserController(UserService userService) : AuthorizedController
     public async Task<Wrapper> GetMe() =>
         (await userService.GetUserAsync(this.UserId), 200);
 
+    [HttpGet]
+    [ProducesResponseType<WrapperGeneric<IEnumerable<GetAllUsersDto>>>(200)]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> GetAllUsers([FromQuery] DataQueryRequest query) => await userService.GetAllUsers(query);
+
     #region Extras
 
     [HttpGet("extras")]
@@ -49,6 +54,7 @@ public class UserController(UserService userService) : AuthorizedController
         await userService.DeleteExtra(this.UserId);
         return (new { Message = "User extra deleted successfully." }, 200);
     }
+
     #endregion
 
     #region Norms
@@ -78,7 +84,8 @@ public class UserController(UserService userService) : AuthorizedController
 
     [HttpGet("dailies")]
     [ProducesResponseType<WrapperGeneric<GetDailyDto>>(200)]
-    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery, Required] EnumMetrics metrics, long? userId,
+    public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery, Required] EnumMetrics metrics,
+        long? userId,
         [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null) =>
         await userService.GetDaily(userId ?? UserId, q, metrics, from, to);
 
@@ -88,7 +95,7 @@ public class UserController(UserService userService) : AuthorizedController
         await userService.CreateOrUpdateDaily(this.UserId, userDaily);
         return (new { Message = "User daily record added successfully." }, 201);
     }
-    
+
     [HttpDelete("dailies/reset")]
     public async Task<Wrapper> ResetDaily(DateTime date)
     {
