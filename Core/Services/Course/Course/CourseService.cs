@@ -1,5 +1,6 @@
-using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
+using Core.Exceptions;
+using Core.Services.Course.Course.Exceptions;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
@@ -89,7 +90,7 @@ public class CourseService(AppDbContext context)
                 var finishedExerciseCount = await context.CourseItemStates.CountAsync(x =>
                     exerciseIds.Contains(x.EntityId) && x.UserId == userId && x.Type == EnumEntityType.Exercise);
                 if (exerciseIds.Count != finishedExerciseCount)
-                    throw new BadRequestException("Not all exercises are finished");
+                    throw new ExercisesNotCompletedException();
                 
                 break;
             }
@@ -99,7 +100,7 @@ public class CourseService(AppDbContext context)
                 break;
 
             default:
-                throw new ArgumentOutOfRangeException(nameof(type), type, null);
+                throw new InvalidEntityTypeException();
         }
 
         var entity = await context.CourseItemStates.FirstOrDefaultAsync(x =>
@@ -120,7 +121,7 @@ public class CourseService(AppDbContext context)
     public async Task ReorderCourseItem(EnumCourseItemType type, long id, long? beforeItemId, long? afterItemId)
     {
         if (beforeItemId == null && afterItemId == null)
-            throw new BadRequestException("Both before and after item id are null");
+            throw new InvalidItemPositionException();
 
         Func<long, long?, long?, Task> orderFunc = type switch
         {
@@ -128,7 +129,7 @@ public class CourseService(AppDbContext context)
             EnumCourseItemType.Exercise => ReorderItemAsync<Entities.Course.Exercise>,
             EnumCourseItemType.Lesson => ReorderItemAsync<Entities.Course.Lesson>,
             EnumCourseItemType.Workout => ReorderItemAsync<Entities.Course.Workout>,
-            _ => throw new Exception("Unknown type")
+            _ => throw new InvalidEntityTypeException()
         };
 
         await orderFunc(id, beforeItemId, afterItemId);

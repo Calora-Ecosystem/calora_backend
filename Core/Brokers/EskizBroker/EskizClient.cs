@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
 using BRB.Core.Common.Extensions;
+using Core.Brokers.EskizBroker.Exceptions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -32,7 +33,7 @@ public class EskizClient(IOptions<EskizConfig> configOptions, IMemoryCache memor
 #if DEBUG
             Log.Error(await response.Content.ReadAsStringAsync());
 #endif
-            throw new Exception("Sms service error");
+            throw new SmsServiceException();
         }
 
         var respBody = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -44,7 +45,7 @@ public class EskizClient(IOptions<EskizConfig> configOptions, IMemoryCache memor
             return tokenValue;
         }
 
-        throw new Exception("Sms service error");
+        throw new SmsServiceException();
     }
 
     private async Task<HttpClient> GetClientWithAuth()
@@ -69,6 +70,6 @@ public class EskizClient(IOptions<EskizConfig> configOptions, IMemoryCache memor
             content);
 
         if (response.IsSuccessStatusCode)
-            throw new Exception("Unable to send sms");
+            throw new SmsDeliveryException();
     }
 }

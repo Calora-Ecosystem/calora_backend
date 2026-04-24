@@ -1,4 +1,5 @@
 using Core.Services.Notification.Contracts;
+using Core.Services.Notification.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Core.Services.Notification;
@@ -8,7 +9,7 @@ public partial class NotificationService
     public async Task SendMailAsync(EmailNotificationDto notification)
     {
         if (notification.Description is null)
-            throw new ArgumentNullException(nameof(notification.Description));
+            throw new NotificationDescriptionRequiredException();
         
         var user = await dbContext.Users
             .Select(x => new { x.Id, x.Email })
@@ -20,7 +21,7 @@ public partial class NotificationService
     public async Task SendMailAsync(EmailNotificationWithoutUserDto notification)
     {
         if (notification.Description is null)
-            throw new ArgumentNullException(nameof(notification.Description));
+            throw new NotificationDescriptionRequiredException();
         
         await emailClient.SendMailAsync(notification.Email, notification.Description, notification.Title);
     }
@@ -28,7 +29,7 @@ public partial class NotificationService
     public async Task SendMailAsync(BatchEmailNotificationDto notification)
     {
         if (notification.Description is null)
-            throw new ArgumentNullException(nameof(notification.Description));
+            throw new NotificationDescriptionRequiredException();
         
         var tasks = (await dbContext.Users
                 .Where(x => notification.UserIds.Contains(x.Id))

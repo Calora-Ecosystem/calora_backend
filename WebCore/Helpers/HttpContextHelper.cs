@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using BRB.Core.Common.Exceptions;
+using WebCore.Helpers.Exceptions;
 
 namespace WebCore.Helpers;
 
@@ -16,11 +16,11 @@ public static class HttpContextHelper
     public static T? Parse<T>(this HttpContext context, string claim)
     {
         var rawValue = context.User.FindFirstValue(claim) ??
-                       throw new UnauthorizedException($"Required claim ({claim}) not found");
+                       throw new ClaimNotFoundException();
         var value = Convert.ChangeType(rawValue, typeof(T?));
         return (T?)value;
     }
 
     public static T ParseRequired<T>(this HttpContext context, string claim) => context.Parse<T>(claim) ??
-        throw new UnauthorizedException($"Required claim ({claim}) not found");
+        throw new ClaimNotFoundException();
 }

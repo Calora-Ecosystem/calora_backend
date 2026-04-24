@@ -1,5 +1,5 @@
-﻿using BRB.Core.Common.Exceptions;
-using BRB.Core.Common.Models;
+﻿using BRB.Core.Common.Models;
+using Core.Services.Billing.Exceptions;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
@@ -30,7 +30,7 @@ public class OrderService(
         await dbContext.Users.ExistsOrThrowsNotFoundException(userId);
 
         if (await dbContext.Subscriptions.AnyAsync(x => x.UserId == userId && x.IsActive))
-            throw new BadRequestException("You are already subscribed");
+            throw new UserAlreadySubscribedException();
 
         var planExtra = await dbContext.PlanExtras.GetByIdOrThrowsNotFoundException(dto.PlanExtraId);
 
@@ -38,7 +38,7 @@ public class OrderService(
                 .AnyAsync(x => x.UserId == userId
                                && x.Type == EnumOrderType.Subscription
                                && x.Status == EnumOrderStatus.Pending))
-            throw new BadRequestException("Pending subscription order already exists");
+            throw new PendingOrderAlreadyExistsException();
         
         if (dto.CouponId.HasValue)
             await dbContext.Coupons.ExistsOrThrowsNotFoundException(dto.CouponId.Value);
@@ -93,7 +93,7 @@ public class OrderService(
                 EnumPaymentProviders.Payme => serviceProvider.GetRequiredService<PaymeService>()
                     .CreateInternalTransaction(order),
                 EnumPaymentProviders.Iap => Task.CompletedTask,
-                _ => throw new Exception("Provider not found")
+                _ => throw new ProviderNotFoundException()
             });
 
             await dbContext.SaveChangesAsync();
@@ -137,7 +137,7 @@ public class OrderService(
     {
         var order = await dbContext.Orders.FirstOrDefaultAsync(x =>
                         x.Id == orderId && x.UserId == userId && x.Status == EnumOrderStatus.Pending)
-                    ?? throw new NotFoundException("Order not found");
+                    ?? throw new OrderNotFoundException();
 
         await dbContext.Transactional(async () =>
         {
@@ -169,7 +169,7 @@ public class OrderService(
         var result = await (order.Type switch
         {
             EnumOrderType.Subscription => AcceptSubscriptionPaymentAsync(order),
-            _ => throw new Exception("Order type not found")
+            _ => throw new OrderTypeNotFoundException()
         });
 
         order.Status = result ? EnumOrderStatus.Confirmed : EnumOrderStatus.Cancelled;
@@ -213,7 +213,7 @@ public class OrderService(
     {
         var order = await dbContext.Orders
                         .FirstOrDefaultAsync(x => x.Id == orderId && x.UserId == userId)
-                    ?? throw new NotFoundException("Order not found");
+                    ?? throw new OrderNotFoundException();
 
         return await (order.Provider switch
         {
@@ -222,7 +222,7 @@ public class OrderService(
             EnumPaymentProviders.Payme => serviceProvider.GetRequiredService<PaymeService>()
                 .MakeClickPaymentLink(order.Id, order.Amount),
             EnumPaymentProviders.Iap => Task.FromResult("3rd party payment"),
-            _ => throw new Exception("Provider not found")
+            _ => throw new ProviderNotFoundException()
         });
     }
 

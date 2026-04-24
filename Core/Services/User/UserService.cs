@@ -1,6 +1,6 @@
 ﻿using System.Data;
-using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
+using Core.Services.User.Exceptions;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
@@ -22,7 +22,7 @@ public class UserService(AppDbContext context)
                        .Where(x => x.Id == userId)
                        .Select(x => new GetUserDto(x.Id, x.Email ?? x.Phone, x.Roles))
                        .FirstOrDefaultAsync()
-                   ?? throw new NotFoundException("User not found.");
+                   ?? throw new UserNotFoundException();
 
         return user;
     }
@@ -62,7 +62,7 @@ public class UserService(AppDbContext context)
                             x.BirthDate,
                             x.Photo, x.Name, x.ActivityLevel, x.Purpose, x.PhysicalActivity))
                         .FirstOrDefaultAsync()
-                    ?? throw new NotFoundException("User not found.");
+                    ?? throw new UserNotFoundException();
 
         extra.Progress = await UserProgressSummary(userId);
 
@@ -264,7 +264,7 @@ public class UserService(AppDbContext context)
     {
         var existing = await context.UserExtras
                            .FirstOrDefaultAsync(x => x.UserId == userId)
-                       ?? throw new NotFoundException("User not found.");
+                       ?? throw new UserNotFoundException();
 
         context.UserExtras.Remove(existing);
         await context.SaveChangesAsync();
@@ -326,7 +326,7 @@ public class UserService(AppDbContext context)
     {
         var existing = await context.UserNorms
                            .FirstOrDefaultAsync(x => x.UserId == userId && x.Metric == metric)
-                       ?? throw new NotFoundException("User or metric not found.");
+                       ?? throw new UserNormNotFoundException();
 
         context.UserNorms.Remove(existing);
         await context.SaveChangesAsync();
@@ -424,7 +424,7 @@ public class UserService(AppDbContext context)
                                x.UserId == userId &&
                                x.Metric == metric &&
                                x.Date.Date == date)
-                       ?? throw new NotFoundException("User or daily record not found.");
+                       ?? throw new UserDailyNotFoundException();
 
         context.UserDailies.Remove(existing);
         await context.SaveChangesAsync();
@@ -475,7 +475,7 @@ group by ung.user_id
         to ??= DateTime.Now.Date.AddDays(1);
 
         var extra = await context.UserExtras
-            .FirstOrDefaultAsync(x => x.UserId == userId) ?? throw new NotFoundException("User extra not found");
+            .FirstOrDefaultAsync(x => x.UserId == userId) ?? throw new UserExtraNotFoundException();
 
         var totalFoots = Math.Round(await context.UserDailies
             .AsNoTracking()

@@ -1,6 +1,6 @@
 using System.Data;
-using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
+using Core.Services.Billing.Exceptions;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
@@ -57,10 +57,10 @@ public class CouponService(AppDbContext context)
                                                                            && (!x.ExpireAt.HasValue ||
                                                                                x.ExpireAt.Value <= DateTime.Now)
                 )
-            ?? throw new NotFoundException("Coupon not found");
+            ?? throw new CouponNotFoundException();
 
         if (coupon.AllowedUserIds != null && !coupon.AllowedUserIds.Contains(userId))
-            throw new NotFoundException("Coupon not found");
+            throw new CouponNotFoundException();
 
         return new CheckCouponDto
         {
@@ -76,27 +76,27 @@ public class CouponService(AppDbContext context)
         await context.Transactional(async () =>
         {
             if (dto.ExpireAt.HasValue && dto.ExpireAt.Value <= DateTime.Now)
-                throw new BadRequestException("Expire at less than now");
+                throw new CouponExpireAtInvalidException();
 
             if (dto.AllowedUserIds != null)
             {
                 var existedUserIdsCount = await context.Users.CountAsync(x => dto.AllowedUserIds.Contains(x.Id));
 
                 if (existedUserIdsCount != dto.AllowedUserIds.Count)
-                    throw new BadRequestException("One or more allowed users not found");
+                    throw new CouponUsersNotFoundException();
             }
 
             var coupon = dto.Id.HasValue
                 ? await context.Coupons
                       .FirstOrDefaultAsync(x =>
                           x.Id == dto.Id.Value && EF.Functions.ILike(x.Code, dto.Code))
-                  ?? throw new NotFoundException("Coupon not found")
+                  ?? throw new CouponNotFoundException()
                 : null;
 
             if (coupon is null)
             {
                 if (await context.Coupons.AnyAsync(x => EF.Functions.ILike(x.Code, dto.Code)))
-                    throw new BadRequestException("Code already exists");
+                    throw new CouponCodeAlreadyExistsException();
 
                 coupon = new Coupon()
                 {
@@ -107,7 +107,7 @@ public class CouponService(AppDbContext context)
 
             if (coupon.Id != 0 && coupon.Usages > 1 && dto.OneTime)
             {
-                throw new BadRequestException("Coupon already used");
+                throw new CouponAlreadyUsedException();
             }
 
             coupon.ExpireAt = dto.ExpireAt;

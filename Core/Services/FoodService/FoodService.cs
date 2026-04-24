@@ -1,5 +1,5 @@
-﻿using BRB.Core.Common.Exceptions;
-using BRB.Core.Common.Extensions;
+﻿using BRB.Core.Common.Extensions;
+using Core.Services.FoodService.Exceptions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -75,7 +75,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         if (latest)
         {
             if (!userId.HasValue)
-                throw new BadRequestException("Authorized user required");
+                throw new AuthorizedUserRequiredException();
 
             var ids = await dbContext.DailyMenus
                 .Where(x => x.UserId == userId)
@@ -91,14 +91,14 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         if (q.IsUserFood.HasValue && q.IsUserFood.Value)
         {
             if (!userId.HasValue)
-                throw new BadRequestException("Authorized user required");
+                throw new AuthorizedUserRequiredException();
             queryable = queryable.Where(x => x.UserId == userId);
         }
 
         if (q.IsFavourite.HasValue && q.IsFavourite.Value)
         {
             if (!userId.HasValue)
-                throw new BadRequestException("Authorized user required");
+                throw new AuthorizedUserRequiredException();
             queryable = queryable.Where(x => fIds.Contains(x.Id));
         }
 
@@ -133,10 +133,10 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                 IsUserFood = x.UserId.HasValue,
                 UserId = x.UserId,
             })
-            .FirstOrDefaultAsync(x => x.Id == foodId) ?? throw new NotFoundException("Food not found");
+            .FirstOrDefaultAsync(x => x.Id == foodId) ?? throw new FoodNotFoundException();
 
         if (userId.HasValue && food.IsUserFood && food.UserId != userId)
-            throw new NotFoundException("Food not found");
+            throw new FoodNotFoundException();
 
         var metricsDict =
             new List<EnumMetrics>([
@@ -172,7 +172,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         var userExtra = await dbContext.UserExtras
                             .Include(userExtra => userExtra.FavouriteFoods)
                             .FirstOrDefaultAsync(x => x.UserId == userId) ??
-                        throw new NotFoundException("User extra not found");
+                        throw new UserExtraNotFoundException();
 
         if (!userExtra.FavouriteFoods.Contains(food))
             userExtra.FavouriteFoods.Add(food);
@@ -187,7 +187,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         if (dto is CreateUserFood userFood)
         {
             if (userFood.UserId != userId)
-                throw new BadRequestException("Deny to create food for another user");
+                throw new FoodCreateForbiddenException();
 
             await dbContext.Users.ExistsOrThrowsNotFoundException(userFood.UserId);
             foodUserId = userFood.UserId;
@@ -228,13 +228,13 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         var food = await dbContext.Foods.GetByIdOrThrowsNotFoundException(foodId);
 
         if (!food.UserId.HasValue && dto.UserId.HasValue)
-            throw new BadRequestException("Unable to update this food");
+            throw new FoodUpdateForbiddenException();
 
         if (food.UserId.HasValue && !dto.UserId.HasValue)
-            throw new BadRequestException("Unable to update this food");
+            throw new FoodUpdateForbiddenException();
 
         if (food.UserId.HasValue && dto.UserId.HasValue && food.UserId != dto.UserId)
-            throw new BadRequestException("Unable to update this food");
+            throw new FoodUpdateForbiddenException();
 
         await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId);
 
@@ -351,7 +351,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                        .Include(x => x.Metrics)
                        .FirstOrDefaultAsync(x =>
                            x.Id == dto.FoodId && (!x.UserId.HasValue || x.UserId == userId)) ??
-                   throw new NotFoundException("Food not found");
+                   throw new FoodNotFoundException();
 
         var date = dto.Date?.Date ?? DateTime.Now.Date;
 
@@ -459,7 +459,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                     EnumMenu.Lunch => kcalNorm.Value * 0.35,
                     EnumMenu.Dinner => kcalNorm.Value * 0.30,
                     EnumMenu.Snack => kcalNorm.Value * 0.10,
-                    _ => throw new ArgumentOutOfRangeException(nameof(menu), menu, null)
+                    _ => throw new InvalidMenuException()
                 }, 0),
                 Carb = 0,
                 Fat = 0,

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
-using BRB.Core.Common.Exceptions;
 using BRB.Core.EF.Attributes;
+using Core.Services.Billing.Exceptions;
 using Core.Brokers.DbContext;
 using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
@@ -246,7 +246,7 @@ public class ClickService(
     public async Task<string> MakeClickPaymentLink(long orderId, decimal amount)
     {
         var transaction = await appDbContext.ClickTransactions
-            .FirstOrDefaultAsync(x => x.OrderId == orderId) ?? throw new NotFoundException("Transaction not found");
+            .FirstOrDefaultAsync(x => x.OrderId == orderId) ?? throw new TransactionNotFoundException();
 
         amount /= 100; //convert to sum
 
