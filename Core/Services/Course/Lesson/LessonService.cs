@@ -1,5 +1,5 @@
-using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
+using Core.Services.Course.Exceptions;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
@@ -41,7 +41,7 @@ public class LessonService(AppDbContext dbContext)
     public async Task<long> CrateOrUpdate(CreateOrUpdateLessonDto dto)
     {
         if (!dbContext.Courses.Any(x => x.Id == dto.CourseId && x.Type == EnumCourseType.Lesson))
-            throw new NotFoundException("Course not found");
+            throw new CourseNotFoundException();
 
         var lesson = dto.Id.HasValue
             ? await dbContext.Lessons.GetByIdOrThrowsNotFoundException(dto.Id.Value)

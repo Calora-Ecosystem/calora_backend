@@ -1,5 +1,6 @@
-using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Extensions;
+using Core.Services.Course.Exceptions;
+using Core.Services.Course.Workout.Exceptions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -81,13 +82,13 @@ public class WorkoutService(AppDbContext dbContext)
                 Assets = x.Assets,
                 Order = x.Order
             })
-            .FirstOrDefaultAsync(x => x.Id == id) ?? throw new NotFoundException("Workout not found");
+            .FirstOrDefaultAsync(x => x.Id == id) ?? throw new WorkoutNotFoundException();
     }
 
     public async Task<long> CrateOrUpdate(CreateOrUpdateWorkoutDto dto)
     {
         if (!dbContext.Courses.Any(x => x.Id == dto.CourseId && x.Type == EnumCourseType.Workout))
-            throw new NotFoundException("Course not found");
+            throw new CourseNotFoundException();
 
         var workout = dto.Id.HasValue
             ? await dbContext.Workouts.GetByIdOrThrowsNotFoundException(dto.Id.Value)
@@ -157,7 +158,7 @@ public class WorkoutService(AppDbContext dbContext)
                         Activity = i.Level
                     }).ToList()
             })
-            .FirstOrDefaultAsync(x => x.Id == id) ?? throw new NotFoundException("Exercise not found");
+            .FirstOrDefaultAsync(x => x.Id == id) ?? throw new ExerciseNotFoundException();
     }
 
     public async Task<Wrapper> GetAllExercises(long userId, long workoutId, EnumActivityLevel? level,
@@ -353,7 +354,7 @@ public class WorkoutService(AppDbContext dbContext)
             {
                 EnumEntityType.Exercise => dbContext.Exercises.ExistsOrThrowsNotFoundException(dto.EntityId),
                 EnumEntityType.Workout => dbContext.Workouts.ExistsOrThrowsNotFoundException(dto.EntityId),
-                _ => throw new BadRequestException("Invalid type of entity")
+                _ => throw new InvalidEntityTypeException()
             });
 
             var computation = dto.Id.HasValue

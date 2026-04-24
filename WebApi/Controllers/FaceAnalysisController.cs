@@ -1,5 +1,5 @@
-﻿using BRB.Core.Common.Exceptions;
-using Core.Attributes;
+﻿using Core.Attributes;
+using WebApi.Exceptions;
 using Core.Enums;
 using Core.Services.Ai.Contracts;
 using Core.Services.File.Contracts;
@@ -36,7 +36,7 @@ namespace WebApi.Controllers
             var faces = cascade.DetectMultiScale(mat);
 
             if (faces.Length == 0)
-                throw new BadRequestException("face not found");
+                throw new FaceNotFoundException();
 
             var face = faces[0];
 

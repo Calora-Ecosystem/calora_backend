@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using BRB.Core.Common.Exceptions;
 using Core.Constants;
 using Core.Enums;
 using Core.Exceptions;
@@ -17,7 +16,7 @@ namespace Core.Attributes;
 public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribute, IAuthorizationFilter
 {
     private new EnumRole[] Roles { get; set; } = roles;
-    public EnumSPlans[]? Plans { get; set; } = null!;
+    public EnumSPlans[]? Plans { get; set; }
 
     public void OnAuthorization(AuthorizationFilterContext context)
     {
@@ -32,7 +31,7 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
             return;
 
         var user = context.HttpContext.User;
-        if (user?.Identity is not { IsAuthenticated: true })
+        if (user.Identity is not { IsAuthenticated: true })
         {
             context.HttpContext.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
             context.Result = new ObjectResult(new Wrapper(new UnauthorizedException()));
