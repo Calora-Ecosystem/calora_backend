@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
-using BRB.Core.Common.Exceptions;
 using BRB.Core.EF.Attributes;
+using Core.Services.Billing.Exceptions;
 using Core.Brokers.DbContext;
 using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
@@ -122,7 +122,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config, 
             return checkResult;
 
         var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId) ??
-                          throw new NotFoundException("Transaction not found");
+                          throw new TransactionNotFoundException();
 
         if (transaction.ExternalId != null)
         {
@@ -410,7 +410,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config, 
     public async Task<string> MakeClickPaymentLink(long orderId, long orderAmount)
     {
         var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId) ??
-                          throw new NotFoundException("Transaction not found");
+                          throw new TransactionNotFoundException();
 
         var data = $"m={config.Value.MerchantId};ac.order_id={transaction.Id.ToString()};a={transaction.Amount}";
         var base64Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(data));

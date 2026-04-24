@@ -1,5 +1,6 @@
 ﻿using BRB.Core.File;
 using Core;
+using WebApi.Exceptions;
 using Core.Attributes;
 using Core.Enums;
 using Core.Services.File.Contracts;
@@ -54,7 +55,7 @@ public class FileController(FileService fileService) : AuthorizedController
             "image/jpeg" => JpegFormat.Instance,
             "image/bmp" => BmpFormat.Instance,
             "image/webp" => WebpFormat.Instance,
-            _ => throw new Exception("Not allowed file type")
+            _ => throw new FileTypeNotAllowedException()
         };
 
         var file = dto.File;
