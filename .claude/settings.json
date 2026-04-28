@@ -1,0 +1,10 @@
+{
+  "env": {
+    "ENABLE_LSP_TOOL": "1",
+    "PATH": "/Users/0605abmu/.dotnet/tools:/usr/local/share/dotnet:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  },
+  "lsp": true,
+  "enabledPlugins": {
+    "csharp-lsp@claude-plugins-official": true
+  }
+}
