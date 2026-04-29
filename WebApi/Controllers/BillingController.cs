@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
-using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
+using WebApi.Exceptions;
 using Core.Attributes;
 using Core.Enums;
 using Core.Services.Billing;
@@ -117,7 +117,7 @@ public class BillingController(
         });
 
         if (request is null)
-            throw new BadRequestException("request invalid");
+            throw new InvalidRequestException();
 
         await rcService.HandleRequest(request);
         return 200;

@@ -1565,6 +1565,10 @@ namespace Core.Migrations
                 {
                     b.HasBaseType("Core.Entities.Notification.Notification");
 
+                    b.Property<DateTime?>("EnqueuedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("enqueued_at");
+
                     b.Property<int>("FailureCount")
                         .HasColumnType("integer")
                         .HasColumnName("failure_count");

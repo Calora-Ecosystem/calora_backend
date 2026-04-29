@@ -64,6 +64,7 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddHttpClient();
 #if !DEBUG
 builder.AddSwaggerServer("/api/");
+builder.AddSwaggerServer("https://calora.uz/api/");
 #endif
 
 builder

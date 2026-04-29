@@ -1,5 +1,6 @@
-using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Extensions;
+using Core.Services.Course.Exceptions;
+using Core.Services.Course.Workout.Exceptions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -26,7 +27,7 @@ public class WorkoutService(AppDbContext dbContext)
             q = q.Where(x => x.CourseId == courseId);
 
         return await q
-            .AsSingleQuery()
+            .AsSplitQuery()
             .Select(x => new GetWorkoutDto()
             {
                 Id = x.Id,
@@ -50,7 +51,11 @@ public class WorkoutService(AppDbContext dbContext)
                                     i.Level == level.Value)
                         .Sum(i => i.TotalDuration.TotalMinutes + i.TotalCounts * 1 /* 1 action 1 minute */
                         )
-                    : 0,
+                    : dbContext
+                        .WorkoutComputationIndices
+                        .Where(i => i.EntityId == x.Id)
+                        .Sum(i => i.TotalDuration.TotalMinutes + i.TotalCounts * 1 /* 1 action 1 minute */
+                        ),
                 TotalMetrics = x.Exercises
                     .Where(exercise => exercise.WorkoutId == x.Id)
                     .SelectMany(exercise => exercise.Metrics)
@@ -77,13 +82,13 @@ public class WorkoutService(AppDbContext dbContext)
                 Assets = x.Assets,
                 Order = x.Order
             })
-            .FirstOrDefaultAsync(x => x.Id == id) ?? throw new NotFoundException("Workout not found");
+            .FirstOrDefaultAsync(x => x.Id == id) ?? throw new WorkoutNotFoundException();
     }
 
     public async Task<long> CrateOrUpdate(CreateOrUpdateWorkoutDto dto)
     {
         if (!dbContext.Courses.Any(x => x.Id == dto.CourseId && x.Type == EnumCourseType.Workout))
-            throw new NotFoundException("Course not found");
+            throw new CourseNotFoundException();
 
         var workout = dto.Id.HasValue
             ? await dbContext.Workouts.GetByIdOrThrowsNotFoundException(dto.Id.Value)
@@ -153,7 +158,7 @@ public class WorkoutService(AppDbContext dbContext)
                         Activity = i.Level
                     }).ToList()
             })
-            .FirstOrDefaultAsync(x => x.Id == id) ?? throw new NotFoundException("Exercise not found");
+            .FirstOrDefaultAsync(x => x.Id == id) ?? throw new ExerciseNotFoundException();
     }
 
     public async Task<Wrapper> GetAllExercises(long userId, long workoutId, EnumActivityLevel? level,
@@ -161,6 +166,7 @@ public class WorkoutService(AppDbContext dbContext)
     {
         return await dbContext
             .Exercises
+            .AsSplitQuery()
             .Where(x => x.WorkoutId == workoutId)
             .Select(x => new GetExerciseDto
             {
@@ -170,16 +176,19 @@ public class WorkoutService(AppDbContext dbContext)
                 IsDone = dbContext.CourseItemStates.Any(sh =>
                     sh.EntityId == x.Id && sh.UserId == userId && sh.Type == EnumEntityType.Exercise),
                 Order = x.Order,
-                Duration = TimeSpan.FromMinutes(level.HasValue
-                    ? dbContext
-                        .Computations
-                        .Where(i => i.EntityId == x.Id && i.Type == EnumEntityType.Exercise &&
-                                    i.Level == level.Value)
-                        .Sum(i => i.ComputationType == EnumComputationType.Duration
-                            ? i.Value
-                            : i.Value * 1 /* 1 action 1 minute */)
-                    : 0
-                )
+                Duration = TimeSpan.FromMinutes(0),
+                Computation = level.HasValue
+                    ? dbContext.Computations
+                        .Where(computation =>
+                            computation.EntityId == x.Id && computation.Type == EnumEntityType.Exercise &&
+                            computation.Level == level.Value)
+                        .Select(i => new ComputationShortDto()
+                        {
+                            ComputationType = i.ComputationType,
+                            Value = i.Value,
+                            Activity = i.Level
+                        }).FirstOrDefault()
+                    : null,
             })
             .OrderBy(x => x.Order)
             .GetByDataQueryAsync(query);
@@ -345,7 +354,7 @@ public class WorkoutService(AppDbContext dbContext)
             {
                 EnumEntityType.Exercise => dbContext.Exercises.ExistsOrThrowsNotFoundException(dto.EntityId),
                 EnumEntityType.Workout => dbContext.Workouts.ExistsOrThrowsNotFoundException(dto.EntityId),
-                _ => throw new BadRequestException("Invalid type of entity")
+                _ => throw new InvalidEntityTypeException()
             });
 
             var computation = dto.Id.HasValue

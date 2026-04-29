@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
-using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Models;
+using Core.Services.Notification.Exceptions;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
@@ -71,7 +71,7 @@ public partial class NotificationService(
         var notification = dto.Id.HasValue
             ? await dbContext.PushNotifications
                   .FirstOrDefaultAsync(x => x.Id == dto.Id.Value && !x.SentAt.HasValue) ??
-              throw new NotFoundException("Notification not found")
+              throw new NotificationNotFoundException()
             : new PushNotification()
             {
                 UserId = dto.UserId

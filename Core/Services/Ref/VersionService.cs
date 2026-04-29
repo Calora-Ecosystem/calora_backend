@@ -1,5 +1,5 @@
-﻿using BRB.Core.Common.Exceptions;
-using BRB.Core.Common.Extensions;
+﻿using BRB.Core.Common.Extensions;
+using Core.Services.Ref.Exceptions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -23,7 +23,7 @@ public class VersionService(AppDbContext dbContext)
     {
         return await dbContext.Versions
             .OrderByDescending(x => x.CreatedAt)
-            .FirstOrDefaultAsync(x => x.IsActive) ?? throw new NotFoundException("No active version");
+            .FirstOrDefaultAsync(x => x.IsActive) ?? throw new ActiveVersionNotFoundException();
     }
 
     public async Task<CheckDto> Check(string version)
@@ -31,7 +31,7 @@ public class VersionService(AppDbContext dbContext)
         var entity =
             await dbContext.Versions.FirstOrDefaultAsync(x =>
                 x.Key == version.ToLowerInvariant()) ??
-            throw new NotFoundException("Version not found");
+            throw new VersionNotFoundException();
 
         return new CheckDto()
         {
@@ -47,7 +47,7 @@ public class VersionService(AppDbContext dbContext)
         {
             //updating
             var version = await dbContext.Versions.GetByIdAsync(dto.Id!.Value) ??
-                          throw new NotFoundException("Version not found");
+                          throw new VersionNotFoundException();
 
             version.IsActive = dto.IsActive;
 
@@ -58,7 +58,7 @@ public class VersionService(AppDbContext dbContext)
             //creating
             if (await dbContext.Versions
                     .AnyAsync(x => x.Key == dto.Key!.ToLowerInvariant()))
-                throw new BadRequestException("Version already exists");
+                throw new VersionAlreadyExistsException();
 
             dbContext.Versions.Add(new Version()
             {
@@ -67,6 +67,6 @@ public class VersionService(AppDbContext dbContext)
             });
             await dbContext.SaveChangesAsync();
         }
-        else throw new BadRequestException("Id or version key must be specified");
+        else throw new IdOrKeyRequiredException();
     }
 }

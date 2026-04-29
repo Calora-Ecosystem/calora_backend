@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Extensions;
 using BRB.Core.EF.Extensions;
@@ -19,7 +20,19 @@ public partial class NotificationService
             {
                 Notification = notification,
                 Tokens = tokens,
-                Data = meta
+                Data = meta,
+                Android = new AndroidConfig()
+                {
+                    Priority = Priority.High,
+                    Notification = new AndroidNotification() { Priority = NotificationPriority.HIGH }
+                },
+                Apns = new ApnsConfig()
+                {
+                    Headers = new Dictionary<string, string>()
+                    {
+                        { "apns-priority", "10" }
+                    }
+                }
             });
 
         return new SendPushResultDto
@@ -75,16 +88,18 @@ public partial class NotificationService
     public async Task EnqueueNotifications()
     {
         (await dbContext.PushNotifications
-                .Where(x => !x.SentAt.HasValue)
+                .Where(x => !x.EnqueuedAt.HasValue)
                 .OrderBy(x => x.CreatedAt)
-                .Select(x => new { x.Id, x.Scheduled })
                 .ToListAsync())
             .ForEach(n =>
             {
+                n.EnqueuedAt = DateTime.Now;
                 if (n.Scheduled.HasValue)
                     BackgroundJob.Schedule<NotificationService>(x => x.SendPush(n.Id), n.Scheduled.Value);
                 else
                     BackgroundJob.Enqueue<NotificationService>(x => x.SendPush(n.Id));
             });
+
+        await dbContext.SaveChangesAsync();
     }
 }

@@ -3,8 +3,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Extensions;
+using Core.Services.Auth.Exceptions;
 using BRB.Core.Common.Helpers;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -45,12 +45,13 @@ public class AuthService(
         var payload = await GoogleJsonWebSignature.ValidateAsync(dto.SsoToken);
 
         var user = await dbContext.Users
-            .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, payload.Email)) ?? new Entities.Auth.User()
-        {
-            Name = payload.Name,
-            Email = payload.Email,
-            Roles = [nameof(EnumRole.User)]
-        };
+                       .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, payload.Email)) ??
+                   new Entities.Auth.User()
+                   {
+                       Name = payload.Name,
+                       Email = payload.Email,
+                       Roles = [nameof(EnumRole.User)]
+                   };
 
         var hasNewUser = user.Id == 0;
 
@@ -73,34 +74,34 @@ public class AuthService(
             .ToArray();
 
         if (parts.Length < 2)
-            throw new UnauthorizedException("Invalid token");
+            throw new InvalidTokenException();
 
-        var kid = parts[0].GetProperty("kid").GetString() ?? throw new UnauthorizedException("Invalid token");
+        var kid = parts[0].GetProperty("kid").GetString() ?? throw new InvalidTokenException();
         var exp = parts[1].GetProperty("exp").GetInt64();
-        var email = parts[1].GetProperty("email").GetString() ?? throw new UnauthorizedException("Invalid token");
+        var email = parts[1].GetProperty("email").GetString() ?? throw new InvalidTokenException();
         var emailVerified = parts[1].GetProperty("email_verified").GetBoolean();
-        var aud = parts[1].GetProperty("aud").GetString() ?? throw new UnauthorizedException("Invalid token");
-        var iss = parts[1].GetProperty("iss").GetString() ?? throw new UnauthorizedException("Invalid token");
+        var aud = parts[1].GetProperty("aud").GetString() ?? throw new InvalidTokenException();
+        var iss = parts[1].GetProperty("iss").GetString() ?? throw new InvalidTokenException();
 
-        if (aud != "uz.zingo.app")
-            throw new UnauthorizedException("Invalid audience");
+        if (aud != "ai.calora.app")
+            throw new InvalidAudienceException();
 
         if (!iss.EndsWith("appleid.apple.com"))
-            throw new UnauthorizedException("Invalid issuer");
+            throw new InvalidIssuerException();
 
 #if !DEBUG
         var expDate = DateTimeOffset.FromUnixTimeSeconds(exp);
         Debug.WriteLine(expDate);
-        
+
         if (expDate <= DateTime.Now)
-            throw new UnauthorizedException("Token expired");
+            throw new TokenExpiredException();
 #endif
 
         if (jwkSet.Keys.All(x => x.KeyId != kid))
-            throw new UnauthorizedException("Invalid token kid");
+            throw new InvalidTokenKidException();
 
         if (email.IsNullOrEmpty() || !emailVerified)
-            throw new UnauthorizedException("Required claim principal not found");
+            throw new RequiredClaimPrincipalNotFoundException();
 
         var user = await dbContext.Users
             .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, email)) ?? new Entities.Auth.User()
@@ -122,7 +123,7 @@ public class AuthService(
     {
         var userExists = await dbContext.Users.AnyAsync(x => x.Email != null && EF.Functions.ILike(x.Email, dto.Email));
         if (userExists)
-            throw new AlreadyExistsException("User already exists");
+            throw new UserAlreadyExistsException();
 
         var user = new Entities.Auth.User()
         {
@@ -144,7 +145,7 @@ public class AuthService(
 
         var userExists = await dbContext.Users.AnyAsync(x => x.Phone == validPhone);
         if (userExists)
-            throw new AlreadyExistsException("User already exists");
+            throw new UserAlreadyExistsException();
 
         var user = new Entities.Auth.User()
         {
@@ -165,12 +166,13 @@ public class AuthService(
         VerifyOtp(dto.VerificationCode.ToString(), dto.Code);
 
         var user = await dbContext.Users
-            .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, dto.Email)) ?? new Entities.Auth.User()
-        {
-            Name = "Anonymous",
-            Email = dto.Email,
-            Roles = [nameof(EnumRole.User)]
-        };
+                       .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, dto.Email)) ??
+                   new Entities.Auth.User()
+                   {
+                       Name = "Anonymous",
+                       Email = dto.Email,
+                       Roles = [nameof(EnumRole.User)]
+                   };
 
         var hasNewUser = user.Id == 0;
 
@@ -203,16 +205,16 @@ public class AuthService(
     public void VerifyOtp(string verificationCode, string code)
     {
         if (!memoryCache.TryGetValue(verificationCode, out string? otp))
-            throw new NotFoundException("Otp not found or expired");
+            throw new OtpExpiredException();
 
         memoryCache.Remove(verificationCode);
 
         if (environment.IsProduction())
             if (code.IsNullOrEmpty() || otp.IsNullOrEmpty() || otp != code)
-                throw new NotFoundException("Otp didn't match");
+                throw new InvalidOtpException();
             else ;
         else if (code != "777777")
-            throw new NotFoundException("Otp didn't match");
+            throw new InvalidOtpException();
     }
 
     public async Task<object> GenerateTokens(Entities.Auth.User user, DeviceDto deviceInfo, bool hasNewUser)
@@ -249,7 +251,7 @@ public class AuthService(
         {
             EnumChannel.Email => user.Email,
             EnumChannel.Phone => user.Phone,
-            _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, null)
+            _ => throw new InvalidChannelException()
         })!);
     }
 
@@ -290,10 +292,10 @@ public class AuthService(
         var user = await dbContext.Users.FirstOrDefaultAsync(x =>
             x.Id == userId
             && x.RTokenExpireAt > DateTime.Now
-            && x.RToken == rToken) ?? throw new NotFoundException("User or refresh token not found");
+            && x.RToken == rToken) ?? throw new UserOrRefreshTokenNotFoundException();
 
         if (!await dbContext.Devices.AnyAsync(x => x.Id == deviceId && x.UserId == userId && x.IsActive))
-            throw new NotFoundException("device_is_not_active_or_not_found");
+            throw new DeviceNotFoundException();
 
         var accessToken = await MakeJwtFromUser(user.Id, deviceId);
         var refreshToken = PasswordHelper.Encrypt(Guid.NewGuid().ToString());
@@ -366,18 +368,32 @@ public class AuthService(
     public async Task Logout(Claim[] claims)
     {
         var userId = claims.FirstOrDefault(x => x.Type == CustomClaims.UserId)?.Value ??
-                     throw new UnauthorizedException();
+                     throw new MissingClaimException();
+
+        var deviceId = claims.FirstOrDefault(x => x.Type == CustomClaims.DeviceId)?.Value;
+
         var session = claims.FirstOrDefault(x => x.Type == CustomClaims.SessionId)?.Value ??
-                      throw new UnauthorizedException();
+                      throw new MissingClaimException();
 
         var user = await dbContext.Users.GetByIdOrThrowsNotFoundException(long.Parse(userId));
 
         memoryCache.Remove($"session:{user.Id}:{session}");
 
+        if (!deviceId.IsNullOrEmpty())
+        {
+            var id = long.Parse(deviceId!);
+
+            var device = dbContext.Devices.FirstOrDefault(x => x.Id == id && x.UserId == user.Id);
+            
+            if (device is not null)
+            {
+                device.IsActive = false;
+            }
+        }
+
         user.RToken = null;
         user.RTokenExpireAt = DateTime.MinValue;
 
-        dbContext.Users.Update(user);
         await dbContext.SaveChangesAsync();
     }
 

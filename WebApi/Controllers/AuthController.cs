@@ -2,8 +2,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using BRB.Core.Common.Attributes;
-using BRB.Core.Common.Exceptions;
 using Core.Attributes;
+using WebApi.Exceptions;
 using Core.Constants;
 using Core.Enums;
 using Core.Services.Auth;
@@ -62,11 +62,11 @@ public class AuthController(AuthService authService) : AuthorizedController
 
         return (await authService.RefreshToken(
                 !long.TryParse(jwt.Claims.FirstOrDefault(x => x.Type == CustomClaims.UserId)?.Value, out var userId)
-                    ? throw new BadRequestException("Access token invalid")
+                    ? throw new AccessTokenInvalidException()
                     : userId,
                 rToken,
                 !long.TryParse(jwt.Claims.FirstOrDefault(x => x.Type == CustomClaims.DeviceId)?.Value, out var deviceId)
-                    ? throw new BadRequestException("Access token invalid")
+                    ? throw new AccessTokenInvalidException()
                     : deviceId),
             200);
     }

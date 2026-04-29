@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using BRB.Core.Common.Exceptions;
 using BRB.Core.EF.Attributes;
+using Core.Services.Ai.Exceptions;
 using Core.Enums;
 using Core.Services.Ai.Contracts;
 using Google.GenAI;
@@ -107,7 +107,7 @@ Return all results in {language.ToString()}.
             .Text;
 
         if (string.IsNullOrWhiteSpace(json))
-            throw new BadRequestException("Invalid result");
+            throw new InvalidAiResultException();
 
         return JsonSerializer.Deserialize<List<FoodResultDto>>(json, new JsonSerializerOptions()
                {
@@ -117,6 +117,6 @@ Return all results in {language.ToString()}.
                        new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
                    }
                }) ??
-               throw new BadRequestException("Unable to parse result.");
+               throw new AiResultParseException();
     }
 }
