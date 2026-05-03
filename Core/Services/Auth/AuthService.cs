@@ -274,7 +274,11 @@ public class AuthService(
             });
         else
         {
-            if (environment.IsProduction())
+            if (
+                #if DEBUG
+                true ||
+                #endif
+                environment.IsProduction())
                 await notificationService.SendSms(new SmsNotificationDto()
                 {
                     Phone = destination,
