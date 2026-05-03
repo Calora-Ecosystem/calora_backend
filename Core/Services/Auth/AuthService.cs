@@ -273,12 +273,19 @@ public class AuthService(
                 Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
             });
         else
-            await notificationService.SendSms(new SmsNotificationDto()
-            {
-                Phone = destination,
-                Title = "Verification Code",
-                Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
-            });
+        {
+            if (
+                #if DEBUG
+                true ||
+                #endif
+                environment.IsProduction())
+                await notificationService.SendSms(new SmsNotificationDto()
+                {
+                    Phone = destination,
+                    Title = "Verification Code", // title doesn't sent. it is only for log
+                    Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
+                });
+        }
 
         return new
         {
