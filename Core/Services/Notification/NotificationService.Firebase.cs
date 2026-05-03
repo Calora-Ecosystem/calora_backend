@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using BRB.Core.Common.Exceptions;
 using BRB.Core.Common.Extensions;
 using BRB.Core.EF.Extensions;
@@ -19,7 +20,19 @@ public partial class NotificationService
             {
                 Notification = notification,
                 Tokens = tokens,
-                Data = meta
+                Data = meta,
+                Android = new AndroidConfig()
+                {
+                    Priority = Priority.High,
+                    Notification = new AndroidNotification() { Priority = NotificationPriority.HIGH }
+                },
+                Apns = new ApnsConfig()
+                {
+                    Headers = new Dictionary<string, string>()
+                    {
+                        { "apns-priority", "10" }
+                    }
+                }
             });
 
         return new SendPushResultDto
