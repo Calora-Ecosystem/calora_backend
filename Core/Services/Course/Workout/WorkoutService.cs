@@ -246,7 +246,7 @@ public class WorkoutService(AppDbContext dbContext)
 
     public async Task RemoveExercise(long id)
     {
-        var exercise = dbContext.Exercises.GetByIdOrThrowsNotFoundException(id);
+        var exercise = await dbContext.Exercises.GetByIdOrThrowsNotFoundException(id);
 
         dbContext.Remove(exercise);
         await dbContext.SaveChangesAsync();
