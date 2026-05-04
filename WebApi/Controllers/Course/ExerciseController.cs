@@ -50,7 +50,7 @@ public class ExerciseController(WorkoutService service, CourseService courseServ
     [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> Remove(long exerciseId)
     {
-        await service.Remove(exerciseId);
+        await service.RemoveExercise(exerciseId);
         return 200;
     }
 }
