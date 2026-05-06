@@ -6,6 +6,7 @@ using Core.Brokers.DbContext;
 using Core.Entities.Notification;
 using Core.Enums;
 using Core.Services.Notification.Contracts;
+using Core.Services.Notification.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
 
@@ -27,6 +28,9 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
 
     public async Task<Reminder> AddReminder(long userId, AddRemindDto dto)
     {
+        if (dto.Menu.HasValue && dto.Type != EnumMomentType.Food)
+            throw new MenuOnlyForFoodException();
+        
         var reminder =
             await dbContext.Reminders.FirstOrDefaultAsync(x => x.UserId == userId && x.Type == dto.Type &&
                                                                (dto.Type != EnumMomentType.Food ||
