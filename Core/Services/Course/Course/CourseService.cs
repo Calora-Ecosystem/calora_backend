@@ -30,7 +30,6 @@ public class CourseService(AppDbContext context)
                 Gender = x.Gender,
                 Type = x.Type,
                 Total = x.Type == EnumCourseType.Lesson ? x.Lessons.Count() : x.Workouts.Count(),
-                Price = x.Price,
                 Order = x.Order,
                 Assets = x.Assets
             })
@@ -51,7 +50,6 @@ public class CourseService(AppDbContext context)
         course.Gender = dto.Gender;
         course.Title = dto.Title;
         course.Description = dto.Description;
-        course.Price = dto.Price;
         course.Info = dto.Info;
         course.Assets = dto.Assets;
 
@@ -91,7 +89,7 @@ public class CourseService(AppDbContext context)
                     exerciseIds.Contains(x.EntityId) && x.UserId == userId && x.Type == EnumEntityType.Exercise);
                 if (exerciseIds.Count != finishedExerciseCount)
                     throw new ExercisesNotCompletedException();
-                
+
                 break;
             }
 
