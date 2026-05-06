@@ -1,9 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Models;
-using Core;
 using Core.Attributes;
 using Core.Enums;
+using Core.Services.Auth;
 using Core.Services.User;
 using Core.Services.User.Contracts;
 using Microsoft.AspNetCore.Authorization;
@@ -17,7 +17,7 @@ namespace WebApi.Controllers;
 [ApiController]
 [Route("users")]
 [RoleAuthorize(EnumRole.User)]
-public class UserController(UserService userService) : AuthorizedController
+public class UserController(UserService userService, AuthService authService) : AuthorizedController
 {
     [HttpGet("{userId:long:min(1)}")]
     [ProducesResponseType<WrapperGeneric<GetUserDto>>(200)]
@@ -142,4 +142,12 @@ public class UserController(UserService userService) : AuthorizedController
     [Authorize(Policy = nameof(EnumAuthPolicies.SuperAdmin))]
     public Wrapper AssignRole(long userId, EnumRole role) =>
         (userService.AssignUserToRole(userId, role), 200);
+
+    [HttpDelete("{userId:long:min(1)}")]
+    [RoleAuthorize(EnumRole.User)]
+    public async Task<Wrapper> KillUser([FromRoute] long userId)
+    {
+        await authService.KillUser(this.UserId, userId);
+        return 200;
+    }
 }

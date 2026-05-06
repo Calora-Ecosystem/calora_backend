@@ -110,5 +110,9 @@ public class AppDbContext : DefaultConfiguredDbContext
             .Entity<UserDaily>()
             .ToTable("user_dailies")
             .HasNoDiscriminator();
+
+        modelBuilder
+            .Entity<User>()
+            .HasQueryFilter(x => !x.IsDeleted);
     }
 }
