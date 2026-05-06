@@ -44,7 +44,7 @@ builder.Services.AddRateLimiter(options =>
         context =>
         {
             var userId =
-                context.User?.FindFirst(CustomClaims.UserId)?.Value
+                (context.User.Identity is { IsAuthenticated: true } ? context.User?.FindFirst(CustomClaims.UserId)?.Value : null)
                 ?? (context.Request.Headers["X-Real-IP"].Count > 0
                     ? context.Request.Headers["X-Real-IP"].ToString()
                     : null)
