@@ -11,5 +11,4 @@ public class CreateOrUpdateCourseDto : BaseCreateOrUpdateDto
     public EnumGender? Gender { get; set; }
     public MultiLanguageField Info { get; set; } = null!;
     public Asset[] Assets { get; set; } = null!;
-    public long Price { get; set; }
 }
