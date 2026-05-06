@@ -77,6 +77,12 @@ public class BillingController(
     public async Task<Wrapper> GetAllCoupons([FromQuery] DataQueryRequest query) =>
         await couponService.GetAll(query);
 
+    [HttpGet("coupons/{couponId:long:min(1)}")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    [ProducesResponseType<WrapperGeneric<GetCouponByIdDto>>(200)]
+    public async Task<Wrapper> GetCouponById(long couponId) =>
+        (await couponService.GetById(couponId), 200);
+
     [HttpGet("coupons/{couponId:long:min(1)}/usages")]
     [RoleAuthorize(EnumRole.SuperAdmin)]
     [ProducesResponseType<WrapperGeneric<IEnumerable<GetCouponUsagesDto>>>(200)]
