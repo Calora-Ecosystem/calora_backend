@@ -95,7 +95,7 @@ public class FoodController(FoodService service) : AuthorizedController
     [HttpPost("categories")]
     public async Task<Wrapper> CreateCategory(CreateFoodCategoryDto dto) => (await service.CreateCategory(dto), 200);
 
-    [HttpDelete("categories/{id:long:min(1)}")]
+    [HttpDelete("categories/{categoryId:long:min(1)}")]
     public async Task<Wrapper> RemoveCategory(long categoryId) => (await service.RemoveCategory(categoryId), 200);
 
     #endregion
