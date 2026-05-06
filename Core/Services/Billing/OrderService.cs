@@ -244,7 +244,8 @@ public class OrderService(
                 Id = x.Id, Duration = x.DurationInMonths, IsActive = x.IsActive,
                 Plan = x.Plan,
                 IsPopular = x.Id == popularExtraId,
-                Fee = x.Fee / 100,
+                Fee = x.Fee / 100d,
+                OriginalFee = x.OriginalFee / 100d,
                 CreatedAt = x.CreatedAt
             })
             .GetByDataQueryAsync(q);

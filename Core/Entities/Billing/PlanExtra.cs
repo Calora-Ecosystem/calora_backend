@@ -9,6 +9,7 @@ public class PlanExtra : AuditableModelBase<long>
 {
     public EnumSPlans Plan { get; set; }
     public long Fee { get; set; }
+    public long OriginalFee { get; set; } = 0;
     public bool IsActive { get; set; }
     public int DurationInMonths { get; set; }
 }
