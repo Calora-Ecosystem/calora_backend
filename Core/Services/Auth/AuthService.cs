@@ -13,6 +13,7 @@ using Core.Brokers.DbContext;
 using Core.Constants;
 using Core.Entities.Auth;
 using Core.Enums;
+using Core.Exceptions;
 using Core.Helpers;
 using Core.Services.Auth.Contracts;
 using Core.Services.Auth.Enums;
@@ -26,6 +27,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using ForbiddenException = BRB.Core.Common.Exceptions.ForbiddenException;
 
 namespace Core.Services.Auth;
 
@@ -275,9 +277,9 @@ public class AuthService(
         else
         {
             if (
-                #if DEBUG
+#if DEBUG
                 true ||
-                #endif
+#endif
                 environment.IsProduction())
                 await notificationService.SendSms(new SmsNotificationDto()
                 {
@@ -391,7 +393,7 @@ public class AuthService(
             var id = long.Parse(deviceId!);
 
             var device = dbContext.Devices.FirstOrDefault(x => x.Id == id && x.UserId == user.Id);
-            
+
             if (device is not null)
             {
                 device.IsActive = false;
@@ -408,5 +410,29 @@ public class AuthService(
     {
         memoryCache.RemoveByPrefix($"session:{userId}:");
         return Task.CompletedTask;
+    }
+
+    public async Task KillUser(long authUserId, long userId)
+    {
+        if (authUserId != userId)
+            throw new ForbiddenException();
+
+        var user = await dbContext.Users
+            .IgnoreQueryFilters()
+            .GetByIdOrThrowsNotFoundException(userId);
+
+        user.IsDeleted = true;
+        user.RToken = null;
+        user.RTokenExpireAt = DateTime.MinValue;
+
+        dbContext.Users.Update(user);
+
+        await dbContext.Devices
+            .Where(x => x.UserId == userId && x.IsActive)
+            .ExecuteUpdateAsync(x => x.SetProperty(d => d.IsActive, false));
+
+        await dbContext.SaveChangesAsync();
+
+        await KillAllUserSessions(userId);
     }
 }
