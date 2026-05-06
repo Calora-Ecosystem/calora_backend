@@ -91,7 +91,7 @@ public class CourseService(AppDbContext context)
                     exerciseIds.Contains(x.EntityId) && x.UserId == userId && x.Type == EnumEntityType.Exercise);
                 if (exerciseIds.Count != finishedExerciseCount)
                     throw new ExercisesNotCompletedException();
-                
+
                 break;
             }
 
