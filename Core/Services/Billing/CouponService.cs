@@ -30,6 +30,23 @@ public class CouponService(AppDbContext context)
             .GetByDataQueryAsync(q);
     }
 
+    public async Task<GetCouponByIdDto> GetById(long id)
+    {
+        return await context.Coupons
+            .Select(x => new GetCouponByIdDto
+            {
+                Id = x.Id, Usages = x.Usages, Code = x.Code,
+                OneTime = x.OneTime,
+                ExpireAt = x.ExpireAt,
+                Amount = x.Amount,
+                AllowedUserIds = x.AllowedUserIds,
+                IsActive = x.IsActive,
+                CreatedAt = x.CreatedAt,
+                UpdatedAt = x.UpdatedAt
+            })
+            .FirstOrDefaultAsync(x => x.Id == id) ?? throw new CouponNotFoundException();
+    }
+
     public async Task<Wrapper> GetCouponUsages(long couponId, DataQueryRequest q)
     {
         return await context.CouponUsages
