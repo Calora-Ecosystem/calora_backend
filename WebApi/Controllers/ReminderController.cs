@@ -1,5 +1,4 @@
 ﻿using BRB.Core.Common.Models;
-using Core;
 using Core.Attributes;
 using Core.Enums;
 using Core.Services.Notification;
@@ -13,8 +12,10 @@ namespace WebApi.Controllers;
 [Route(("reminder"))]
 [ApiController]
 [RoleAuthorize(EnumRole.User)]
-public class ReminderController(ReminderService service) : AuthorizedController
+public class ReminderController(ReminderService service, ReminderMessageService messageService) : AuthorizedController
 {
+    #region Reminder
+
     [HttpGet]
     [ProducesResponseType(typeof(WrapperGeneric<GetReminderDto>), 200)]
     public async Task<Wrapper> GetAll([FromQuery] DataQueryRequest q) =>
@@ -42,4 +43,32 @@ public class ReminderController(ReminderService service) : AuthorizedController
     // [HttpDelete("moments/{id:long:min(1)}")]
     // public async Workout<Wrapper> RemoveMoment([FromRoute] long id) =>
     //     (await service.RemoveMoment(id), 200);
+
+    #endregion
+
+    #region ReminderMessage
+
+    [HttpGet("messages")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    [ProducesResponseType(typeof(WrapperGeneric<GetReminderMessageDto>), 200)]
+    public async Task<Wrapper> GetAllMessages([FromQuery] DataQueryRequest q) =>
+        await messageService.GetAll(q);
+
+    [HttpGet("messages/{id:long:min(1)}")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    [ProducesResponseType(typeof(WrapperGeneric<GetReminderMessageDto>), 200)]
+    public async Task<Wrapper> GetMessageById([FromRoute] long id) =>
+        (await messageService.GetById(id), 200);
+
+    [HttpPost("messages")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> CreateOrUpdateMessage(CreateOrUpdateReminderMessageDto dto) =>
+        (await messageService.CreateOrUpdate(dto), 200);
+
+    [HttpDelete("messages/{id:long:min(1)}")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> RemoveMessage([FromRoute] long id) =>
+        (await messageService.Remove(id), 200);
+
+    #endregion
 }
