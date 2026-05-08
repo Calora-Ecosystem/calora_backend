@@ -176,12 +176,15 @@ public class BillingController(
 
     [HttpPost("payme")]
     [AllowAnonymous]
-    public async Task<IActionResult> HandleClickRequest([FromBody] BaseRequest request)
+    public async Task<IActionResult> HandlePaymeRequest([FromBody] BaseRequest request,
+        ILogger<BillingController> logger)
     {
         var authHeaderRaw = this.Request.Headers.Authorization.ToString();
         var basicAuthToken = authHeaderRaw.Replace("Basic ", "");
 
         var response = await paymeService.HandleAsync(request, basicAuthToken);
+
+        logger.LogInformation("Payme response:\n{@Response}", response);
 
         return Ok(response);
     }

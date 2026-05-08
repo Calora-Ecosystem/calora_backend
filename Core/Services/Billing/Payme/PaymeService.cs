@@ -412,7 +412,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config, 
         var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId) ??
                           throw new TransactionNotFoundException();
 
-        var data = $"m={config.Value.MerchantId};ac.order_id={transaction.Id.ToString()};a={transaction.Amount}";
+        var data = $"m={config.Value.MerchantId};ac.order_id={orderId};a={transaction.Amount}";
         var base64Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(data));
         var uri = new Uri(config.Value.CheckoutUrl);
 
