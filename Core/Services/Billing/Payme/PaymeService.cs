@@ -79,21 +79,17 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config, 
 
     public async Task<BaseResponseDto> CheckPerformTransaction(CheckPerformTransactionDto dto)
     {
-        var transactionId = long.Parse(dto.Account.OrderId);
-        
-        var t = await dbContext.PaymeTransactions
-            .Include(x => x.Order)
-            .FirstOrDefaultAsync(x => x.Id == transactionId);
+        var orderId = long.Parse(dto.Account.OrderId);
 
-        var order = t?.Order;
+        var order = await dbContext.Orders.FirstOrDefaultAsync(x =>
+            x.Id == orderId && x.Status == EnumOrderStatus.Pending);
 
-        if (order is null || order.Status != EnumOrderStatus.Pending)
+        if (order is null)
             return new ErrorResponseDto()
             {
                 Error = ResponseErrors.OrderNotFound,
             };
-        
-        var orderId = order.Id;
+
 
         if (order.Amount != dto.Amount)
             return new ErrorResponseDto()
@@ -416,7 +412,7 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config, 
         var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId) ??
                           throw new TransactionNotFoundException();
 
-        var data = $"m={config.Value.MerchantId};ac.order_id={transaction.Id.ToString()};a={transaction.Amount}";
+        var data = $"m={config.Value.MerchantId};ac.order_id={orderId};a={transaction.Amount}";
         var base64Data = Convert.ToBase64String(Encoding.UTF8.GetBytes(data));
         var uri = new Uri(config.Value.CheckoutUrl);
 
