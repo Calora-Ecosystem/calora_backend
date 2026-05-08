@@ -38,11 +38,13 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
 
     public async Task<FoodCategory> CreateCategory(CreateFoodCategoryDto dto)
     {
-        var category = dbContext.FoodCategories.Add(new FoodCategory()
-        {
-            CoverUrl = dto.CoverUrl,
-            Name = dto.Name,
-        }).Entity;
+        var category = dto.Id.HasValue
+            ? await dbContext.FoodCategories.GetByIdOrThrowsNotFoundException(dto.Id.Value)
+            : dbContext.FoodCategories.Add(new FoodCategory()).Entity;
+
+        category.CoverUrl = dto.CoverUrl;
+        category.Name = dto.Name;
+
         await dbContext.SaveChangesAsync();
 
         return category;
