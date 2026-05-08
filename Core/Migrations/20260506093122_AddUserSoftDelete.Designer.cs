@@ -6,6 +6,7 @@ using Core.Brokers.DbContext;
 using Core.Entities.Course;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -14,9 +15,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Core.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260506093122_AddUserSoftDelete")]
+    partial class AddUserSoftDelete
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -724,10 +727,6 @@ namespace Core.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
-                    b.Property<long>("OriginalFee")
-                        .HasColumnType("bigint")
-                        .HasColumnName("original_fee");
-
                     b.Property<int>("Plan")
                         .HasColumnType("integer")
                         .HasColumnName("plan");
@@ -938,6 +937,10 @@ namespace Core.Migrations
                     b.Property<decimal>("Order")
                         .HasColumnType("decimal(10,3)")
                         .HasColumnName("order");
+
+                    b.Property<long>("Price")
+                        .HasColumnType("bigint")
+                        .HasColumnName("price");
 
                     b.Property<MultiLanguageField>("Title")
                         .IsRequired()

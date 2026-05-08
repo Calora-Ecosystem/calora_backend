@@ -11,6 +11,7 @@ using Core.Enums;
 using Core.Services.Notification.Contracts;
 using FirebaseAdmin.Messaging;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ResultWrapper.Library;
 
 namespace Core.Services.Notification;
@@ -20,7 +21,8 @@ public partial class NotificationService(
     EmailClient emailClient,
     FirebaseMessaging firebase,
     AppDbContext dbContext,
-    EskizClient eskizClient)
+    EskizClient eskizClient,
+    ILogger<NotificationService> logger)
 {
     public async Task<int> GetUnreadNotificationsCount(long userId)
     {

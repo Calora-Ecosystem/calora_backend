@@ -69,7 +69,12 @@ public class EskizClient(IOptions<EskizConfig> configOptions, IMemoryCache memor
         var response = await client.PostAsync("message/sms/send",
             content);
 
-        if (response.IsSuccessStatusCode)
+        if (!response.IsSuccessStatusCode)
+        {
+#if DEBUG
+            Log.Error(await response.Content.ReadAsStringAsync());
+#endif
             throw new SmsDeliveryException();
+        }
     }
 }
