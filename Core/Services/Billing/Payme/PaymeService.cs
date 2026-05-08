@@ -79,17 +79,21 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config, 
 
     public async Task<BaseResponseDto> CheckPerformTransaction(CheckPerformTransactionDto dto)
     {
-        var orderId = long.Parse(dto.Account.OrderId);
+        var transactionId = long.Parse(dto.Account.OrderId);
+        
+        var t = await dbContext.PaymeTransactions
+            .Include(x => x.Order)
+            .FirstOrDefaultAsync(x => x.Id == transactionId);
 
-        var order = await dbContext.Orders.FirstOrDefaultAsync(x =>
-            x.Id == orderId && x.Status == EnumOrderStatus.Pending);
+        var order = t?.Order;
 
-        if (order is null)
+        if (order is null || order.Status != EnumOrderStatus.Pending)
             return new ErrorResponseDto()
             {
                 Error = ResponseErrors.OrderNotFound,
             };
-
+        
+        var orderId = order.Id;
 
         if (order.Amount != dto.Amount)
             return new ErrorResponseDto()
