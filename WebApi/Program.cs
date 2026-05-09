@@ -63,8 +63,8 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddHttpClient();
 #if !DEBUG
-builder.AddSwaggerServer("/api/");
-builder.AddSwaggerServer("https://calora.uz/api/");
+builder.AddSwaggerServer("/api/", "Staging API");
+builder.AddSwaggerServer("https://calora.uz/api/", "Production API");
 #endif
 
 builder
