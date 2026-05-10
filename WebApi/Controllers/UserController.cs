@@ -137,9 +137,9 @@ public class UserController(UserService userService, AuthService authService) : 
         [FromQuery] long? userId = null) =>
         (await userService.CalculateStepMetrics(userId ?? this.UserId, from, to), 200);
 
-    [HttpGet("{userId:long:min(1)}/update-role")]
+    [HttpPost("{userId:long:min(1)}/update-role")]
     [RoleAuthorize(EnumRole.SuperAdmin)]
-    public Wrapper AssignRole(long userId, EnumRole[] role) =>
+    public Wrapper UpdateUserRoles(long userId, EnumRole[] role) =>
         (userService.UpdateUserRoles(userId, role), 200);
 
     [HttpDelete("{userId:long:min(1)}")]
