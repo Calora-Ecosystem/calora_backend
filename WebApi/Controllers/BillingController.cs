@@ -11,6 +11,9 @@ using Core.Services.Billing.Payme;
 using Core.Services.Billing.Payme.Contracts;
 using Core.Services.Billing.Rc;
 using Core.Services.Billing.Rc.Contracts;
+using Core.Services.Crm;
+using Core.Services.Crm.Enum;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResultWrapper.Library;
@@ -39,8 +42,10 @@ public class BillingController(
     [HttpGet("orders/my")]
     [RoleAuthorize(EnumRole.User)]
     [ProducesResponseType<WrapperGeneric<GetOrdersDto>>(200)]
-    public async Task<Wrapper> GetMyOrders([FromQuery] DataQueryRequest query) =>
-        await orderService.GetOrders(query, this.UserId);
+    public async Task<Wrapper> GetMyOrders([FromQuery] DataQueryRequest query){
+        BackgroundJob.Enqueue<LeadService>(service => service.HandleEventAsync(new Core.Services.Crm.Contracts.HandleLeadEventDto(this.UserId, EnumLeadEvent.SubscriptionOpened)));
+        return await orderService.GetOrders(query, this.UserId);
+    }
 
     [HttpGet("orders/subscription/plans/{plan}")]
     [RoleAuthorize(EnumRole.User)]

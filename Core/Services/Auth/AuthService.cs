@@ -18,9 +18,12 @@ using Core.Helpers;
 using Core.Services.Auth.Contracts;
 using Core.Services.Auth.Enums;
 using Core.Services.Common;
+using Core.Services.Crm;
+using Core.Services.Crm.Enum;
 using Core.Services.Notification;
 using Core.Services.Notification.Contracts;
 using Google.Apis.Auth;
+using Hangfire;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -59,6 +62,9 @@ public class AuthService(
 
         user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
+        
+        if (hasNewUser)
+            BackgroundJob.Enqueue<LeadService>(service => service.HandleEventAsync(new Core.Services.Crm.Contracts.HandleLeadEventDto(user.Id, EnumLeadEvent.Registered)));
 
         return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
     }
@@ -117,6 +123,9 @@ public class AuthService(
 
         user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
+        
+        if (hasNewUser)
+            BackgroundJob.Enqueue<LeadService>(service => service.HandleEventAsync(new Core.Services.Crm.Contracts.HandleLeadEventDto(user.Id, EnumLeadEvent.Registered)));
 
         return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
     }
@@ -180,6 +189,9 @@ public class AuthService(
 
         user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
+        
+        if (hasNewUser)
+            BackgroundJob.Enqueue<LeadService>(service => service.HandleEventAsync(new Core.Services.Crm.Contracts.HandleLeadEventDto(user.Id, EnumLeadEvent.Registered)));
 
         return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
     }
@@ -200,6 +212,9 @@ public class AuthService(
 
         user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
+        
+        if (hasNewUser)
+            BackgroundJob.Enqueue<LeadService>(service => service.HandleEventAsync(new Core.Services.Crm.Contracts.HandleLeadEventDto(user.Id, EnumLeadEvent.Registered)));
 
         return await GenerateTokens(user, dto.DeviceInfo, hasNewUser);
     }
