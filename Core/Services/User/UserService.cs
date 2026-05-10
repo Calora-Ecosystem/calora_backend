@@ -1,6 +1,5 @@
 ﻿using System.Data;
 using BRB.Core.Common.Models;
-using Core.Services.User.Exceptions;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
@@ -8,11 +7,11 @@ using Core.Entities.Auth;
 using Core.Enums;
 using Core.Exceptions;
 using Core.Services.User.Contracts;
+using Core.Services.User.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using ResultWrapper.Library;
-using Serilog;
 
 namespace Core.Services.User;
 

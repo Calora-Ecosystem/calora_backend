@@ -5,6 +5,7 @@ using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
 using Core.Entities.Billing.Payme;
 using Core.Entities.Course;
+using Core.Entities.Crm;
 using Core.Entities.FoodEntites;
 using Core.Entities.Notification;
 using Core.Entities.Refs;
@@ -78,6 +79,13 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<PaymeTransaction> PaymeTransactions { get; set; }
     public DbSet<Coupon> Coupons { get; set; }
     public DbSet<CouponUsage> CouponUsages { get; set; }
+
+    #endregion
+
+    #region CRM
+
+    public DbSet<Lead> Leads { get; set; }
+    public DbSet<Note> Notes { get; set; }
 
     #endregion
 
