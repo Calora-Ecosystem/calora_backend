@@ -40,25 +40,28 @@ builder.Services.AddRateLimiter(options =>
         }, ct);
     };
 
-    options.AddPolicy("otp_limit",
-        context =>
-        {
-            var userId =
-                (context.User.Identity is { IsAuthenticated: true } ? context.User?.FindFirst(CustomClaims.UserId)?.Value : null)
-                ?? context.Request.Headers["X-Forwarded-For"]
-                    .FirstOrDefault()
-                    ?.Split(',')[0]
-                    .Trim()
-                ?? context.Request.Headers["X-Real-IP"].FirstOrDefault()
-                ?? "anonymous";
+    static string GetClientKey(HttpContext context) =>
+        (context.User.Identity is { IsAuthenticated: true } ? context.User.FindFirst(CustomClaims.UserId)?.Value : null)
+        ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim()
+        ?? context.Request.Headers["X-Real-IP"].FirstOrDefault()
+        ?? "anonymous";
 
-            return RateLimitPartition.GetFixedWindowLimiter(userId, s => new FixedWindowRateLimiterOptions()
-            {
-                AutoReplenishment = true,
-                PermitLimit = builder.Environment.IsProduction() ? 3 : 100,
-                Window = TimeSpan.FromHours(6),
-            });
-        }
+    options.AddPolicy("otp_limit", context =>
+        RateLimitPartition.GetFixedWindowLimiter(GetClientKey(context), _ => new FixedWindowRateLimiterOptions
+        {
+            AutoReplenishment = true,
+            PermitLimit = builder.Environment.IsProduction() ? 3 : 100,
+            Window = TimeSpan.FromHours(6),
+        })
+    );
+
+    options.AddPolicy("ticket_limit", context =>
+        RateLimitPartition.GetFixedWindowLimiter(GetClientKey(context), _ => new FixedWindowRateLimiterOptions
+        {
+            AutoReplenishment = true,
+            PermitLimit = builder.Environment.IsProduction() ? 3 : 100,
+            Window = TimeSpan.FromHours(24),
+        })
     );
 });
 
