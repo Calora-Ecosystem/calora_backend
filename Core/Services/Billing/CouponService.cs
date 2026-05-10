@@ -72,7 +72,7 @@ public class CouponService(AppDbContext context)
                 .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Code, code) && x.IsActive
                                                                            && (!x.OneTime || x.Usages == 0)
                                                                            && (!x.ExpireAt.HasValue ||
-                                                                               x.ExpireAt.Value <= DateTime.Now)
+                                                                               x.ExpireAt.Value >= DateTime.Now)
                 )
             ?? throw new CouponNotFoundException();
 
