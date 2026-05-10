@@ -534,13 +534,11 @@ group by ung.user_id
 
     #endregion
 
-    public async Task AssignUserToRole(long userId, EnumRole role)
+    public async Task UpdateUserRoles(long userId, EnumRole[] roles)
     {
         var user = await context.Users.GetByIdOrThrowsNotFoundException(userId);
-        if (!user.Roles.Contains(role.ToString()))
-            user.Roles.Add(role.ToString());
 
-        context.Update(user);
+        user.Roles = roles.Select(x => x.ToString()).ToList();
 
         await context.SaveChangesAsync();
     }
