@@ -22,15 +22,15 @@ namespace WebApi.Controllers;
 [AllowAnonymous]
 public class AuthController(AuthService authService) : AuthorizedController
 {
-    [HttpPost("registration/email")]
-    [ApiExplorerSettings(IgnoreApi = true)]
-    public async Task<Wrapper> Register([FromBody] RegisterViaEmailDto dto) =>
-        (await authService.RegisterViaEmailAsync(dto), 200);
-
-    [HttpPost("registration/phone")]
-    [ApiExplorerSettings(IgnoreApi = true)]
-    public async Task<Wrapper> Register([FromBody] RegisterViaPhoneDto dto) =>
-        (await authService.RegisterViaPhoneAsync(dto), 200);
+    // [HttpPost("registration/email")]
+    // [ApiExplorerSettings(IgnoreApi = true)]
+    // public async Task<Wrapper> Register([FromBody] RegisterViaEmailDto dto) =>
+    //     (await authService.RegisterViaEmailAsync(dto), 200);
+    //
+    // [HttpPost("registration/phone")]
+    // [ApiExplorerSettings(IgnoreApi = true)]
+    // public async Task<Wrapper> Register([FromBody] RegisterViaPhoneDto dto) =>
+    //     (await authService.RegisterViaPhoneAsync(dto), 200);
 
     /// <summary>
     /// Also create new user with verified email

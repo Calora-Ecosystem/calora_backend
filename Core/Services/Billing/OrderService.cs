@@ -11,6 +11,9 @@ using Core.Services.Auth;
 using Core.Services.Billing.Click;
 using Core.Services.Billing.Contracts;
 using Core.Services.Billing.Payme;
+using Core.Services.Crm;
+using Core.Services.Crm.Enum;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using ResultWrapper.Library;
@@ -205,6 +208,8 @@ public class OrderService(
 
         dbContext.Add(subscription);
         await dbContext.SaveChangesAsync();
+        
+        BackgroundJob.Enqueue<LeadService>(service => service.HandleEventAsync(new Core.Services.Crm.Contracts.HandleLeadEventDto(subscription.UserId, EnumLeadEvent.Purchased)));
 
         return true;
     }
