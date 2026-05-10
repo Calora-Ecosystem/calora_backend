@@ -139,8 +139,11 @@ public class UserController(UserService userService, AuthService authService) : 
 
     [HttpPost("{userId:long:min(1)}/update-role")]
     [RoleAuthorize(EnumRole.SuperAdmin)]
-    public Wrapper UpdateUserRoles(long userId, EnumRole[] role) =>
-        (userService.UpdateUserRoles(userId, role), 200);
+    public async Task<Wrapper> UpdateUserRoles(long userId, EnumRole[] role)
+    {
+        await userService.UpdateUserRoles(userId, role);
+        return 200;
+    }
 
     [HttpDelete("{userId:long:min(1)}")]
     [RoleAuthorize(EnumRole.User)]
