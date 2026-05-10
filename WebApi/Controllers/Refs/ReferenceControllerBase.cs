@@ -1,7 +1,10 @@
 using BRB.Core.Common.Models;
 using BRB.Core.Common.Models.Base;
 using BRB.Core.EF.Extensions;
+using Core.Attributes;
 using Core.Brokers.DbContext;
+using Core.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
@@ -9,10 +12,12 @@ using ResultWrapper.Library;
 namespace WebApi.Controllers.Refs;
 
 [ApiExplorerSettings(GroupName = "References")]
+[RoleAuthorize(EnumRole.SuperAdmin)]
 public abstract class ReferenceControllerBase<T>(AppDbContext dbContext)
     : ControllerBase where T : ReferenceModelBase<long>
 {
     [HttpGet]
+    [AllowAnonymous]
     public async Task<WrapperGeneric<IEnumerable<T>>> GetAll([FromQuery] DataQueryRequest q)
     {
         var query = dbContext.Set<T>()

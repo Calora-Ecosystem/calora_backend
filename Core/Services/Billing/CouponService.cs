@@ -54,7 +54,7 @@ public class CouponService(AppDbContext context)
             .Join(context.Users, usage => usage.UserId, user => user.Id, (usage, user) => new GetCouponUsagesDto
             {
                 OrderId = usage.OrderId, UserName = user.Name, CreatedAt = usage.CreatedAt,
-                Amount = usage.Amount
+                Amount = usage.Amount / 100d
             })
             .GetByDataQueryAsync(q);
     }

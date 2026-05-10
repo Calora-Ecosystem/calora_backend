@@ -56,7 +56,7 @@ public class FoodController(FoodService service) : AuthorizedController
 
     [HttpPut("{foodId:long:min(1)}")]
     public async Task<Wrapper> UpdateFood(long foodId, UpdateFoodDto dto) =>
-        (await service.UpdateFood(foodId, dto), 200);
+        (await service.UpdateFood(foodId, this.UserId, dto), 200);
 
 
     [HttpPost("recognization")]
@@ -93,9 +93,11 @@ public class FoodController(FoodService service) : AuthorizedController
     public async Task<Wrapper> GetAllCategories([FromQuery] DataQueryRequest q) => await service.GetAllCategory(q);
 
     [HttpPost("categories")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> CreateCategory(CreateFoodCategoryDto dto) => (await service.CreateCategory(dto), 200);
 
     [HttpDelete("categories/{categoryId:long:min(1)}")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> RemoveCategory(long categoryId) => (await service.RemoveCategory(categoryId), 200);
 
     #endregion
