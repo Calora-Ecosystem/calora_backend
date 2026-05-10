@@ -45,9 +45,11 @@ builder.Services.AddRateLimiter(options =>
         {
             var userId =
                 (context.User.Identity is { IsAuthenticated: true } ? context.User?.FindFirst(CustomClaims.UserId)?.Value : null)
-                ?? (context.Request.Headers["X-Real-IP"].Count > 0
-                    ? context.Request.Headers["X-Real-IP"].ToString()
-                    : null)
+                ?? context.Request.Headers["X-Forwarded-For"]
+                    .FirstOrDefault()
+                    ?.Split(',')[0]
+                    .Trim()
+                ?? context.Request.Headers["X-Real-IP"].FirstOrDefault()
                 ?? "anonymous";
 
             return RateLimitPartition.GetFixedWindowLimiter(userId, s => new FixedWindowRateLimiterOptions()
