@@ -21,13 +21,12 @@ public class UserController(UserService userService, AuthService authService) : 
 {
     [HttpGet("{userId:long:min(1)}")]
     [ProducesResponseType<WrapperGeneric<GetUserDto>>(200)]
-    public async Task<Wrapper> GetById(long userId) =>
-        (await userService.GetUserAsync(userId), 200);
+    public async Task<Wrapper> GetById(long userId) => (await userService.GetUserAsync(this.UserId, userId), 200);
 
     [HttpGet("me")]
     [ProducesResponseType<WrapperGeneric<GetUserDto>>(200)]
     public async Task<Wrapper> GetMe() =>
-        (await userService.GetUserAsync(this.UserId), 200);
+        (await userService.GetUserAsync(this.UserId, this.UserId), 200);
 
     [HttpGet]
     [ProducesResponseType<WrapperGeneric<IEnumerable<GetAllUsersDto>>>(200)]
@@ -87,7 +86,7 @@ public class UserController(UserService userService, AuthService authService) : 
     public async Task<Wrapper> GetDailies([FromQuery] DataQueryRequest q, [FromQuery, Required] EnumMetrics metrics,
         long? userId,
         [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null) =>
-        await userService.GetDaily(userId ?? UserId, q, metrics, from, to);
+        await userService.GetDaily(userId ?? this.UserId, q, metrics, from, to);
 
     [HttpPost("dailies")]
     public async Task<Wrapper> AddDaily([FromBody] CreateUserDailyDto userDaily)
@@ -139,7 +138,7 @@ public class UserController(UserService userService, AuthService authService) : 
         (await userService.CalculateStepMetrics(userId ?? this.UserId, from, to), 200);
 
     [HttpGet("{userId:long:min(1)}/assign-role")]
-    [Authorize(Policy = nameof(EnumAuthPolicies.SuperAdmin))]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
     public Wrapper AssignRole(long userId, EnumRole role) =>
         (userService.AssignUserToRole(userId, role), 200);
 

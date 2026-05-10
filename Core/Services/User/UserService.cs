@@ -6,18 +6,34 @@ using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Auth;
 using Core.Enums;
+using Core.Exceptions;
 using Core.Services.User.Contracts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using ResultWrapper.Library;
+using Serilog;
 
 namespace Core.Services.User;
 
 [Injectable]
-public class UserService(AppDbContext context)
+public class UserService(AppDbContext context, ILogger<UserService> logger)
 {
-    public async Task<object> GetUserAsync(long userId)
+    public async Task<object> GetUserAsync(long authorizedUserId, long userId)
     {
+        if (authorizedUserId != userId)
+        {
+            var authorizedUser = await context.Users
+                .Select(x => new { x.Id, x.Roles })
+                .FirstOrDefaultAsync(x => x.Id == authorizedUserId);
+            
+            if (authorizedUser is null || !authorizedUser.Roles.Contains(nameof(EnumRole.SuperAdmin)))
+            {
+                logger.LogWarning("Unauthorized access to other user resource: {AuthorizedUserId} {ResourceUserid}", authorizedUserId, userId);
+                throw new ForbiddenException();
+            }
+        }
+        
         var user = await context.Users
                        .Where(x => x.Id == userId)
                        .Select(x => new GetUserDto(x.Id, x.Email ?? x.Phone, x.Roles))

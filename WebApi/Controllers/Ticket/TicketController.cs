@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Mail;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 
 namespace Calora.Api.Controllers;
@@ -329,6 +330,9 @@ public class TicketController : ControllerBase
 
     // POST: send
     [HttpPost("send")]
+#if !DEBUG
+    [EnableRateLimiting("ticket_limit")]
+#endif
     public async Task<IActionResult> SendTicket([FromBody] SendTicketRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Email))

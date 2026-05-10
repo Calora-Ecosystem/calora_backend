@@ -225,7 +225,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         return food;
     }
 
-    public async Task<Food> UpdateFood(long foodId, UpdateFoodDto dto)
+    public async Task<Food> UpdateFood(long foodId, long authorizedUserId, UpdateFoodDto dto)
     {
         var food = await dbContext.Foods.GetByIdOrThrowsNotFoundException(foodId);
 
