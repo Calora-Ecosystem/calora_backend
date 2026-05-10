@@ -34,6 +34,9 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
                 break;
 
             case EnumLeadEvent.SubscriptionOpened:
+                if (!lead.IsRegistered)
+                    lead.IsRegistered = true;
+                
                 lead.SubscriptionOpenedCount++;
                 break;
 
