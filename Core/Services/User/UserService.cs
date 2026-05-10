@@ -6,6 +6,7 @@ using Core.Brokers.DbContext;
 using Core.Entities.Auth;
 using Core.Enums;
 using Core.Exceptions;
+using Core.Services.Auth;
 using Core.Services.User.Contracts;
 using Core.Services.User.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,7 @@ using ResultWrapper.Library;
 namespace Core.Services.User;
 
 [Injectable]
-public class UserService(AppDbContext context, ILogger<UserService> logger)
+public class UserService(AppDbContext context, AuthService authService, ILogger<UserService> logger)
 {
     public async Task<object> GetUserAsync(long authorizedUserId, long userId)
     {
@@ -541,5 +542,7 @@ group by ung.user_id
         user.Roles = roles.Select(x => x.ToString()).ToList();
 
         await context.SaveChangesAsync();
+
+        await authService.KillAllUserSessions(user.Id);
     }
 }
