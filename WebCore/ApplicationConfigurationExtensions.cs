@@ -29,6 +29,7 @@ using Swashbuckle.AspNetCore.SwaggerUI;
 using WebCore.ConfigContracts;
 using WebCore.Converters;
 using WebCore.Filters.Swagger;
+using GlobalExceptionHandlerMiddleware = WebCore.Middlewares.GlobalExceptionHandlerMiddleware;
 
 namespace WebCore;
 
@@ -71,7 +72,7 @@ public static class ApplicationConfigurationExtensions
 
         app.UseCors();
 
-        app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+        app.UseMiddleware<Middlewares.GlobalExceptionHandlerMiddleware>();
 
 
         app.UseStaticFiles(new StaticFileOptions()
