@@ -7,5 +7,5 @@ public class CreateOrUpdateWorkoutDto: BaseCreateOrUpdateDto
 {
     public long CourseId { get; set; }
     public bool HasRest { get; set; }
-    public Asset[] Assets { get; set; } = null!;
+    public Asset[]? Assets { get; set; } = null!;
 }
