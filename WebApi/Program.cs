@@ -75,6 +75,15 @@ builder.AddSwaggerServer("https://calora.uz/api/", "Production API");
 builder
     .AddHangfireDefault();
 
+builder.WebHost.UseSentry(options =>
+{
+    options.Dsn = "https://eb9278a9d051a5569640077a8fe6eb23@o4510963491536896.ingest.us.sentry.io/4511376801923072";
+    options.TracesSampleRate = 1.0;
+    options.EnableLogs = true;
+    options.Debug = true;
+    options.EnableMetrics = true;
+});
+
 var app = builder.Build();
 
 app.UseRateLimiter();
