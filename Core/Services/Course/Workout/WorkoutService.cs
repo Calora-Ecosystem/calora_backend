@@ -287,7 +287,11 @@ public class WorkoutService(AppDbContext dbContext)
 
         if (exerciseId.HasValue)
         {
-            defaultValues.ForEach(x => x.Value.Id = null);
+            defaultValues.ForEach(x =>
+            {
+                x.Value.Id = null;
+                x.Value.Type = EnumEntityType.Exercise;
+            });
             
             (await dbContext.Computations
                 .Where(x => x.EntityId == exerciseId && x.Type == EnumEntityType.Exercise)
