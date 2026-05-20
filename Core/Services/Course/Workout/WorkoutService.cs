@@ -379,15 +379,15 @@ public class WorkoutService(AppDbContext dbContext)
 
             var computation = dto.Id.HasValue
                 ? await dbContext.Computations.GetByIdOrThrowsNotFoundException(dto.Id.Value)
-                : await dbContext.Computations.FirstOrDefaultAsync(x => x.EntityId == dto.EntityId && x.Type == dto.Type && x.Level == dto.Activity && x.ComputationType == dto.ComputationType) ??
+                : await dbContext.Computations.FirstOrDefaultAsync(x => x.EntityId == dto.EntityId && x.Type == dto.Type && x.Level == dto.Activity) ??
                 dbContext.Add(new Computation()
                 {
                     Type = dto.Type,
                     EntityId = dto.EntityId,
-                    Level = dto.Activity,
-                    ComputationType = dto.ComputationType
+                    Level = dto.Activity
                 }).Entity;
 
+            computation.ComputationType = dto.ComputationType;
             computation.Value = dto.Value;
             computation.Kcal = dto.Kcal;
         }
