@@ -319,6 +319,7 @@ public class WorkoutService(AppDbContext dbContext)
     }
 
     [AutomaticRetry(Attempts = 2)]
+    [Queue("computation-index")]
     public async Task IndexWorkoutComputations()
     {
         var workoutIds = await dbContext.Workouts.Select(x => x.Id).ToListAsync();
