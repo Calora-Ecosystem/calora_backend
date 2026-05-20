@@ -372,6 +372,7 @@ public class WorkoutService(AppDbContext dbContext)
         }
 
         await dbContext.SaveChangesAsync();
-        await IndexWorkoutComputations();
+        
+        BackgroundJob.Enqueue<WorkoutService>(service => service.IndexWorkoutComputations());
     }
 }
