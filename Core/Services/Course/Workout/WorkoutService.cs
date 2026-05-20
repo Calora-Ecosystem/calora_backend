@@ -301,6 +301,8 @@ public class WorkoutService(AppDbContext dbContext)
 
         if (exerciseId.HasValue)
         {
+            defaultValues.ForEach(x => x.Value.Id = null);
+            
             (await dbContext.Computations
                 .Where(x => x.EntityId == exerciseId && x.Type == EnumEntityType.Exercise)
                 .ToDictionaryAsync(x => x.Level, x => new ComputationDto()
