@@ -359,18 +359,20 @@ public class WorkoutService(AppDbContext dbContext)
 
             var computation = dto.Id.HasValue
                 ? await dbContext.Computations.GetByIdOrThrowsNotFoundException(dto.Id.Value)
-                : dbContext.Add(new Computation()
+                : await dbContext.Computations.FirstOrDefaultAsync(x => x.EntityId == dto.EntityId && x.Type == dto.Type && x.Level == dto.Activity && x.ComputationType == dto.ComputationType) ??
+                dbContext.Add(new Computation()
                 {
                     Type = dto.Type,
                     EntityId = dto.EntityId,
+                    Level = dto.Activity,
+                    ComputationType = dto.ComputationType
                 }).Entity;
 
-            computation.Level = dto.Activity;
-            computation.ComputationType = dto.ComputationType;
             computation.Value = dto.Value;
         }
 
         await dbContext.SaveChangesAsync();
-        await IndexWorkoutComputations();
+        
+        BackgroundJob.Enqueue<WorkoutService>(service => service.IndexWorkoutComputations());
     }
 }
