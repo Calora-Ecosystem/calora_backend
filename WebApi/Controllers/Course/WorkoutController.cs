@@ -27,7 +27,7 @@ public class WorkoutController(WorkoutService service, CourseService courseServi
         await service.GetAll(this.UserId, q, level: level, courseId: courseId);
 
     [HttpGet("{workoutId:long:min(1)}")]
-    [ProducesResponseType(typeof(WrapperGeneric<GetWorkoutById>), 200)]
+    [ProducesResponseType(typeof(WrapperGeneric<GetWorkoutByIdDto>), 200)]
     public async Task<Wrapper> GetById(long workoutId) =>
         (await service.GetById(workoutId), 200);
 
