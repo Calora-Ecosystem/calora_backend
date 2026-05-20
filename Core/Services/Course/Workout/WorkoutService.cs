@@ -56,6 +56,16 @@ public class WorkoutService(AppDbContext dbContext)
                         .Where(i => i.EntityId == x.Id)
                         .Sum(i => i.TotalDuration.TotalMinutes + i.TotalCounts * 1 /* 1 action 1 minute */
                         ),
+                TotalKcal = level.HasValue
+                    ? dbContext
+                        .WorkoutComputationIndices
+                        .Where(i => i.EntityId == x.Id &&
+                                    i.Level == level.Value)
+                        .Sum(i => i.TotalKcal)
+                    : dbContext
+                        .WorkoutComputationIndices
+                        .Where(i => i.EntityId == x.Id)
+                        .Sum(i => i.TotalKcal),
                 TotalMetrics = x.Exercises
                     .Where(exercise => exercise.WorkoutId == x.Id)
                     .SelectMany(exercise => exercise.Metrics)
@@ -71,10 +81,10 @@ public class WorkoutService(AppDbContext dbContext)
             .GetByDataQueryAsync(query);
     }
 
-    public async Task<GetWorkoutById> GetById(long id)
+    public async Task<GetWorkoutByIdDto> GetById(long id)
     {
         return await dbContext.Workouts
-            .Select(x => new GetWorkoutById
+            .Select(x => new GetWorkoutByIdDto
             {
                 Id = x.Id, Title = x.Title, Description = x.Description,
                 HasRest = x.HasRest,
@@ -155,6 +165,7 @@ public class WorkoutService(AppDbContext dbContext)
                         ComputationType = i.ComputationType,
                         EntityId = i.EntityId,
                         Value = i.Value,
+                        Kcal = i.Kcal,
                         Activity = i.Level
                     }).ToList()
             })
@@ -186,6 +197,7 @@ public class WorkoutService(AppDbContext dbContext)
                         {
                             ComputationType = i.ComputationType,
                             Value = i.Value,
+                            Kcal = i.Kcal,
                             Activity = i.Level
                         }).FirstOrDefault()
                     : null,
@@ -269,6 +281,7 @@ public class WorkoutService(AppDbContext dbContext)
                 Type = EnumEntityType.Workout,
                 EntityId = workoutId,
                 Value = 0,
+                Kcal = 0,
                 Activity = (EnumActivityLevel)x,
                 Id = 0
             });
@@ -282,6 +295,7 @@ public class WorkoutService(AppDbContext dbContext)
                 Type = x.Type,
                 EntityId = x.EntityId,
                 Value = x.Value,
+                Kcal = x.Kcal,
                 ComputationType = x.ComputationType
             })).ForEach(x => defaultValues[x.Key] = x.Value);
 
@@ -296,6 +310,7 @@ public class WorkoutService(AppDbContext dbContext)
                     Type = x.Type,
                     EntityId = x.EntityId,
                     Value = x.Value,
+                    Kcal = x.Kcal,
                     ComputationType = x.ComputationType
                 })).ForEach(x => defaultValues[x.Key] = x.Value);
         }
@@ -320,12 +335,13 @@ public class WorkoutService(AppDbContext dbContext)
                 var records = await dbContext.Computations
                     .Where(x => exercisesIds.Contains(x.EntityId) && x.Type == EnumEntityType.Exercise &&
                                 x.Level == level)
-                    .Select(x => new { x.EntityId, x.Value, x.ComputationType })
+                    .Select(x => new { x.EntityId, x.Value, x.Kcal, x.ComputationType })
                     .ToListAsync();
 
                 var counts = records.Where(x => x.ComputationType == EnumComputationType.Count).Sum(x => x.Value);
                 var durations = TimeSpan.FromMinutes(records
                     .Where(x => x.ComputationType == EnumComputationType.Duration).Sum(x => x.Value));
+                var totalKcal = records.Sum(x => x.Kcal);
 
                 var index = await dbContext
                                 .WorkoutComputationIndices
@@ -339,6 +355,7 @@ public class WorkoutService(AppDbContext dbContext)
 
                 index.TotalCounts = Convert.ToInt32(counts);
                 index.TotalDuration = durations;
+                index.TotalKcal = totalKcal;
 
                 dbContext.Update(index);
                 await dbContext.SaveChangesAsync();
@@ -369,6 +386,7 @@ public class WorkoutService(AppDbContext dbContext)
                 }).Entity;
 
             computation.Value = dto.Value;
+            computation.Kcal = dto.Kcal;
         }
 
         await dbContext.SaveChangesAsync();

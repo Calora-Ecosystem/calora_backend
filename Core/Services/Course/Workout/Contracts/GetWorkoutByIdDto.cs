@@ -3,7 +3,7 @@ using Core.Entities.Course;
 
 namespace Core.Services.Course.Workout.Contracts;
 
-public record GetWorkoutById
+public record GetWorkoutByIdDto
 {
     public long Id { get; set; }
     public MultiLanguageField Title { get; set; } = null!;
