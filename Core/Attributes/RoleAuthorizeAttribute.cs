@@ -79,14 +79,13 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
 
             var plan = user.Claims.FirstOrDefault(x => x.Type == CustomClaims.Plan)?.Value;
 
-            if (plan != null && 
-                Enum.TryParse<EnumSPlans>(plan, ignoreCase: true, out var parsedPlan) &&
-                attr.Plans!.Contains(parsedPlan))
+            if (plan != null && Enum.IsDefined(typeof(EnumSPlans), plan) &&
+                attr.Plans!.Contains(Enum.Parse<EnumSPlans>(plan)))
                 return;
 
             context.HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
             context.Result =
-                new ObjectResult(new Wrapper(new ForbiddenException()));
+                new ObjectResult(new Wrapper(new ForbiddenException("You don't have access to this resource")));
         }
 
         context.HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
