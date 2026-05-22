@@ -79,8 +79,9 @@ public class RoleAuthorizeAttribute(params EnumRole[] roles) : AuthorizeAttribut
 
             var plan = user.Claims.FirstOrDefault(x => x.Type == CustomClaims.Plan)?.Value;
 
-            if (plan != null && Enum.IsDefined(typeof(EnumSPlans), plan) &&
-                attr.Plans!.Contains(Enum.Parse<EnumSPlans>(plan)))
+            if (plan != null && 
+                Enum.TryParse<EnumSPlans>(plan, ignoreCase: true, out var parsedPlan) &&
+                attr.Plans!.Contains(parsedPlan))
                 return;
 
             context.HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
