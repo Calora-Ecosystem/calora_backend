@@ -11,4 +11,5 @@ public class WorkoutComputationIndex : ModelBase<long>
     public TimeSpan TotalDuration { get; set; }
     public int TotalCounts { get; set; }
     public EnumActivityLevel Level { get; set; }
+    public double TotalKcal { get; set; }
 }

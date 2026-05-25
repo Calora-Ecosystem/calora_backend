@@ -417,7 +417,16 @@ public static class ApplicationConfigurationExtensions
                     options.UseNpgsqlConnection(connectionString);
                 });
         });
-        builder.Services.AddHangfireServer(options => { options.WorkerCount = 5; });
+        builder.Services.AddHangfireServer(options =>
+        {
+            options.WorkerCount = 5;
+            options.Queues = new[] { "default" };
+        });
+        builder.Services.AddHangfireServer(options =>
+        {
+            options.WorkerCount = 1;
+            options.Queues = new[] { "computation-index" };
+        });
         return builder;
     }
 }

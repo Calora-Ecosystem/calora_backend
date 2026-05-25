@@ -1,17 +1,20 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using BRB.Core.EF.Attributes;
+using Core.Brokers.DbContext;
 using Core.Services.Ai.Exceptions;
 using Core.Enums;
 using Core.Services.Ai.Contracts;
 using Google.GenAI;
 using Google.GenAI.Types;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Type = Google.GenAI.Types.Type;
 
 namespace Core.Services.Ai;
 
 [Injectable]
-public class AiService(Client client)
+public class AiService(Client client, AppDbContext context, IMemoryCache cache)
 {
     private GenerateContentConfig _config = new GenerateContentConfig()
     {
@@ -26,6 +29,18 @@ public class AiService(Client client)
                 {
                     {
                         "name", new Schema()
+                        {
+                            Type = Type.STRING,
+                        }
+                    },
+                    {
+                        "categoryId", new Schema()
+                        {
+                            Type = Type.NUMBER
+                        }
+                    },
+                    {
+                        "categoryName", new Schema()
                         {
                             Type = Type.STRING,
                         }
@@ -69,7 +84,24 @@ public class AiService(Client client)
         }
     };
 
-    public async Task<List<FoodResultDto>> RecognizeForFood(byte[] fileBuffer, string mimeType, EnumLanguage language = EnumLanguage.Uzbek)
+    public async Task<String> GetMeta()
+    {
+        return await cache.GetOrCreateAsync("food_meta_for_ai", async entry =>
+        {
+            var categories = await context.FoodCategories
+                .Select(x => new { x.Id, x.Name })
+                .ToListAsync();
+
+            // var foods = await context.Foods
+            //     .Select(x => new { x.Id, x.Name })
+            //     .ToListAsync();
+
+            return JsonSerializer.Serialize(new { categories });
+        }) ?? throw new InvalidMetaException();
+    }
+
+    public async Task<List<FoodResultDto>> RecognizeForFood(byte[] fileBuffer, string mimeType,
+        EnumLanguage language = EnumLanguage.Uzbek)
     {
         var response = await client.Models.GenerateContentAsync(
             model: "gemini-2.5-flash", contents: new Content()
@@ -81,7 +113,9 @@ public class AiService(Client client)
                         Text =
                             @$"
 Your are master of food world and nutritions.
-Recognize food from image or audio and return response by schema. 
+Recognize food from image or audio and return response by schema.
+Categories: {await GetMeta()}.
+Always return the closest matching category ID. Never return a value less than or equal to 0.
 Calculate metrics by {string.Join(",", Enum.GetNames<EnumMetrics>())}.
 Estimate or Recognize food weight.
 Return all results in {language.ToString()}.
