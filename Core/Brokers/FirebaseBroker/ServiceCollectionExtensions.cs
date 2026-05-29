@@ -16,7 +16,8 @@ public static class ServiceCollectionExtensions
         {
             Credential = GoogleCredential.FromFile("Resources/calora-google.json")
         }));
-        services.AddSingleton(provider => FirebaseMessaging.GetMessaging(provider.GetRequiredService<FirebaseApp>()));
+        services
+            .AddSingleton(provider => FirebaseMessaging.GetMessaging(provider.GetRequiredService<FirebaseApp>()));
         
         return services;
     }
