@@ -6,6 +6,8 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
 # Copy project files first so NuGet restore is cached as a separate layer
+COPY packages/* packages/
+COPY Nuget.config nuget.config
 COPY CaloraService.sln ./
 COPY Core/Core.csproj Core/
 COPY WebCore/WebCore.csproj WebCore/
