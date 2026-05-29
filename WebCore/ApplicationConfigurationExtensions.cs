@@ -21,6 +21,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Npgsql;
 using ResultWrapper.Library;
+using Sentry.Hangfire;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
@@ -416,6 +417,8 @@ public static class ApplicationConfigurationExtensions
                     var connectionString = builder.Configuration.GetConnectionString("Default");
                     options.UseNpgsqlConnection(connectionString);
                 });
+
+            configuration.UseSentry();
         });
         builder.Services.AddHangfireServer(options =>
         {

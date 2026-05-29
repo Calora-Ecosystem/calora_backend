@@ -13,19 +13,31 @@ public class EmailClient(
     public async Task SendMailAsync(
         string email, string body, string subject = "", bool isHtml = false)
     {
-        var from = new MailAddress(_config.Username, _config.From);
-        var to = new MailAddress(email);
-        var mail = new MailMessage(from, to)
+        var transaction = SentrySdk.GetTransaction();
+        var span = transaction?.StartChild("email.send", "Sending Email");
+
+        try
         {
-            Subject = subject,
-            Body = body,
-            IsBodyHtml = isHtml
-        };
+            var from = new MailAddress(_config.Username, _config.From);
+            var to = new MailAddress(email);
+            var mail = new MailMessage(from, to)
+            {
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = isHtml
+            };
 
-        using var smtpClient = new SmtpClient(_config.Host, _config.Port);
-        smtpClient.Credentials = new NetworkCredential(_config.Username, _config.Password);
-        smtpClient.EnableSsl = true;
+            using var smtpClient = new SmtpClient(_config.Host, _config.Port);
+            smtpClient.Credentials = new NetworkCredential(_config.Username, _config.Password);
+            smtpClient.EnableSsl = true;
 
-        await smtpClient.SendMailAsync(mail);
+            await smtpClient.SendMailAsync(mail);
+            span?.Finish(SpanStatus.Ok);
+        }
+        catch (Exception e)
+        {
+            span?.Finish(e);
+            throw;
+        }
     }
 }

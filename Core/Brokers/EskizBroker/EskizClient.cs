@@ -12,7 +12,8 @@ public class EskizClient(IOptions<EskizConfig> configOptions, IMemoryCache memor
 {
     private HttpClient GetClient()
     {
-        return new HttpClient() { BaseAddress = new Uri(configOptions.Value.BaseUrl) };
+        return new HttpClient(new SentryHttpMessageHandler(new HttpClientHandler()))
+            { BaseAddress = new Uri(configOptions.Value.BaseUrl) };
     }
 
     private async Task<string> GetAccToken()
