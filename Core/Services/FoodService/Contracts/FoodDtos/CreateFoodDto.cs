@@ -6,7 +6,7 @@ namespace Core.Services.FoodService.Contracts.FoodDtos;
 
 public class CreateFoodDto
 {
-    public long CategoryId { get; set; }
+    public long? CategoryId { get; set; }
     public MultiLanguageField Name { get; set; } = null!;
     public string? CoverUrl { get; set; }
     [MaxLength(500)] public string? Description { get; set; }

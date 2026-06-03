@@ -113,7 +113,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
             .Select(x => new GetAllFoodDto
             {
                 Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
-                CategoryName = x.Category.Name,
+                CategoryName = x.Category != null ? x.Category.Name : null,
                 CoverUrl = x.CoverUrl,
                 IsFavourite = fIds.Contains(x.Id),
                 Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
@@ -129,7 +129,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
             {
                 Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
                 Description = x.Description,
-                CategoryName = x.Category.Name,
+                CategoryName = x.Category != null ? x.Category.Name : null,
                 CoverUrl = x.CoverUrl,
                 Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 IsUserFood = x.UserId.HasValue,
@@ -160,7 +160,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
             .Select(x => new GetAllFoodDto
             {
                 Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
-                CategoryName = x.Category.Name,
+                CategoryName = x.Category != null ? x.Category.Name : null,
                 CoverUrl = x.CoverUrl,
                 Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 IsUserFood = x.UserId.HasValue
@@ -194,8 +194,13 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
             await dbContext.Users.ExistsOrThrowsNotFoundException(userFood.UserId);
             foodUserId = userFood.UserId;
         }
+        else if (!dto.CategoryId.HasValue)
+        {
+            throw new FoodCategoryRequiredException();
+        }
 
-        await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId);
+        if (dto.CategoryId.HasValue)
+            await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId.Value);
 
         var food = dbContext.Foods.Add(new Food()
         {
@@ -238,7 +243,8 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         if (food.UserId.HasValue && dto.UserId.HasValue && food.UserId != dto.UserId)
             throw new FoodUpdateForbiddenException();
 
-        await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId);
+        if (dto.CategoryId.HasValue)
+            await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId.Value);
 
         await dbContext.Transactional(async () =>
         {
@@ -325,7 +331,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                 Menu = x.Menu, Date = x.Date, FoodId = x.FoodId,
                 FoodName = x.Food.Name,
                 CategoryId = x.Food.CategoryId,
-                CategoryName = x.Food.Category.Name,
+                CategoryName = x.Food.Category != null ? x.Food.Category.Name : null,
                 CoverUrl = x.Food.CoverUrl,
                 Weight = x.Weight,
                 Metrics = x.Food.Metrics.Select(foodMetrics =>
