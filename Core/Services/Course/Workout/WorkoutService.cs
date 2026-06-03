@@ -26,6 +26,9 @@ public class WorkoutService(AppDbContext dbContext)
         if (courseId is not null)
             q = q.Where(x => x.CourseId == courseId);
 
+        if (query.Skip == 0)
+            query.Skip = -1;
+
         return await q
             .AsSplitQuery()
             .Select(x => new GetWorkoutDto()
