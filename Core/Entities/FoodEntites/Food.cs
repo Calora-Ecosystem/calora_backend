@@ -13,12 +13,12 @@ public class Food : ModelBase<long>
     /// </summary>
     public long? UserId { get; set; }
 
-    [ForeignKey(nameof(FoodCategory))] public long CategoryId { get; set; }
+    [ForeignKey(nameof(FoodCategory))] public long? CategoryId { get; set; }
     public MultiLanguageField Name { get; set; } = null!;
     public string? CoverUrl { get; set; }
     [MaxLength(500)] public string? Description { get; set; } = null!;
 
-    public FoodCategory Category { get; set; } = default!;
+    public FoodCategory? Category { get; set; }
 
     public User? User { get; set; }
     public List<FoodMetrics> Metrics { get; set; } = default!;

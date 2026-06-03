@@ -7,8 +7,8 @@ public record GetAllFoodDto
 {
     public long Id { get; set; }
     public MultiLanguageField Name { get; set; } = null!;
-    public long CategoryId { get; set; }
-    public MultiLanguageField CategoryName { get; set; } = null!;
+    public long? CategoryId { get; set; }
+    public MultiLanguageField? CategoryName { get; set; }
     public string? CoverUrl { get; set; } = null!;
     public IEnumerable<GetNormDto> Metrics { get; set; } = null!;
     public bool IsUserFood { get; set; }
