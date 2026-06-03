@@ -51,18 +51,17 @@ public class AuthService(
 
         var user = await dbContext.Users
                        .FirstOrDefaultAsync(x => x.Email != null && EF.Functions.ILike(x.Email, payload.Email)) ??
-                   new Entities.Auth.User()
+                   dbContext.Add(new Entities.Auth.User()
                    {
                        Name = payload.Name,
                        Email = payload.Email,
                        Roles = [nameof(EnumRole.User)]
-                   };
+                   }).Entity;
 
         var hasNewUser = user.Id == 0;
 
-        user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
-        
+
         if (hasNewUser)
             BackgroundJob.Enqueue<LeadService>(service => service.HandleEventAsync(new Core.Services.Crm.Contracts.HandleLeadEventDto(user.Id, EnumLeadEvent.Registered)));
 
@@ -121,9 +120,12 @@ public class AuthService(
 
         var hasNewUser = user.Id == 0;
 
-        user = dbContext.Users.Update(user).Entity;
+        if (hasNewUser)
+            user = dbContext.Users.Add(user).Entity;
+        else
+            user = dbContext.Users.Update(user).Entity;
         await dbContext.SaveChangesAsync();
-        
+
         if (hasNewUser)
             BackgroundJob.Enqueue<LeadService>(service => service.HandleEventAsync(new Core.Services.Crm.Contracts.HandleLeadEventDto(user.Id, EnumLeadEvent.Registered)));
 
