@@ -50,8 +50,8 @@ builder.Services.AddRateLimiter(options =>
         RateLimitPartition.GetFixedWindowLimiter(GetClientKey(context), _ => new FixedWindowRateLimiterOptions
         {
             AutoReplenishment = true,
-            PermitLimit = builder.Environment.IsProduction() ? 3 : 100,
-            Window = TimeSpan.FromHours(6),
+            PermitLimit = builder.Environment.IsProduction() ? 5 : 100,
+            Window = TimeSpan.FromHours(1),
         })
     );
 
@@ -61,6 +61,15 @@ builder.Services.AddRateLimiter(options =>
             AutoReplenishment = true,
             PermitLimit = builder.Environment.IsProduction() ? 3 : 100,
             Window = TimeSpan.FromHours(24),
+        })
+    );
+    
+    options.AddPolicy("face_analyze_limit", context =>
+        RateLimitPartition.GetFixedWindowLimiter(GetClientKey(context), _ => new FixedWindowRateLimiterOptions
+        {
+            AutoReplenishment = true,
+            PermitLimit = builder.Environment.IsProduction() ? 10 : 100,
+            Window = TimeSpan.FromHours(1),
         })
     );
 });

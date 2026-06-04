@@ -3,7 +3,9 @@ using WebApi.Exceptions;
 using Core.Enums;
 using Core.Services.Ai.Contracts;
 using Core.Services.File.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using OpenCvSharp;
 using ResultWrapper.Library;
 using SixLabors.ImageSharp;
@@ -24,7 +26,9 @@ namespace WebApi.Controllers
         }
 
         [HttpPost("analyze")]
-        //[RoleAuthorize(EnumRole.User)]
+        // [RoleAuthorize(EnumRole.User)]
+        [AllowAnonymous]
+        [EnableRateLimiting("face_analyze_limit")]
         public async Task<WrapperGeneric<AnalyzeFaceDto>> Analyze([FromForm] UploadFileDto image)
         {
             var bytes = new byte[image.File.Length];
