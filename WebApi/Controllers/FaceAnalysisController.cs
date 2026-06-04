@@ -5,6 +5,7 @@ using Core.Services.Ai.Contracts;
 using Core.Services.File.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.RateLimiting;
 using OpenCvSharp;
 using ResultWrapper.Library;
