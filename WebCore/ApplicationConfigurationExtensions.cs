@@ -71,6 +71,8 @@ public static class ApplicationConfigurationExtensions
             });
         }
 
+        app.UseCors();
+
         app.UseMiddleware<Middlewares.GlobalExceptionHandlerMiddleware>();
 
 
@@ -87,15 +89,8 @@ public static class ApplicationConfigurationExtensions
 
 
         app.UseHealthChecks("/healthy");
-
-        // MUHIM: endpoint-aware CORS uchun tartib aniq bo'lishi shart:
-        // UseRouting -> UseCors -> UseAuthorization -> MapControllers.
-        // Aks holda [EnableCors(OpenCorsPolicy)] preflight (OPTIONS) uchun ishlamaydi
-        // va default (cheklangan originli) policy qo'llanib, CORS xatosi beradi.
-        app.UseRouting();
-        app.UseCors();
-        // app.UseAuthentication();
         app.UseAuthorization();
+        // app.UseAuthentication();
         app.UseCustom404Page("");
         app.MapControllers();
 
