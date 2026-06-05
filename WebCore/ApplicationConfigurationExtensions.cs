@@ -255,8 +255,6 @@ public static class ApplicationConfigurationExtensions
         return builder;
     }
 
-    public const string OpenCorsPolicy = "OpenCorsPolicy";
-
     private static WebApplicationBuilder ConfigureCors(this WebApplicationBuilder builder)
     {
         builder.Services.AddCors(options =>
@@ -265,13 +263,6 @@ public static class ApplicationConfigurationExtensions
                 policyBuilder
                     .AllowCredentials()
                     .WithOrigins(builder.Configuration.GetSection("Origins").Get<string[]?>() ?? ["localhost"])
-                    .AllowAnyHeader()
-                    .AllowAnyMethod()
-            );
-
-            options.AddPolicy(OpenCorsPolicy, policyBuilder =>
-                policyBuilder
-                    .AllowAnyOrigin()
                     .AllowAnyHeader()
                     .AllowAnyMethod()
             );
