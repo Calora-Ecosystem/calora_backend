@@ -1,8 +1,10 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using WebCore;
 
 #pragma warning disable
 namespace WebApi.Controllers;
@@ -10,6 +12,7 @@ namespace WebApi.Controllers;
 [ApiController]
 [Route("[controller]")]
 [AllowAnonymous]
+[EnableCors(ApplicationConfigurationExtensions.OpenCorsPolicy)]
 public class MunosabatAiController : ControllerBase
 {
     private readonly IHttpClientFactory _httpClientFactory;
