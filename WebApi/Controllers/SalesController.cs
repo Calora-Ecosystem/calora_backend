@@ -11,8 +11,20 @@ namespace WebApi.Controllers;
 [ApiController]
 [Route("crm/analytics")]
 [RoleAuthorize(EnumRole.HeadOfSales)]
-public class SalesController(SalesAnalyticsService analyticsService) : AuthorizedController
+public class SalesController(SalesAnalyticsService analyticsService, CrmOperatorService operatorService) : AuthorizedController
 {
+    [HttpPost("/crm/operators")]
+    [ProducesResponseType<WrapperGeneric<long>>(200)]
+    public async Task<Wrapper> CreateOperator([FromBody] CreateOperatorDto dto) =>
+        (await operatorService.CreateOperatorAsync(dto), 200);
+
+    [HttpDelete("/crm/operators/{operatorId:long:min(1)}")]
+    public async Task<Wrapper> DeleteOperator(long operatorId)
+    {
+        await operatorService.DeleteOperatorAsync(operatorId);
+        return 200;
+    }
+
     [HttpGet("overview")]
     [ProducesResponseType<WrapperGeneric<SalesOverviewDto>>(200)]
     public async Task<Wrapper> GetOverview() =>

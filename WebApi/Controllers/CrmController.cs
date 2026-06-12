@@ -12,13 +12,20 @@ namespace WebApi.Controllers;
 [ApiController]
 [Route("crm")]
 [RoleAuthorize(EnumRole.Operator, EnumRole.HeadOfSales)]
-public class CrmController(LeadService leadService, CrmStatsService statsService) : AuthorizedController
+public class CrmController(LeadService leadService, CrmStatsService statsService, CrmOperatorService operatorService) : AuthorizedController
 {
     /// <summary>
     /// Operators are scoped to their own leads; HeadOfSales sees everything (null scope).
     /// </summary>
     private long? OperatorScope =>
         User.IsInRole(nameof(EnumRole.HeadOfSales)) ? null : this.UserId;
+
+    /// <summary>Current user's name + roles. Available to every authenticated role.</summary>
+    [HttpGet("me")]
+    [RoleAuthorize(EnumRole.SuperAdmin, EnumRole.HeadOfSales, EnumRole.Operator, EnumRole.User)]
+    [ProducesResponseType<WrapperGeneric<GetMeDto>>(200)]
+    public async Task<Wrapper> GetMe() =>
+        (await operatorService.GetMeAsync(this.UserId), 200);
 
     #region Leads
 
