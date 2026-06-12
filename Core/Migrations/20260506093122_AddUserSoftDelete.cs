@@ -10,9 +10,7 @@ namespace Core.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Discriminator",
-                table: "user_dailies");
+            migrationBuilder.Sql("ALTER TABLE user_dailies DROP COLUMN IF EXISTS \"Discriminator\";");
 
             migrationBuilder.AddColumn<bool>(
                 name: "is_deleted",

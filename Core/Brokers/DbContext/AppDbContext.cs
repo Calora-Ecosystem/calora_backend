@@ -86,6 +86,8 @@ public class AppDbContext : DefaultConfiguredDbContext
 
     public DbSet<Lead> Leads { get; set; }
     public DbSet<Note> Notes { get; set; }
+    public DbSet<LeadActivity> LeadActivities { get; set; }
+    public DbSet<FollowUp> FollowUps { get; set; }
 
     #endregion
 
