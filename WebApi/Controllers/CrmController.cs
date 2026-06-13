@@ -62,6 +62,15 @@ public class CrmController(LeadService leadService, CrmStatsService statsService
         return 200;
     }
 
+    /// <summary>Manually (re)assign a lead to an operator. HeadOfSales / SuperAdmin only.</summary>
+    [HttpPatch("leads/{id:long:min(1)}/assign")]
+    [RoleAuthorize(EnumRole.HeadOfSales, EnumRole.SuperAdmin)]
+    public async Task<Wrapper> Assign(long id, [FromBody] AssignLeadDto dto)
+    {
+        await leadService.AssignToOperatorAsync(id, dto.OperatorId, this.UserId);
+        return 200;
+    }
+
     #endregion
 
     #region Notes

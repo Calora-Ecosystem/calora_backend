@@ -206,6 +206,34 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
 
     #endregion
 
+    #region Manual assignment (HeadOfSales / SuperAdmin)
+
+    /// <summary>
+    /// Manually (re)assign a lead to an operator. Used by HeadOfSales/SuperAdmin from the
+    /// leads-management view. Validates the target actually holds the Operator role.
+    /// </summary>
+    public async Task AssignToOperatorAsync(long leadId, long operatorId, long actorId)
+    {
+        var lead = await context.Leads.FirstOrDefaultAsync(l => l.Id == leadId)
+                   ?? throw new LeadNotFoundException();
+
+        var isOperator = await context.Users
+            .FromSqlInterpolated($"SELECT * FROM users WHERE id = {operatorId} AND roles @> '[\"Operator\"]'::jsonb")
+            .AnyAsync();
+        if (!isOperator)
+            throw new OperatorNotFoundException();
+
+        lead.OperatorId = operatorId;
+        if (lead.Status is EnumLeadStatus.New)
+            lead.Status = EnumLeadStatus.Assigned;
+        lead.LastActivity = DateTime.Now;
+
+        LogActivity(lead, EnumLeadActivityType.Assigned, "Boshqaruvchi tomonidan biriktirildi", actorId);
+        await context.SaveChangesAsync();
+    }
+
+    #endregion
+
     #region Status & contact
 
     public async Task MoveStatusAsync(long leadId, long operatorId, EnumLeadStatus status, string? reason)
@@ -428,6 +456,8 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
             queryable = queryable.Where(l => l.OperatorId == operatorScopeId.Value);
         else if (q.OperatorId.HasValue)
             queryable = queryable.Where(l => l.OperatorId == q.OperatorId.Value);
+        else if (q.Unassigned == true)
+            queryable = queryable.Where(l => l.OperatorId == null);
 
         if (q.Priority.HasValue) queryable = queryable.Where(l => l.Priority == q.Priority.Value);
         if (q.Status.HasValue) queryable = queryable.Where(l => l.Status == q.Status.Value);

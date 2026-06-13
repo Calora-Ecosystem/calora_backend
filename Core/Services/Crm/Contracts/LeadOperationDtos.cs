@@ -3,6 +3,12 @@ using Core.Entities.Crm.Enum;
 
 namespace Core.Services.Crm.Contracts;
 
+public record AssignLeadDto
+{
+    [System.ComponentModel.DataAnnotations.Required]
+    public long OperatorId { get; set; }
+}
+
 public record MoveStatusDto
 {
     [Required] public EnumLeadStatus Status { get; set; }

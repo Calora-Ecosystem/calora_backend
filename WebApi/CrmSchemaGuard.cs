@@ -58,5 +58,10 @@ public static class CrmSchemaGuard
         CREATE INDEX IF NOT EXISTS ix_follow_ups_is_done ON follow_ups (is_done);
         CREATE INDEX IF NOT EXISTS ix_lead_activities_lead_id ON lead_activities (lead_id);
         CREATE INDEX IF NOT EXISTS ix_lead_activities_actor_id ON lead_activities (actor_id);
+
+        -- Legacy rows backfilled with 0 are invalid enum values (status/temperature start at 1)
+        -- and break JSON enum serialization. Normalise them to New / Cold (unassigned).
+        UPDATE leads SET status = 1 WHERE status = 0;
+        UPDATE leads SET temperature = 1 WHERE temperature = 0;
         """;
 }
