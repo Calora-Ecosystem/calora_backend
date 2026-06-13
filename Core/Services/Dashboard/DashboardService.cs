@@ -16,11 +16,16 @@ public class DashboardService(AppDbContext context)
     public async Task<Dictionary<int, double>> GetSalesMonthlySummary()
     {
         var yearBegin = DateTime.Now.FirstDayOfYear();
-        return await context.Orders
+        // Group + sum in SQL, then round client-side (Math.Round inside the aggregate isn't translatable).
+        var rows = await context.Orders
             .Where(x => x.CreatedAt >= yearBegin)
             .GroupBy(x => x.CreatedAt.Month)
-            .OrderBy(x => x.Key)
-            .ToDictionaryAsync(x => x.Key, x => Math.Round(x.Sum(y => y.Amount) / 100d, 2));
+            .Select(g => new { Month = g.Key, Total = g.Sum(y => y.Amount) })
+            .ToListAsync();
+
+        return rows
+            .OrderBy(r => r.Month)
+            .ToDictionary(r => r.Month, r => Math.Round(r.Total / 100d, 2));
     }
 
     public async Task<GetOverallSummaryDto> GetOverallSummary()

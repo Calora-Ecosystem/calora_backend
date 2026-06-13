@@ -8,6 +8,9 @@ using Core.Brokers.FirebaseBroker;
 using Core.Brokers.GeminiBroker;
 using Core.Constants;
 using Hangfire;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using WebApi;
 using ResultWrapper.Library;
 using WebCore;
 using Authorization = WebCore.Filters.Hangfire.Authorization;
@@ -107,5 +110,17 @@ app.UseHangfireDashboard(options: new DashboardOptions()
     Authorization = [new Authorization(app.Environment)]
 });
 app.AddRecurringJobs();
+
+// Apply pending EF migrations on startup so deploys self-migrate the schema.
+using (var migrationScope = app.Services.CreateScope())
+{
+    var db = migrationScope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (db.Database.GetPendingMigrations().Any())
+        db.Database.Migrate();
+
+    // Self-healing guard: if the CRM migration is recorded as applied but the schema
+    // drifted (columns/tables missing), ensure them idempotently so queries don't 500.
+    db.Database.ExecuteSqlRaw(CrmSchemaGuard.EnsureSql);
+}
 
 app.Run();

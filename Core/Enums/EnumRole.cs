@@ -4,5 +4,6 @@ public enum EnumRole
 {
     SuperAdmin = 1,
     User,
-    Operator
+    Operator,
+    HeadOfSales
 }

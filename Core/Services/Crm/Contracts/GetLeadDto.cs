@@ -13,5 +13,15 @@ public record GetLeadDto
     public uint SubscriptionOpenedCount { get; set; }
     public bool Purchased { get; set; }
     public EnumLeadPriority Priority { get; set; }
+
+    public long? OperatorId { get; set; }
+    public string? OperatorName { get; set; }
+    public EnumLeadStatus Status { get; set; }
+    public int Score { get; set; }
+    public EnumLeadTemperature Temperature { get; set; }
     public DateTime LastActivity { get; set; }
+    public DateTime? LastContactedAt { get; set; }
+    public DateTime? NextFollowUpAt { get; set; }
+    public bool FollowUpOverdue { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
