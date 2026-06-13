@@ -375,32 +375,49 @@ public class WorkoutService(AppDbContext dbContext)
 
     public async Task CreateOrUpdateComputation(List<ComputationDto> computations)
     {
-        foreach (var dto in computations)
+        await dbContext.Transactional(async () =>
         {
-            await (dto.Type switch
+            foreach (var dto in computations)
             {
-                EnumEntityType.Exercise => dbContext.Exercises.ExistsOrThrowsNotFoundException(dto.EntityId),
-                EnumEntityType.Workout => dbContext.Workouts.ExistsOrThrowsNotFoundException(dto.EntityId),
-                _ => throw new InvalidEntityTypeException()
-            });
-
-            var computation = dto.Id.HasValue
-                ? await dbContext.Computations.GetByIdOrThrowsNotFoundException(dto.Id.Value)
-                : await dbContext.Computations.FirstOrDefaultAsync(x => x.EntityId == dto.EntityId && x.Type == dto.Type && x.Level == dto.Activity) ??
-                dbContext.Add(new Computation()
+                await (dto.Type switch
                 {
-                    Type = dto.Type,
-                    EntityId = dto.EntityId,
-                    Level = dto.Activity
-                }).Entity;
+                    EnumEntityType.Exercise => dbContext.Exercises.ExistsOrThrowsNotFoundException(dto.EntityId),
+                    EnumEntityType.Workout => dbContext.Workouts.ExistsOrThrowsNotFoundException(dto.EntityId),
+                    _ => throw new InvalidEntityTypeException()
+                });
 
-            computation.ComputationType = dto.ComputationType;
-            computation.Value = dto.Value;
-            computation.Kcal = dto.Kcal;
-        }
+                var computation = dto.Id.HasValue
+                    ? await dbContext.Computations.GetByIdOrThrowsNotFoundException(dto.Id.Value)
+                    : await dbContext.Computations.FirstOrDefaultAsync(x =>
+                          x.EntityId == dto.EntityId && x.Type == dto.Type && x.Level == dto.Activity) ??
+                      dbContext.Add(new Computation()
+                      {
+                          Type = dto.Type,
+                          EntityId = dto.EntityId,
+                          Level = dto.Activity
+                      }).Entity;
 
-        await dbContext.SaveChangesAsync();
-        
-        BackgroundJob.Enqueue<WorkoutService>(service => service.IndexWorkoutComputations());
+                computation.ComputationType = dto.ComputationType;
+                computation.Value = dto.Value;
+
+                if (Math.Abs(computation.Kcal - dto.Kcal) > 0 && dto.Type == EnumEntityType.Workout)
+                {
+                    var exerciseIds = await dbContext.Exercises
+                        .Where(x => x.WorkoutId == dto.EntityId)
+                        .Select(x => x.Id)
+                        .ToArrayAsync();
+                    
+                    await dbContext.Computations
+                        .Where(x => exerciseIds.Contains(x.EntityId) && x.Type == EnumEntityType.Exercise && x.Level == dto.Activity)
+                        .ExecuteUpdateAsync(x => x.SetProperty(prop => prop.Kcal, computation.Kcal));
+                }
+                
+                computation.Kcal = dto.Kcal;
+            }
+
+            await dbContext.SaveChangesAsync();
+
+            BackgroundJob.Enqueue<WorkoutService>(service => service.IndexWorkoutComputations());
+        });
     }
 }
