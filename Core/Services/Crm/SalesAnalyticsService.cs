@@ -1,5 +1,6 @@
 using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
+using Core.Entities.Billing.Enum;
 using Core.Entities.Crm.Enum;
 using Core.Services.Crm.Contracts;
 using Core.Services.Crm.Exceptions;
@@ -212,5 +213,57 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
         }
 
         return rows.OrderByDescending(r => r.Sales);
+    }
+
+    /// <summary>
+    /// Premium acquisition breakdown across won deals: platform purchase (card = Click/Payme,
+    /// platform = IAP) vs promo-code (coupon was used). Period optional (null = all time).
+    /// </summary>
+    public async Task<PremiumBreakdownDto> GetPremiumBreakdownAsync(EnumStatsPeriod? period)
+    {
+        var won = context.Leads.Where(l => l.Status == EnumLeadStatus.Won);
+        if (period.HasValue)
+        {
+            var (from, to) = CrmStatsService.ResolveRange(period.Value);
+            won = won.Where(l => l.WonAt >= from && l.WonAt <= to);
+        }
+
+        var rows = await won
+            .Select(l => new { l.CouponId, l.PaymentProvider, l.WonAmount })
+            .ToListAsync();
+
+        var promo = rows.Where(r => r.CouponId != null).ToList();
+        var purchase = rows.Where(r => r.CouponId == null).ToList();
+
+        return new PremiumBreakdownDto
+        {
+            Total = rows.Count,
+            ViaPromoCode = promo.Count,
+            ViaPurchase = purchase.Count,
+            Card = purchase.Count(r => r.PaymentProvider != null && CrmStatsService.CardProviders.Contains(r.PaymentProvider.Value)),
+            Platform = purchase.Count(r => r.PaymentProvider == EnumPaymentProviders.Iap),
+            PromoRevenue = promo.Sum(r => r.WonAmount ?? 0),
+            PurchaseRevenue = purchase.Sum(r => r.WonAmount ?? 0)
+        };
+    }
+
+    /// <summary>Recent premium grants obtained through a promo-code (for the promo-code section).</summary>
+    public async Task<IEnumerable<PromoRedemptionDto>> GetPromoRedemptionsAsync()
+    {
+        return await context.Leads
+            .Where(l => l.Status == EnumLeadStatus.Won && l.CouponId != null)
+            .OrderByDescending(l => l.WonAt)
+            .Select(l => new PromoRedemptionDto
+            {
+                LeadId = l.Id,
+                UserName = l.User.Name,
+                UserPhone = l.User.Phone,
+                PromoCode = l.PromoCode,
+                Amount = l.WonAmount,
+                OperatorName = l.Operator != null ? l.Operator.Name : null,
+                WonAt = l.WonAt
+            })
+            .Take(100)
+            .ToListAsync();
     }
 }

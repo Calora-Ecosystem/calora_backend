@@ -45,6 +45,16 @@ public class SalesController(SalesAnalyticsService analyticsService, CrmOperator
     public async Task<Wrapper> GetRevenue([FromQuery] EnumStatsPeriod period = EnumStatsPeriod.Day) =>
         (await analyticsService.GetRevenueAsync(period), 200);
 
+    [HttpGet("premium")]
+    [ProducesResponseType<WrapperGeneric<PremiumBreakdownDto>>(200)]
+    public async Task<Wrapper> GetPremiumBreakdown([FromQuery] EnumStatsPeriod? period) =>
+        (await analyticsService.GetPremiumBreakdownAsync(period), 200);
+
+    [HttpGet("promo-redemptions")]
+    [ProducesResponseType<WrapperGeneric<IEnumerable<PromoRedemptionDto>>>(200)]
+    public async Task<Wrapper> GetPromoRedemptions() =>
+        (await analyticsService.GetPromoRedemptionsAsync(), 200);
+
     [HttpGet("/crm/operators")]
     [ProducesResponseType<WrapperGeneric<IEnumerable<OperatorLeaderboardRowDto>>>(200)]
     public async Task<Wrapper> GetOperators() =>

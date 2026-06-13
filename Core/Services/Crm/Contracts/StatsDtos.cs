@@ -27,6 +27,7 @@ public record OperatorStatsDto
     public double ConversionRate { get; set; }
     public int CardSales { get; set; }
     public int PlatformSales { get; set; }
+    public int PromoSales { get; set; }
 }
 
 public record FunnelStageDto
@@ -66,4 +67,27 @@ public record RevenuePointDto
     public DateTime Date { get; set; }
     public long Revenue { get; set; }
     public int Sales { get; set; }
+}
+
+/// <summary>How users obtained premium: platform purchase (card/IAP) vs promo-code.</summary>
+public record PremiumBreakdownDto
+{
+    public int Total { get; set; }
+    public int ViaPurchase { get; set; }
+    public int ViaPromoCode { get; set; }
+    public int Card { get; set; }       // Click / Payme, no coupon
+    public int Platform { get; set; }   // in-app purchase (IAP), no coupon
+    public long PurchaseRevenue { get; set; }
+    public long PromoRevenue { get; set; }
+}
+
+public record PromoRedemptionDto
+{
+    public long LeadId { get; set; }
+    public string? UserName { get; set; }
+    public string? UserPhone { get; set; }
+    public string? PromoCode { get; set; }
+    public long? Amount { get; set; }
+    public string? OperatorName { get; set; }
+    public DateTime? WonAt { get; set; }
 }

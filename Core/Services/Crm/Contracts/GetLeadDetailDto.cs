@@ -30,6 +30,7 @@ public record GetLeadDetailDto
     public EnumPaymentProviders? PaymentProvider { get; set; }
     public long? WonAmount { get; set; }
     public DateTime? WonAt { get; set; }
+    public string? PromoCode { get; set; }
 
     // Profile snapshot from UserExtra.
     public int? Age { get; set; }
