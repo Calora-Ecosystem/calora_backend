@@ -92,6 +92,9 @@ public static class CoreConfiguration
         RecurringJob.AddOrUpdate<WorkoutService>("index_workout_computations",
             service => service.IndexWorkoutComputations(), "0 0 31 2 *");
 
+        RecurringJob.AddOrUpdate<Core.Services.Crm.LeadService>("crm_escalate_leads",
+            service => service.EscalateLeadsAsync(), "*/15 * * * *");
+
         return app;
     }
 

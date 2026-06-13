@@ -4,5 +4,9 @@ public enum EnumLeadEvent
 {
     Registered = 1,
     SubscriptionOpened,
-    Purchased
+    Purchased,
+    WorkoutStarted,
+    WaterTracked,
+    FoodTracked,
+    AppOpened
 }
