@@ -46,6 +46,11 @@ public class Lead : ModelBase<long>
     public EnumPaymentProviders? PaymentProvider { get; set; }
     public long? WonAmount { get; set; }
     public DateTime? WonAt { get; set; }
+
+    // Premium acquisition: when the winning order used a coupon these are set
+    // (promo-code path); otherwise the lead got premium via a platform purchase.
+    public long? CouponId { get; set; }
+    [MaxLength(50)] public string? PromoCode { get; set; }
     public DateTime? LostAt { get; set; }
     [MaxLength(300)] public string? LostReason { get; set; }
 

@@ -15,12 +15,23 @@ namespace WebApi.Controllers;
 public class CrmController(LeadService leadService, CrmStatsService statsService, CrmOperatorService operatorService) : AuthorizedController
 {
     /// <summary>
-    /// Operators are scoped to their own leads; HeadOfSales and SuperAdmin see everything (null scope).
+    /// Lead scope for the caller. A multi-role account is scoped to the role it signed in as
+    /// (X-Active-Role header): when acting as Operator it only sees/acts on its own leads, even
+    /// if it also holds HeadOfSales/SuperAdmin. HeadOfSales/SuperAdmin otherwise see everything.
     /// </summary>
-    private long? OperatorScope =>
-        User.IsInRole(nameof(EnumRole.HeadOfSales)) || User.IsInRole(nameof(EnumRole.SuperAdmin))
-            ? null
-            : this.UserId;
+    private long? OperatorScope
+    {
+        get
+        {
+            var activeRole = Request.Headers["X-Active-Role"].FirstOrDefault();
+            if (activeRole == nameof(EnumRole.Operator))
+                return this.UserId;
+
+            return User.IsInRole(nameof(EnumRole.HeadOfSales)) || User.IsInRole(nameof(EnumRole.SuperAdmin))
+                ? null
+                : this.UserId;
+        }
+    }
 
     /// <summary>Current user's name + roles. Available to every authenticated role.</summary>
     [HttpGet("me")]

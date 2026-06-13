@@ -98,13 +98,21 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
         var order = await context.Orders
             .Where(o => o.UserId == lead.UserId && o.Status == EnumOrderStatus.Confirmed)
             .OrderByDescending(o => o.Id)
-            .Select(o => new { o.Amount, o.Provider })
+            .Select(o => new { o.Amount, o.Provider, o.CouponId })
             .FirstOrDefaultAsync();
 
         if (order is not null)
         {
             lead.WonAmount = order.Amount;
             lead.PaymentProvider = order.Provider;
+            lead.CouponId = order.CouponId;
+
+            // Promo-code path: capture the human-readable code for the sales view.
+            if (order.CouponId.HasValue)
+                lead.PromoCode = await context.Coupons
+                    .Where(c => c.Id == order.CouponId.Value)
+                    .Select(c => c.Code)
+                    .FirstOrDefaultAsync();
         }
 
         var pending = await context.FollowUps.Where(f => f.LeadId == lead.Id && !f.IsDone).ToListAsync();
@@ -529,6 +537,7 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
                            PaymentProvider = l.PaymentProvider,
                            WonAmount = l.WonAmount,
                            WonAt = l.WonAt,
+                           PromoCode = l.PromoCode,
                            Age = l.User.Extra != null ? l.User.Extra.Age : (int?)null,
                            Gender = l.User.Extra != null ? l.User.Extra.Gender : (EnumGender?)null,
                            Weight = l.User.Extra != null ? l.User.Extra.Weight : (double?)null,
