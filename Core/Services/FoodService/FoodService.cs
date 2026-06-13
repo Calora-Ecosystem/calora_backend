@@ -331,7 +331,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
                 Menu = x.Menu, Date = x.Date, FoodId = x.FoodId,
                 FoodName = x.Food.Name,
                 CategoryId = x.Food.CategoryId == null ? 0 : x.Food.CategoryId,
-                CategoryName = x.Food.Category != null ? x.Food.Category.Name : null,
+                CategoryName = x.Food.Category != null ? x.Food.Category.Name : "Private",
                 CoverUrl = x.Food.CoverUrl,
                 Weight = x.Weight,
                 Metrics = x.Food.Metrics.Select(foodMetrics =>
