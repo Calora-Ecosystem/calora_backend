@@ -10,7 +10,7 @@ namespace WebApi.Controllers;
 
 [ApiController]
 [Route("crm/analytics")]
-[RoleAuthorize(EnumRole.HeadOfSales)]
+[RoleAuthorize(EnumRole.HeadOfSales, EnumRole.SuperAdmin)]
 public class SalesController(SalesAnalyticsService analyticsService, CrmOperatorService operatorService) : AuthorizedController
 {
     [HttpPost("/crm/operators")]

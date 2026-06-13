@@ -11,14 +11,16 @@ namespace WebApi.Controllers;
 
 [ApiController]
 [Route("crm")]
-[RoleAuthorize(EnumRole.Operator, EnumRole.HeadOfSales)]
+[RoleAuthorize(EnumRole.Operator, EnumRole.HeadOfSales, EnumRole.SuperAdmin)]
 public class CrmController(LeadService leadService, CrmStatsService statsService, CrmOperatorService operatorService) : AuthorizedController
 {
     /// <summary>
-    /// Operators are scoped to their own leads; HeadOfSales sees everything (null scope).
+    /// Operators are scoped to their own leads; HeadOfSales and SuperAdmin see everything (null scope).
     /// </summary>
     private long? OperatorScope =>
-        User.IsInRole(nameof(EnumRole.HeadOfSales)) ? null : this.UserId;
+        User.IsInRole(nameof(EnumRole.HeadOfSales)) || User.IsInRole(nameof(EnumRole.SuperAdmin))
+            ? null
+            : this.UserId;
 
     /// <summary>Current user's name + roles. Available to every authenticated role.</summary>
     [HttpGet("me")]
