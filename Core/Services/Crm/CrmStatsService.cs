@@ -87,8 +87,10 @@ public class CrmStatsService(AppDbContext context)
 
         var sales = await won.CountAsync();
         var revenue = await won.SumAsync(l => (long?)l.WonAmount) ?? 0;
-        var cardSales = await won.CountAsync(l => l.PaymentProvider != null && CardProviders.Contains(l.PaymentProvider.Value));
-        var platformSales = sales - cardSales;
+        var promoSales = await won.CountAsync(l => l.CouponId != null);
+        var cardSales = await won.CountAsync(l =>
+            l.CouponId == null && l.PaymentProvider != null && CardProviders.Contains(l.PaymentProvider.Value));
+        var platformSales = sales - cardSales - promoSales;
 
         var conversion = leadsWorked == 0 ? 0 : Math.Round(sales * 100.0 / leadsWorked, 1);
 
@@ -101,7 +103,8 @@ public class CrmStatsService(AppDbContext context)
             Revenue = revenue,
             ConversionRate = conversion,
             CardSales = cardSales,
-            PlatformSales = platformSales
+            PlatformSales = platformSales,
+            PromoSales = promoSales
         };
     }
 }
