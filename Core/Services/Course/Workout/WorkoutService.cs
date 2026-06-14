@@ -402,14 +402,9 @@ public class WorkoutService(AppDbContext dbContext)
 
                 if (Math.Abs(computation.Kcal - dto.Kcal) > 0 && dto.Type == EnumEntityType.Workout)
                 {
-                    var exerciseIds = await dbContext.Exercises
-                        .Where(x => x.WorkoutId == dto.EntityId)
-                        .Select(x => x.Id)
-                        .ToArrayAsync();
-                    
-                    await dbContext.Computations
-                        .Where(x => exerciseIds.Contains(x.EntityId) && x.Type == EnumEntityType.Exercise && x.Level == dto.Activity)
-                        .ExecuteUpdateAsync(x => x.SetProperty(prop => prop.Kcal, computation.Kcal));
+                    await dbContext.WorkoutComputationIndices
+                        .Where(x => x.EntityId == dto.EntityId && x.Level == dto.Activity)
+                        .ExecuteUpdateAsync(x => x.SetProperty(prop => prop.TotalKcal, computation.Kcal));
                 }
                 
                 computation.Kcal = dto.Kcal;
