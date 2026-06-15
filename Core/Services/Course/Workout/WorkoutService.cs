@@ -351,7 +351,6 @@ public class WorkoutService(AppDbContext dbContext)
                 var counts = records.Where(x => x.ComputationType == EnumComputationType.Count).Sum(x => x.Value);
                 var durations = TimeSpan.FromMinutes(records
                     .Where(x => x.ComputationType == EnumComputationType.Duration).Sum(x => x.Value));
-                var totalKcal = records.Sum(x => x.Kcal);
 
                 var index = await dbContext
                                 .WorkoutComputationIndices
@@ -365,7 +364,6 @@ public class WorkoutService(AppDbContext dbContext)
 
                 index.TotalCounts = Convert.ToInt32(counts);
                 index.TotalDuration = durations;
-                index.TotalKcal = totalKcal;
 
                 dbContext.Update(index);
                 await dbContext.SaveChangesAsync();
