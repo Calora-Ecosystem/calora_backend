@@ -400,7 +400,7 @@ public class WorkoutService(AppDbContext dbContext)
                 computation.ComputationType = dto.ComputationType;
                 computation.Value = dto.Value;
 
-                if (Math.Abs(computation.Kcal - dto.Kcal) > 0 && dto.Type == EnumEntityType.Workout)
+                if (dto.Type == EnumEntityType.Workout)
                 {
                    var workoutIndex =  await dbContext.WorkoutComputationIndices
                         .FirstOrDefaultAsync(x => x.EntityId == dto.EntityId && x.Level == dto.Activity) ?? dbContext.WorkoutComputationIndices
