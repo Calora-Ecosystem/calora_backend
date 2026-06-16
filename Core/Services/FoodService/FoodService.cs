@@ -375,7 +375,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         menuItem.Menu = dto.Menu;
         menuItem.Date = date;
         menuItem.FoodId = dto.FoodId;
-        menuItem.Weight = dto.WeightInGr;
+        menuItem.Weight = dto.WeightInGr == 400 ? 100 : dto.WeightInGr;
         menuItem = dbContext.DailyMenus.Update(menuItem).Entity;
         await dbContext.SaveChangesAsync();
 
