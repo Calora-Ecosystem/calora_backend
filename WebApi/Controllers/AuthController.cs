@@ -83,7 +83,7 @@ public class AuthController(AuthService authService) : AuthorizedController
     [EnableRateLimiting("otp_limit")]
 #endif
     public async Task<Wrapper> SendOtpViaPhone(
-        [FromRoute, LocalPhone, DefaultValue("+998998887766"), Required] string phone) =>
+        [FromRoute, Core.Attributes.LocalPhone, DefaultValue("+998998887766"), Required] string phone) =>
         (await authService.SendVerificationCode(EnumChannel.Phone, phone), 200);
 
     [HttpGet("roles")]

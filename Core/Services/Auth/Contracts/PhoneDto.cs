@@ -1,6 +1,5 @@
 using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
-using BRB.Core.Common.Attributes;
+using Core.Attributes;
 
 namespace Core.Services.Auth.Contracts;
 
