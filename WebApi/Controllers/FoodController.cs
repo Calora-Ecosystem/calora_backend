@@ -115,6 +115,10 @@ public class FoodController(FoodService service) : AuthorizedController
     public async Task<Wrapper> AddMenuItem(AddDailyMenuDto dto) =>
         (await service.AddDailyMenuItem(this.UserId, dto), 200);
 
+    [HttpPut("menu/{itemId:long:min(1)}")]
+    public async Task<Wrapper> UpdateMenuItem(long itemId, UpdateDailyMenuDto dto) =>
+        (await service.UpdateMenuItem(this.UserId, itemId, dto), 200);
+
     [HttpDelete("menu/{itemId:long:min(1)}")]
     public async Task<Wrapper> RemoveMenuItem(long itemId) => (await service.RemoveMenuItem(this.UserId, itemId), 200);
 
