@@ -74,6 +74,22 @@ public class BillingController(
 
     #endregion
 
+    #region Test (temporary)
+
+    /// <summary>
+    /// TEMPORARY (staging test): disables a user's premium by phone number so
+    /// the subscription can be re-purchased. Pass the phone with or without the
+    /// 998 country code. Remove this endpoint before production.
+    /// </summary>
+    /// <param name="phone">User phone number, e.g. 901234567 or +998901234567</param>
+    /// <returns>Number of subscriptions that were deactivated.</returns>
+    [HttpPost("test/disable-premium")]
+    [AllowAnonymous]
+    public async Task<Wrapper> DisablePremiumByPhone([FromQuery] string phone) =>
+        (await orderService.DisablePremiumByPhone(phone), 200);
+
+    #endregion
+
     #region Coupons
 
     [HttpGet("coupons")]
