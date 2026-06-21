@@ -11,8 +11,10 @@ using Core.Services.Auth;
 using Core.Services.Billing.Click;
 using Core.Services.Billing.Contracts;
 using Core.Services.Billing.Payme;
+using Core.Helpers;
 using Core.Services.Crm;
 using Core.Services.Crm.Enum;
+using Core.Services.User.Exceptions;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -254,5 +256,29 @@ public class OrderService(
                 CreatedAt = x.CreatedAt
             })
             .GetByDataQueryAsync(q);
+    }
+
+    /// <summary>
+    /// TEMPORARY (staging test helper): disables a user's premium by phone
+    /// number so they can re-purchase a subscription. Deactivates all of the
+    /// user's active subscriptions. Remove before production.
+    /// </summary>
+    public async Task<int> DisablePremiumByPhone(string phone)
+    {
+        var validPhone = FormatHelper.MakeValidPhone(phone.Trim());
+
+        var userIds = await dbContext.Users
+            .Where(x => x.Phone == validPhone)
+            .Select(x => x.Id)
+            .ToListAsync();
+
+        if (userIds.Count == 0)
+            throw new UserNotFoundException();
+
+        return await dbContext.Subscriptions
+            .Where(x => userIds.Contains(x.UserId) && x.IsActive)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.IsActive, false)
+                .SetProperty(x => x.EndsAt, DateTime.Now));
     }
 }
