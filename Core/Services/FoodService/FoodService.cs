@@ -328,6 +328,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         var result = await query
             .Select(x => new GetMenuFoodsDto
             {
+                Id = x.Id,
                 Menu = x.Menu, Date = x.Date, FoodId = x.FoodId,
                 FoodName = x.Food.Name,
                 CategoryId = x.Food.CategoryId == null ? 0 : x.Food.CategoryId,
@@ -377,6 +378,21 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         menuItem.FoodId = dto.FoodId;
         menuItem.Weight = dto.WeightInGr;
         menuItem = dbContext.DailyMenus.Update(menuItem).Entity;
+        await dbContext.SaveChangesAsync();
+
+        return menuItem;
+    }
+
+    public async Task<DailyMenu> UpdateMenuItem(long userId, long itemId, UpdateDailyMenuDto dto)
+    {
+        var menuItem = await dbContext.DailyMenus
+                           .FirstOrDefaultAsync(x => x.Id == itemId && x.UserId == userId)
+                       ?? throw new FoodNotFoundException();
+
+        menuItem.Weight = dto.WeightInGr;
+        if (dto.Menu.HasValue) menuItem.Menu = dto.Menu.Value;
+        if (dto.Date.HasValue) menuItem.Date = dto.Date.Value.Date;
+
         await dbContext.SaveChangesAsync();
 
         return menuItem;

@@ -6,6 +6,7 @@ namespace Core.Services.FoodService.Contracts.FoodDtos;
 
 public record GetMenuFoodsDto
 {
+    public long Id { get; set; }
     public EnumMenu Menu { get; set; }
     public DateTime Date { get; set; }
     public long FoodId { get; set; }
