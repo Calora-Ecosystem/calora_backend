@@ -185,8 +185,21 @@ public class BillingController(
             SignTime = signTime,
             SignString = signString,
         };
+        
+        SentrySdk.SetTag("click_request", JsonSerializer.Serialize(request));
 
         var response = await clickService.HandleAsync(request);
+
+        if (response is null)
+            SentrySdk.CaptureException(new Exception("Click response is null"));
+        else if (response.Error != ClickErrorType.Success)
+        {
+            SentrySdk.CaptureException(new Exception($"Click error: {response.Error}"));
+            SentrySdk.SetTag("click_error", response.Error?.ToString() ?? "");
+            SentrySdk.SetTag("click_error_note", response.ErrorNote ?? "");
+        }
+        
+        SentrySdk.SetTag("click_response", JsonSerializer.Serialize(response));
 
         return Ok(response);
     }
@@ -202,10 +215,20 @@ public class BillingController(
     {
         var authHeaderRaw = this.Request.Headers.Authorization.ToString();
         var basicAuthToken = authHeaderRaw.Replace("Basic ", "");
+        
+        SentrySdk.SetTag("payme_request", JsonSerializer.Serialize(request));
+        SentrySdk.SetTag("payme_auth_header", authHeaderRaw);
 
         var response = await paymeService.HandleAsync(request, basicAuthToken);
 
-        logger.LogInformation("Payme response:\n{@Response}", response);
+        if (response is ErrorResponseDto errorResponse)
+        {
+            SentrySdk.CaptureException(new Exception($"Payme error: {errorResponse.Error.Code}"));
+            SentrySdk.SetTag("payme_error_code", errorResponse.Error.Code.ToString());
+            SentrySdk.SetTag("payme_error", errorResponse.Error.Message.Uz);
+        }
+        
+        SentrySdk.SetTag("payme_response", JsonSerializer.Serialize(response));
 
         return Ok(response);
     }
