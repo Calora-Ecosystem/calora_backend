@@ -89,7 +89,9 @@ public class DashboardService(AppDbContext context)
                 PlanExtraDurationInMonths = x.PlanExtra.DurationInMonths,
                 OrderStatus = x.Order.Status,
                 Amount = Math.Round(x.Order.Amount / 100d, 2),
-                CreatedAt = x.Order.CreatedAt
+                CreatedAt = x.Order.CreatedAt,
+                PaymentProvider = x.Order.Provider,
+                Coupon = x.Order.Coupon != null ? new CouponDto { Id = x.Order.Coupon.Id, Code = x.Order.Coupon.Code } : null
             })
             .GetByDataQueryAsync(query);
     }

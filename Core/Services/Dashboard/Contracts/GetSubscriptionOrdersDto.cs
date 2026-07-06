@@ -14,4 +14,12 @@ public record GetSubscriptionOrdersDto
     public EnumOrderStatus OrderStatus { get; set; }
     public double Amount { get; set; }
     public DateTime CreatedAt { get; set; }
+    public EnumPaymentProviders PaymentProvider { get; set; }
+    public CouponDto? Coupon { get; set; }
+}
+
+public record CouponDto
+{
+    public long Id { get; set; }
+    public string Code { get; set; } = null!;
 }
