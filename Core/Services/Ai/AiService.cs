@@ -104,7 +104,7 @@ public class AiService(Client client, AppDbContext context, IMemoryCache cache)
         EnumLanguage language = EnumLanguage.Uzbek)
     {
         var response = await client.Models.GenerateContentAsync(
-            model: "gemini-2.5-flash", contents: new Content()
+            model: "gemini-3-flash-preview", contents: new Content()
             {
                 Parts = new List<Part>()
                 {
