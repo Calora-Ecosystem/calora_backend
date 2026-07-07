@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
 using Core.Services.Ai.Exceptions;
@@ -16,6 +15,13 @@ namespace Core.Services.Ai;
 [Injectable]
 public class AiService(Client client, AppDbContext context, IMemoryCache cache)
 {
+    private static readonly List<string> _foodMetrics = [
+        nameof(EnumMetrics.Kcal),
+        nameof(EnumMetrics.Protein),
+        nameof(EnumMetrics.Fat),
+        nameof(EnumMetrics.Carb),
+    ];
+
     private GenerateContentConfig _config = new GenerateContentConfig()
     {
         ResponseMimeType = "application/json",
@@ -28,62 +34,45 @@ public class AiService(Client client, AppDbContext context, IMemoryCache cache)
                 Properties = new Dictionary<string, Schema>()
                 {
                     {
-                        "name", new Schema()
-                        {
-                            Type = Type.STRING,
-                        }
+                        "name", new Schema() { Type = Type.STRING }
                     },
                     {
-                        "categoryId", new Schema()
-                        {
-                            Type = Type.NUMBER
-                        }
+                        "categoryId", new Schema() { Type = Type.NUMBER }
                     },
                     {
-                        "categoryName", new Schema()
-                        {
-                            Type = Type.STRING,
-                        }
+                        "categoryName", new Schema() { Type = Type.STRING }
                     },
                     {
-                        "weight", new Schema()
-                        {
-                            Type = Type.NUMBER,
-                        }
+                        "weight", new Schema() { Type = Type.NUMBER }
                     },
                     {
                         "metrics", new Schema()
                         {
-                            Type = Type.ARRAY,
-                            Items = new Schema()
+                            Type = Type.OBJECT,
+                            Properties = new Dictionary<string, Schema>()
                             {
-                                Type = Type.OBJECT,
-                                Properties = new Dictionary<string, Schema>()
-                                {
-                                    {
-                                        "metric", new Schema()
-                                        {
-                                            Type = Type.STRING,
-                                            Enum = Enum.GetNames<EnumMetrics>().ToList(),
-                                            Required = [nameof(EnumMetrics.Kcal), nameof(EnumMetrics.Carb), nameof(EnumMetrics.Protein), nameof(EnumMetrics.Fat)]
-                                        }
-                                    },
-                                    {
-                                        "value", new Schema()
-                                        {
-                                            Type = Type.NUMBER,
-                                        }
-                                    }
-                                },
-                                Required = ["metric", "value"]
-                            }
+                                { nameof(EnumMetrics.Kcal),    new Schema() { Type = Type.NUMBER } },
+                                { nameof(EnumMetrics.Protein), new Schema() { Type = Type.NUMBER } },
+                                { nameof(EnumMetrics.Fat),     new Schema() { Type = Type.NUMBER } },
+                                { nameof(EnumMetrics.Carb),    new Schema() { Type = Type.NUMBER } },
+                            },
+                            Required = _foodMetrics
                         }
                     }
                 },
-                Required = ["metrics"]
+                Required = ["name", "categoryId", "weight", "metrics"]
             }
         }
     };
+
+    private class FoodResultRaw
+    {
+        public string? Name { get; set; }
+        public long CategoryId { get; set; }
+        public string? CategoryName { get; set; }
+        public double? Weight { get; set; }
+        public Dictionary<string, double>? Metrics { get; set; }
+    }
 
     public async Task<String> GetMeta()
     {
@@ -113,13 +102,18 @@ public class AiService(Client client, AppDbContext context, IMemoryCache cache)
                     {
                         Text =
                             @$"
-Your are master of food world and nutritions.
-Recognize food from image or audio and return response by schema.
+You are a nutrition expert. Analyze the image and identify every food item visible.
 Categories: {await GetMeta()}.
-Always return the closest matching category ID. Never return a value less than or equal to 0.
-Must calculate metrics by {string.Join(",", Enum.GetNames<EnumMetrics>())}.
-Estimate or Recognize food weight.
-Return all results in {language.ToString()}.
+Rules:
+- Always pick the closest matching categoryId (never 0 or negative).
+- Estimate the weight in grams of each food portion visible in the image.
+- For EVERY food item you MUST provide all four nutritional metrics calculated for the estimated weight:
+    Kcal   — total kilocalories (must be > 0)
+    Protein — grams of protein   (must be > 0)
+    Fat     — grams of fat       (must be > 0)
+    Carb    — grams of carbohydrates (must be > 0)
+- If exact values cannot be read from the image, use your nutritional knowledge to give a realistic estimate. Never return 0.
+- Return name and categoryName in {language}.
 "
                     },
                     new Part()
@@ -144,14 +138,28 @@ Return all results in {language.ToString()}.
         if (string.IsNullOrWhiteSpace(json))
             throw new InvalidAiResultException();
 
-        return JsonSerializer.Deserialize<List<FoodResultDto>>(json, new JsonSerializerOptions()
-               {
-                   PropertyNameCaseInsensitive = true,
-                   Converters =
-                   {
-                       new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
-                   }
-               }) ??
-               throw new AiResultParseException();
+        var raw = JsonSerializer.Deserialize<List<FoodResultRaw>>(json, new JsonSerializerOptions()
+                  {
+                      PropertyNameCaseInsensitive = true,
+                  }) ??
+                  throw new AiResultParseException();
+
+        return raw.Select(r => new FoodResultDto
+        {
+            Name = r.Name,
+            CategoryId = r.CategoryId,
+            Category = r.CategoryName ?? string.Empty,
+            Weight = r.Weight,
+            Metrics = r.Metrics is null
+                ? []
+                : _foodMetrics
+                    .Where(m => r.Metrics.ContainsKey(m))
+                    .Select(m => new MetricResult
+                    {
+                        Metric = Enum.Parse<EnumMetrics>(m),
+                        Value = Math.Max(r.Metrics[m], 0.1)
+                    })
+                    .ToList()
+        }).ToList();
     }
 }
