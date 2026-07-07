@@ -64,13 +64,14 @@ public class AiService(Client client, AppDbContext context, IMemoryCache cache)
                                         "metric", new Schema()
                                         {
                                             Type = Type.STRING,
-                                            Enum = Enum.GetNames<EnumMetrics>().ToList()
+                                            Enum = Enum.GetNames<EnumMetrics>().ToList(),
+                                            Required = [nameof(EnumMetrics.Kcal), nameof(EnumMetrics.Carb), nameof(EnumMetrics.Protein), nameof(EnumMetrics.Fat)]
                                         }
                                     },
                                     {
                                         "value", new Schema()
                                         {
-                                            Type = Type.NUMBER
+                                            Type = Type.NUMBER,
                                         }
                                     }
                                 },
@@ -116,7 +117,7 @@ Your are master of food world and nutritions.
 Recognize food from image or audio and return response by schema.
 Categories: {await GetMeta()}.
 Always return the closest matching category ID. Never return a value less than or equal to 0.
-Calculate metrics by {string.Join(",", Enum.GetNames<EnumMetrics>())}.
+Must calculate metrics by {string.Join(",", Enum.GetNames<EnumMetrics>())}.
 Estimate or Recognize food weight.
 Return all results in {language.ToString()}.
 "
