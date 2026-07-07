@@ -114,6 +114,7 @@ public static class ApplicationConfigurationExtensions
     private static WebApplicationBuilder ConfigureKestrel(this WebApplicationBuilder builder)
     {
         builder.Services.Configure<KestrelServerOptions>(options => { options.Limits.MaxRequestBodySize = null; });
+        builder.Services.Configure<FormOptions>(options => { options.MultipartBodyLengthLimit = long.MaxValue / 2;});
 
         return builder;
     }
