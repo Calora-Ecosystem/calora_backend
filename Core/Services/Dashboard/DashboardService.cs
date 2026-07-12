@@ -62,8 +62,8 @@ public class DashboardService(AppDbContext context)
                         1) - 1) *
                 100, 2);
 
-        var totalSalesAmount = await salesQuery
-            .SumAsync(x => x.Amount);
+        // Amount tiyinda saqlanadi — so'mga o'tkazamiz (dashboard kartochkalari uchun).
+        var totalSalesAmount = Math.Round(await salesQuery.SumAsync(x => x.Amount) / 100d, 2);
 
         var salesAmountGrowRatePercent =
             Math.Round(
@@ -181,6 +181,60 @@ public class DashboardService(AppDbContext context)
             DailyRegistrations = dailyRegistrations,
             DailyActiveUsers = dailyActiveUsers,
             MonthlyRegistrations = monthlyRegistrations,
+        };
+    }
+
+    public async Task<GetUserStatisticsRangeDto> GetUserStatisticsRange(DateTime from, DateTime to)
+    {
+        // Sana chegaralari: from — kun boshidan, to — o'sha kun oxirigacha (keyingi kun 00:00 gacha).
+        var fromStart = from.Date;
+        var toEnd = to.Date.AddDays(1);
+        if (toEnd <= fromStart) toEnd = fromStart.AddDays(1);
+        var lastDay = toEnd.AddDays(-1);
+
+        var registered = await context.Users
+            .CountAsync(x => x.CreatedAt >= fromStart && x.CreatedAt < toEnd);
+
+        var activeUsers = await context.SignLogs
+            .Where(x => x.SignAt >= fromStart && x.SignAt < toEnd)
+            .Select(x => x.UserId).Distinct().CountAsync();
+
+        var signInCount = await context.SignLogs
+            .CountAsync(x => x.SignAt >= fromStart && x.SignAt < toEnd);
+
+        var premiumQuery = context.Subscriptions
+            .Where(x => x.StartsAt >= fromStart && x.StartsAt < toEnd
+                        && (x.SubscriptionPlan == EnumSPlans.Premium || x.SubscriptionPlan == EnumSPlans.Pro));
+        var newPremium = await premiumQuery.CountAsync();
+
+        var regRows = await context.Users
+            .Where(x => x.CreatedAt >= fromStart && x.CreatedAt < toEnd)
+            .GroupBy(x => x.CreatedAt.Date)
+            .Select(g => new { Date = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        var actRows = await context.SignLogs
+            .Where(x => x.SignAt >= fromStart && x.SignAt < toEnd)
+            .GroupBy(x => x.SignAt.Date)
+            .Select(g => new { Date = g.Key, Count = g.Select(y => y.UserId).Distinct().Count() })
+            .ToListAsync();
+
+        var premRows = await premiumQuery
+            .GroupBy(x => x.StartsAt.Date)
+            .Select(g => new { Date = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        return new GetUserStatisticsRangeDto
+        {
+            From = fromStart,
+            To = lastDay,
+            Registered = registered,
+            ActiveUsers = activeUsers,
+            SignInCount = signInCount,
+            NewPremium = newPremium,
+            DailyRegistrations = FillDailySeries(regRows.ToDictionary(r => r.Date, r => r.Count), fromStart, lastDay),
+            DailyActiveUsers = FillDailySeries(actRows.ToDictionary(r => r.Date, r => r.Count), fromStart, lastDay),
+            DailyPremium = FillDailySeries(premRows.ToDictionary(r => r.Date, r => r.Count), fromStart, lastDay),
         };
     }
 

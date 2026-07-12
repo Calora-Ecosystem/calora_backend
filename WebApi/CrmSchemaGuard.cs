@@ -65,5 +65,22 @@ public static class CrmSchemaGuard
         -- and break JSON enum serialization. Normalise them to New / Cold (unassigned).
         UPDATE leads SET status = 1 WHERE status = 0;
         UPDATE leads SET temperature = 1 WHERE temperature = 0;
+
+        -- A lead whose operator no longer holds the Operator role (e.g. the role was
+        -- revoked from the Users page) must not stay "assigned". Detach it so it falls
+        -- back to the unassigned pool. Won (6) / Lost (7) history is left untouched.
+        UPDATE leads
+           SET operator_id = NULL
+         WHERE operator_id IS NOT NULL
+           AND status NOT IN (6, 7)
+           AND operator_id NOT IN (
+               SELECT id FROM users WHERE roles @> '["Operator"]'::jsonb);
+
+        -- Any active lead without an operator belongs in the New column (1), not in
+        -- Assigned/Contacted/Interested/FollowUp (2..5).
+        UPDATE leads
+           SET status = 1
+         WHERE operator_id IS NULL
+           AND status IN (2, 3, 4, 5);
         """;
 }
