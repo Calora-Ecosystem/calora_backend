@@ -27,6 +27,11 @@ public class DashboardController(DashboardService dashboardService, Subscription
     public async Task<Wrapper> SalesSummary() =>
         (await dashboardService.GetSalesMonthlySummary(), 200);
 
+    [HttpGet("users/statistics")]
+    [ProducesResponseType<WrapperGeneric<GetUserStatisticsDto>>(200)]
+    public async Task<Wrapper> GetUserStatistics() =>
+        (await dashboardService.GetUserStatistics(), 200);
+
     [HttpGet("orders/subscriptions")]
     [ProducesResponseType<WrapperGeneric<IEnumerable<GetSubscriptionOrdersDto>>>(200)]
     public async Task<Wrapper> GetAllOrders([FromQuery] DataQueryRequest query) =>
