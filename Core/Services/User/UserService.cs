@@ -4,6 +4,7 @@ using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Auth;
+using Core.Entities.Crm.Enum;
 using Core.Enums;
 using Core.Exceptions;
 using Core.Services.Auth;
@@ -539,7 +540,28 @@ group by ung.user_id
     {
         var user = await context.Users.GetByIdOrThrowsNotFoundException(userId);
 
+        var wasOperator = user.Roles.Contains(nameof(EnumRole.Operator));
+        var willBeOperator = roles.Contains(EnumRole.Operator);
+
         user.Roles = roles.Select(x => x.ToString()).ToList();
+
+        // Operator roli olib tashlansa — biriktirilgan (Won/Lost bo'lmagan) leadlarni
+        // bo'shatamiz va "Yangi" ustuniga qaytaramiz, aks holda ular egasiz "biriktirilgan"
+        // holatida qolib ketadi.
+        if (wasOperator && !willBeOperator)
+        {
+            var leads = await context.Leads
+                .Where(l => l.OperatorId == userId
+                            && l.Status != EnumLeadStatus.Won
+                            && l.Status != EnumLeadStatus.Lost)
+                .ToListAsync();
+
+            foreach (var lead in leads)
+            {
+                lead.OperatorId = null;
+                lead.Status = EnumLeadStatus.New;
+            }
+        }
 
         await context.SaveChangesAsync();
 

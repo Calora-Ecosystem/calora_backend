@@ -483,8 +483,13 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
                 (l.User.Phone != null && EF.Functions.ILike(l.User.Phone, $"%{s}%")));
         }
 
+        // Standart tartib: avval ustuvorlik (priority), keyin qiziqish/ko'rishlar soni
+        // (obuna sahifasini ochganlar), so'ng ball. DataQuery aniq sort bermasa shu qo'llanadi.
         return await queryable
-            .OrderByDescending(l => l.Score)
+            .OrderByDescending(l => l.Priority)
+            .ThenByDescending(l => l.SubscriptionOpenedCount)
+            .ThenByDescending(l => l.Score)
+            .ThenByDescending(l => l.LastActivity)
             .Select(l => new GetLeadDto
             {
                 Id = l.Id,
