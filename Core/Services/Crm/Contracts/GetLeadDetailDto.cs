@@ -16,6 +16,13 @@ public record GetLeadDetailDto
     public bool Purchased { get; set; }
     public EnumLeadPriority Priority { get; set; }
 
+    // Engagement counters so the operator can read the lead's behaviour at a glance:
+    // how many times they opened the premium page, used the app, tracked, etc.
+    public uint WorkoutStartedCount { get; set; }
+    public uint WaterTrackedCount { get; set; }
+    public uint FoodTrackedCount { get; set; }
+    public uint AppOpenCount { get; set; }
+
     public long? OperatorId { get; set; }
     public string? OperatorName { get; set; }
     public EnumLeadStatus Status { get; set; }

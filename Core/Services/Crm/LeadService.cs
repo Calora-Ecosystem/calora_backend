@@ -30,7 +30,6 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
                                                              && l.Status != EnumLeadStatus.Won
                                                              && l.Status != EnumLeadStatus.Lost);
 
-        var isNew = lead is null;
         lead ??= context.Add(new Lead { UserId = dto.UserId, Status = EnumLeadStatus.New }).Entity;
 
         switch (dto.Event)
@@ -80,10 +79,15 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
         lead.Temperature = GetTemperature(lead.Score);
         lead.Priority = GetLeadPriority(lead);
 
-        // Persist first so a brand new lead gets its Id, then round-robin assign it.
+        // Persist first so a brand new lead gets its Id, then (maybe) auto-assign it.
         await context.SaveChangesAsync();
 
-        if (isNew && lead.Status != EnumLeadStatus.Won)
+        // Auto-assignment: only leads that have heated up (Hot/VeryHot) are routed to an
+        // operator, so operators focus on people ready to buy and aren't flooded with cold
+        // leads. A lead that turns hot while still unassigned gets picked up here too.
+        var isActive = lead.Status != EnumLeadStatus.Won && lead.Status != EnumLeadStatus.Lost;
+        var isHot = lead.Temperature is EnumLeadTemperature.Hot or EnumLeadTemperature.VeryHot;
+        if (lead.OperatorId is null && isActive && isHot)
             await AssignLeadAsync(lead);
 
         logger.LogInformation("LeadEvent {Event} applied for UserId {UserId}", dto.Event, dto.UserId);
@@ -530,6 +534,10 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
                            SubscriptionOpenedCount = l.SubscriptionOpenedCount,
                            Purchased = l.Purchased,
                            Priority = l.Priority,
+                           WorkoutStartedCount = l.WorkoutStartedCount,
+                           WaterTrackedCount = l.WaterTrackedCount,
+                           FoodTrackedCount = l.FoodTrackedCount,
+                           AppOpenCount = l.AppOpenCount,
                            OperatorId = l.OperatorId,
                            OperatorName = l.Operator != null ? l.Operator.Name : null,
                            Status = l.Status,

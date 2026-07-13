@@ -72,8 +72,12 @@ public class CrmStatsService(AppDbContext context)
     {
         var (from, to) = ResolveRange(period);
 
+        // "Worked" = leads the operator actively touched (contacted, status change, note,
+        // follow-up, won/lost). Auto-assignment also stamps ActorId, so exclude it — otherwise
+        // a lead the operator never engaged with would inflate the count.
         var leadsWorked = await context.LeadActivities
-            .Where(a => a.ActorId == operatorId && a.CreatedAt >= from && a.CreatedAt <= to)
+            .Where(a => a.ActorId == operatorId && a.Type != EnumLeadActivityType.Assigned
+                                                && a.CreatedAt >= from && a.CreatedAt <= to)
             .Select(a => a.LeadId)
             .Distinct()
             .CountAsync();
