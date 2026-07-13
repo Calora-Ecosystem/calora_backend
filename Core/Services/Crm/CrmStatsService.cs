@@ -1,5 +1,6 @@
 using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
+using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
 using Core.Entities.Crm.Enum;
 using Core.Services.Crm.Contracts;
@@ -13,6 +14,21 @@ public class CrmStatsService(AppDbContext context)
     /// <summary>Card payments = Click/Payme; platform = in-app purchase (RevenueCat/IAP).</summary>
     public static readonly EnumPaymentProviders[] CardProviders = [EnumPaymentProviders.Click, EnumPaymentProviders.Payme];
 
+    /// <summary>Order amounts are stored in tiyin; the dashboard shows so'm (1 so'm = 100 tiyin).</summary>
+    private const int TiyinPerSom = 100;
+
+    /// <summary>Real sales aggregated from Confirmed orders — the single source of truth.</summary>
+    public record SalesAgg
+    {
+        public int Sales { get; init; }
+        public long Revenue { get; init; }        // so'm
+        public int CardSales { get; init; }
+        public int PlatformSales { get; init; }
+        public int PromoSales { get; init; }
+        public long PurchaseRevenue { get; init; } // so'm (card + platform, no coupon)
+        public long PromoRevenue { get; init; }    // so'm (coupon used)
+    }
+
     public static (DateTime from, DateTime to) ResolveRange(EnumStatsPeriod period)
     {
         var now = DateTime.Now;
@@ -25,6 +41,42 @@ public class CrmStatsService(AppDbContext context)
             _ => now.Date
         };
         return (from, to);
+    }
+
+    /// <summary>
+    /// Aggregates real sales straight from Confirmed <see cref="Order"/> rows (the same source the
+    /// "Savdo" dashboard uses), converting tiyin → so'm. When <paramref name="operatorId"/> is set the
+    /// result is scoped to orders placed by users whose lead is Won and owned by that operator, so an
+    /// operator's revenue reflects deals they actually closed. Date bounds are [from, to).
+    /// </summary>
+    public async Task<SalesAgg> AggregateSalesAsync(long? operatorId, DateTime? from, DateTime? to)
+    {
+        var orders = context.Orders.Where(o => o.Status == EnumOrderStatus.Confirmed);
+        if (from.HasValue) orders = orders.Where(o => o.CreatedAt >= from.Value);
+        if (to.HasValue) orders = orders.Where(o => o.CreatedAt < to.Value);
+
+        if (operatorId.HasValue)
+        {
+            var opId = operatorId.Value;
+            orders = orders.Where(o => context.Leads.Any(l =>
+                l.UserId == o.UserId && l.OperatorId == opId && l.Status == EnumLeadStatus.Won));
+        }
+
+        var rows = await orders.Select(o => new { o.Amount, o.Provider, o.CouponId }).ToListAsync();
+
+        var promo = rows.Where(r => r.CouponId != null).ToList();
+        var purchase = rows.Where(r => r.CouponId == null).ToList();
+
+        return new SalesAgg
+        {
+            Sales = rows.Count,
+            Revenue = rows.Sum(r => r.Amount) / TiyinPerSom,
+            PromoSales = promo.Count,
+            CardSales = purchase.Count(r => CardProviders.Contains(r.Provider)),
+            PlatformSales = purchase.Count(r => r.Provider == EnumPaymentProviders.Iap),
+            PurchaseRevenue = purchase.Sum(r => r.Amount) / TiyinPerSom,
+            PromoRevenue = promo.Sum(r => r.Amount) / TiyinPerSom
+        };
     }
 
     public async Task<OperatorDashboardDto> GetOperatorDashboardAsync(long operatorId)
@@ -47,12 +99,10 @@ public class CrmStatsService(AppDbContext context)
         var todayFollowUps = await followUps.CountAsync(f => f.DueAt < todayStart.AddDays(1));
         var overdueFollowUps = await followUps.CountAsync(f => f.DueAt < now);
 
-        var todayWon = leads.Where(l => l.Status == EnumLeadStatus.Won && l.WonAt >= todayStart);
-        var todaySales = await todayWon.CountAsync();
-        var todayRevenue = await todayWon.SumAsync(l => (long?)l.WonAmount) ?? 0;
-
-        var totalWon = await leads.CountAsync(l => l.Status == EnumLeadStatus.Won);
-        var conversion = myLeads == 0 ? 0 : Math.Round(totalWon * 100.0 / myLeads, 1);
+        // Sotuv/tushum — haqiqiy tasdiqlangan buyurtmalardan (Lead.WonAmount emas).
+        var today = await AggregateSalesAsync(operatorId, todayStart, null);
+        var allTime = await AggregateSalesAsync(operatorId, null, null);
+        var conversion = myLeads == 0 ? 0 : Math.Round(allTime.Sales * 100.0 / myLeads, 1);
 
         return new OperatorDashboardDto
         {
@@ -62,8 +112,8 @@ public class CrmStatsService(AppDbContext context)
             TodayCalls = todayCalls,
             TodayFollowUps = todayFollowUps,
             OverdueFollowUps = overdueFollowUps,
-            TodaySales = todaySales,
-            TodayRevenue = todayRevenue,
+            TodaySales = today.Sales,
+            TodayRevenue = today.Revenue,
             ConversionRate = conversion
         };
     }
@@ -86,29 +136,21 @@ public class CrmStatsService(AppDbContext context)
             a.ActorId == operatorId && a.Type == EnumLeadActivityType.Contacted
             && a.CreatedAt >= from && a.CreatedAt <= to);
 
-        var won = context.Leads.Where(l => l.OperatorId == operatorId && l.Status == EnumLeadStatus.Won
-                                                                      && l.WonAt >= from && l.WonAt <= to);
-
-        var sales = await won.CountAsync();
-        var revenue = await won.SumAsync(l => (long?)l.WonAmount) ?? 0;
-        var promoSales = await won.CountAsync(l => l.CouponId != null);
-        var cardSales = await won.CountAsync(l =>
-            l.CouponId == null && l.PaymentProvider != null && CardProviders.Contains(l.PaymentProvider.Value));
-        var platformSales = sales - cardSales - promoSales;
-
-        var conversion = leadsWorked == 0 ? 0 : Math.Round(sales * 100.0 / leadsWorked, 1);
+        // Sotuv/tushum va to'lov turlari — haqiqiy tasdiqlangan buyurtmalardan.
+        var agg = await AggregateSalesAsync(operatorId, from, to);
+        var conversion = leadsWorked == 0 ? 0 : Math.Round(agg.Sales * 100.0 / leadsWorked, 1);
 
         return new OperatorStatsDto
         {
             Period = period,
             LeadsWorked = leadsWorked,
             Calls = calls,
-            Sales = sales,
-            Revenue = revenue,
+            Sales = agg.Sales,
+            Revenue = agg.Revenue,
             ConversionRate = conversion,
-            CardSales = cardSales,
-            PlatformSales = platformSales,
-            PromoSales = promoSales
+            CardSales = agg.CardSales,
+            PlatformSales = agg.PlatformSales,
+            PromoSales = agg.PromoSales
         };
     }
 }
