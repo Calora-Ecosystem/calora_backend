@@ -29,12 +29,10 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
         var todayCalls = await context.LeadActivities.CountAsync(a =>
             a.Type == EnumLeadActivityType.Contacted && a.CreatedAt >= todayStart);
 
-        var todayWon = context.Leads.Where(l => l.Status == EnumLeadStatus.Won && l.WonAt >= todayStart);
-        var todaySales = await todayWon.CountAsync();
-        var todayRevenue = await todayWon.SumAsync(l => (long?)l.WonAmount) ?? 0;
-
-        var totalWon = await context.Leads.CountAsync(l => l.Status == EnumLeadStatus.Won);
-        var conversion = totalLeads == 0 ? 0 : Math.Round(totalWon * 100.0 / totalLeads, 1);
+        // Sotuv/tushum — haqiqiy tasdiqlangan buyurtmalardan (Savdo bo'limi bilan bir manba).
+        var today = await statsService.AggregateSalesAsync(null, todayStart, null);
+        var allTime = await statsService.AggregateSalesAsync(null, null, null);
+        var conversion = totalLeads == 0 ? 0 : Math.Round(allTime.Sales * 100.0 / totalLeads, 1);
 
         var operatorsCount = await OperatorUsers().CountAsync();
 
@@ -45,8 +43,8 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
             ActiveLeads = activeLeads,
             HotLeads = hotLeads,
             TodayCalls = todayCalls,
-            TodaySales = todaySales,
-            TodayRevenue = todayRevenue,
+            TodaySales = today.Sales,
+            TodayRevenue = today.Revenue,
             ConversionRate = conversion,
             OperatorsCount = operatorsCount
         };
@@ -103,11 +101,8 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
                 a.ActorId == op.Id && a.Type == EnumLeadActivityType.Contacted
                 && a.CreatedAt >= from && a.CreatedAt <= to);
 
-            var won = context.Leads.Where(l => l.OperatorId == op.Id && l.Status == EnumLeadStatus.Won
-                                                                     && l.WonAt >= from && l.WonAt <= to);
-            var sales = await won.CountAsync();
-            var revenue = await won.SumAsync(l => (long?)l.WonAmount) ?? 0;
-            var conversion = leads == 0 ? 0 : Math.Round(sales * 100.0 / leads, 1);
+            var agg = await statsService.AggregateSalesAsync(op.Id, from, to);
+            var conversion = leads == 0 ? 0 : Math.Round(agg.Sales * 100.0 / leads, 1);
 
             rows.Add(new OperatorLeaderboardRowDto
             {
@@ -115,8 +110,8 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
                 OperatorName = op.Name,
                 Leads = leads,
                 Calls = calls,
-                Sales = sales,
-                Revenue = revenue,
+                Sales = agg.Sales,
+                Revenue = agg.Revenue,
                 ConversionRate = conversion
             });
         }
@@ -165,13 +160,13 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
 
     private async Task<RevenuePointDto> RevenuePoint(string label, DateTime date, DateTime from, DateTime to)
     {
-        var won = context.Leads.Where(l => l.Status == EnumLeadStatus.Won && l.WonAt >= from && l.WonAt < to);
+        var agg = await statsService.AggregateSalesAsync(null, from, to);
         return new RevenuePointDto
         {
             Label = label,
             Date = date,
-            Sales = await won.CountAsync(),
-            Revenue = await won.SumAsync(l => (long?)l.WonAmount) ?? 0
+            Sales = agg.Sales,
+            Revenue = agg.Revenue
         };
     }
 
@@ -194,11 +189,9 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
         foreach (var op in operators)
         {
             var leads = await context.Leads.CountAsync(l => l.OperatorId == op.Id);
-            var won = context.Leads.Where(l => l.OperatorId == op.Id && l.Status == EnumLeadStatus.Won);
-            var sales = await won.CountAsync();
-            var revenue = await won.SumAsync(l => (long?)l.WonAmount) ?? 0;
+            var agg = await statsService.AggregateSalesAsync(op.Id, null, null);
             var calls = await context.LeadActivities.CountAsync(a => a.ActorId == op.Id && a.Type == EnumLeadActivityType.Contacted);
-            var conversion = leads == 0 ? 0 : Math.Round(sales * 100.0 / leads, 1);
+            var conversion = leads == 0 ? 0 : Math.Round(agg.Sales * 100.0 / leads, 1);
 
             rows.Add(new OperatorLeaderboardRowDto
             {
@@ -206,8 +199,8 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
                 OperatorName = op.Name,
                 Leads = leads,
                 Calls = calls,
-                Sales = sales,
-                Revenue = revenue,
+                Sales = agg.Sales,
+                Revenue = agg.Revenue,
                 ConversionRate = conversion
             });
         }
@@ -221,29 +214,22 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
     /// </summary>
     public async Task<PremiumBreakdownDto> GetPremiumBreakdownAsync(EnumStatsPeriod? period)
     {
-        var won = context.Leads.Where(l => l.Status == EnumLeadStatus.Won);
+        DateTime? from = null, to = null;
         if (period.HasValue)
-        {
-            var (from, to) = CrmStatsService.ResolveRange(period.Value);
-            won = won.Where(l => l.WonAt >= from && l.WonAt <= to);
-        }
+            (from, to) = CrmStatsService.ResolveRange(period.Value);
 
-        var rows = await won
-            .Select(l => new { l.CouponId, l.PaymentProvider, l.WonAmount })
-            .ToListAsync();
-
-        var promo = rows.Where(r => r.CouponId != null).ToList();
-        var purchase = rows.Where(r => r.CouponId == null).ToList();
+        // Haqiqiy tasdiqlangan buyurtmalardan (tiyin → so'm, /100 statsService ichida).
+        var agg = await statsService.AggregateSalesAsync(null, from, to);
 
         return new PremiumBreakdownDto
         {
-            Total = rows.Count,
-            ViaPromoCode = promo.Count,
-            ViaPurchase = purchase.Count,
-            Card = purchase.Count(r => r.PaymentProvider != null && CrmStatsService.CardProviders.Contains(r.PaymentProvider.Value)),
-            Platform = purchase.Count(r => r.PaymentProvider == EnumPaymentProviders.Iap),
-            PromoRevenue = promo.Sum(r => r.WonAmount ?? 0),
-            PurchaseRevenue = purchase.Sum(r => r.WonAmount ?? 0)
+            Total = agg.Sales,
+            ViaPromoCode = agg.PromoSales,
+            ViaPurchase = agg.CardSales + agg.PlatformSales,
+            Card = agg.CardSales,
+            Platform = agg.PlatformSales,
+            PromoRevenue = agg.PromoRevenue,
+            PurchaseRevenue = agg.PurchaseRevenue
         };
     }
 
@@ -259,7 +245,7 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
                 UserName = l.User.Name,
                 UserPhone = l.User.Phone,
                 PromoCode = l.PromoCode,
-                Amount = l.WonAmount,
+                Amount = l.WonAmount != null ? l.WonAmount / 100 : null, // tiyin → so'm
                 OperatorName = l.Operator != null ? l.Operator.Name : null,
                 WonAt = l.WonAt
             })

@@ -548,7 +548,7 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
                            NextFollowUpAt = l.NextFollowUpAt,
                            CreatedAt = l.CreatedAt,
                            PaymentProvider = l.PaymentProvider,
-                           WonAmount = l.WonAmount,
+                           WonAmount = l.WonAmount != null ? l.WonAmount / 100 : null, // tiyin → so'm
                            WonAt = l.WonAt,
                            PromoCode = l.PromoCode,
                            Age = l.User.Extra != null ? l.User.Extra.Age : (int?)null,
