@@ -77,10 +77,10 @@ public static class CrmSchemaGuard
                SELECT id FROM users WHERE roles @> '["Operator"]'::jsonb);
 
         -- Any active lead without an operator belongs in the New column (1), not in
-        -- FollowUp/Interested/PaymentInProgress (2..4).
+        -- FollowUp/Interested/PaymentInProgress (2..4) or Contacted/Bog'lanish (7).
         UPDATE leads
            SET status = 1
          WHERE operator_id IS NULL
-           AND status IN (2, 3, 4);
+           AND status IN (2, 3, 4, 7);
         """;
 }

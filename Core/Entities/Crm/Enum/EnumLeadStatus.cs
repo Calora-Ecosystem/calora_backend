@@ -7,5 +7,8 @@ public enum EnumLeadStatus
     Interested = 3,         // O'ylab ko'radi
     PaymentInProgress = 4,  // To'lov jarayonda
     Won = 5,                // Sotuv
-    Lost = 6                // Yo'qotilgan
+    Lost = 6,               // Yo'qotilgan
+    // Kanban tartibida "Yangi"dan keyin ko'rsatiladi (tartib KANBAN_STATUSES/funnel bo'yicha,
+    // raqamli qiymat bo'yicha emas), shuning uchun mavjud ma'lumotni ko'chirmasdan oxiriga qo'shildi.
+    Contacted = 7           // Bog'lanish
 }

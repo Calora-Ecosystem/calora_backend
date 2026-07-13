@@ -60,8 +60,8 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
         // Pipeline order; Lost is reported separately at the end.
         EnumLeadStatus[] order =
         [
-            EnumLeadStatus.New, EnumLeadStatus.FollowUp, EnumLeadStatus.Interested,
-            EnumLeadStatus.PaymentInProgress, EnumLeadStatus.Won
+            EnumLeadStatus.New, EnumLeadStatus.Contacted, EnumLeadStatus.FollowUp,
+            EnumLeadStatus.Interested, EnumLeadStatus.PaymentInProgress, EnumLeadStatus.Won
         ];
 
         var result = new List<FunnelStageDto>();

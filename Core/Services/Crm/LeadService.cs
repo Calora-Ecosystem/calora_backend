@@ -123,8 +123,31 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
         foreach (var f in pending) { f.IsDone = true; f.DoneAt = DateTime.Now; }
         lead.NextFollowUpAt = null;
 
-        LogActivity(lead, EnumLeadActivityType.Won, "Subscription sotib oldi");
+        // Attribution: a purchase only counts as an operator's sale if the operator actually
+        // worked the lead (contacted / moved it through the pipeline / noted / set a follow-up)
+        // before the purchase. If the user bought on their own while the lead sat untouched,
+        // it's an organic sale — detach it from the operator so it neither counts as their sale
+        // nor stays on their kanban.
+        var workedByOperator = await HasOperatorWorkedAsync(lead.Id);
+        if (workedByOperator)
+        {
+            LogActivity(lead, EnumLeadActivityType.Won, "Subscription sotib oldi");
+        }
+        else
+        {
+            lead.OperatorId = null;
+            LogActivity(lead, EnumLeadActivityType.Won, "O'zi mustaqil sotib oldi (operator ishtirokisiz)");
+        }
     }
+
+    /// <summary>
+    /// True when an operator has taken a real action on the lead — contact, status move, note,
+    /// follow-up, or a manual won/lost. Auto-assignment (<see cref="EnumLeadActivityType.Assigned"/>)
+    /// is a system action and does NOT count as operator involvement.
+    /// </summary>
+    private async Task<bool> HasOperatorWorkedAsync(long leadId) =>
+        leadId != 0 && await context.LeadActivities.AnyAsync(a =>
+            a.LeadId == leadId && a.ActorId != null && a.Type != EnumLeadActivityType.Assigned);
 
     /// <summary>Lead score per the CRM scoring rules.</summary>
     public int ComputeScore(Lead lead)
@@ -248,6 +271,12 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
     {
         var lead = await GetOwnedLeadAsync(leadId, operatorId);
 
+        // Pipeline gate: a "Yangi" (New) lead can only move to "Bog'lanish" (Contacted); it must
+        // be contacted before it can progress to any later stage. Nothing moves back to New.
+        if (status == EnumLeadStatus.New ||
+            (lead.Status == EnumLeadStatus.New && status != EnumLeadStatus.Contacted))
+            throw new InvalidLeadTransitionException();
+
         if (status == EnumLeadStatus.Lost && string.IsNullOrWhiteSpace(reason))
             throw new LostReasonRequiredException();
 
@@ -258,6 +287,13 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
         switch (status)
         {
             case EnumLeadStatus.Won:
+                // A sale can only be recorded against a real confirmed payment. This stops an
+                // operator from parking a non-buyer in the "Sotuv" column.
+                var hasPaid = await context.Orders.AnyAsync(o =>
+                    o.UserId == lead.UserId && o.Status == EnumOrderStatus.Confirmed);
+                if (!hasPaid)
+                    throw new LeadNotPurchasedException();
+
                 lead.Purchased = true;
                 lead.WonAt = DateTime.Now;
                 lead.Priority = EnumLeadPriority.Closed;
@@ -285,9 +321,9 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
 
         lead.LastContactedAt = DateTime.Now;
         lead.LastActivity = DateTime.Now;
-        // Yangi lead bilan bog'lanilgach, u "Qayta aloqa" bosqichiga o'tadi.
+        // Yangi lead bilan bog'lanilgach, u "Bog'lanish" bosqichiga o'tadi.
         if (lead.Status is EnumLeadStatus.New)
-            lead.Status = EnumLeadStatus.FollowUp;
+            lead.Status = EnumLeadStatus.Contacted;
 
         LogActivity(lead, EnumLeadActivityType.Contacted, "Bog'lanildi", operatorId);
         await context.SaveChangesAsync();
@@ -369,6 +405,10 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
     public async Task<long> CreateFollowUpAsync(long leadId, long operatorId, CreateFollowUpDto dto)
     {
         var lead = await GetOwnedLeadAsync(leadId, operatorId);
+
+        // Follow-up belgilashdan oldin lead "Bog'lanish"ga o'tkazilgan bo'lishi kerak.
+        if (lead.Status is EnumLeadStatus.New)
+            throw new InvalidLeadTransitionException();
 
         var followUp = context.Add(new FollowUp
         {
