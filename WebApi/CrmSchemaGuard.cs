@@ -68,19 +68,19 @@ public static class CrmSchemaGuard
 
         -- A lead whose operator no longer holds the Operator role (e.g. the role was
         -- revoked from the Users page) must not stay "assigned". Detach it so it falls
-        -- back to the unassigned pool. Won (6) / Lost (7) history is left untouched.
+        -- back to the unassigned pool. Won (5) / Lost (6) history is left untouched.
         UPDATE leads
            SET operator_id = NULL
          WHERE operator_id IS NOT NULL
-           AND status NOT IN (6, 7)
+           AND status NOT IN (5, 6)
            AND operator_id NOT IN (
                SELECT id FROM users WHERE roles @> '["Operator"]'::jsonb);
 
         -- Any active lead without an operator belongs in the New column (1), not in
-        -- Assigned/Contacted/Interested/FollowUp (2..5).
+        -- FollowUp/Interested/PaymentInProgress (2..4).
         UPDATE leads
            SET status = 1
          WHERE operator_id IS NULL
-           AND status IN (2, 3, 4, 5);
+           AND status IN (2, 3, 4);
         """;
 }
