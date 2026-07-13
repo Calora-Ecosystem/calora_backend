@@ -185,9 +185,7 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
         }
 
         lead.OperatorId = operatorId;
-        if (lead.Status == EnumLeadStatus.New)
-            lead.Status = EnumLeadStatus.Assigned;
-
+        // Status kanban bo'yicha boshqariladi (Yangi → Qayta aloqa → ...); biriktirish uni o'zgartirmaydi.
         LogActivity(lead, EnumLeadActivityType.Assigned, "Operatorga biriktirildi", operatorId);
         await context.SaveChangesAsync();
     }
@@ -236,8 +234,6 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
             throw new OperatorNotFoundException();
 
         lead.OperatorId = operatorId;
-        if (lead.Status is EnumLeadStatus.New)
-            lead.Status = EnumLeadStatus.Assigned;
         lead.LastActivity = DateTime.Now;
 
         LogActivity(lead, EnumLeadActivityType.Assigned, "Boshqaruvchi tomonidan biriktirildi", actorId);
@@ -275,11 +271,6 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
                 LogActivity(lead, EnumLeadActivityType.Lost, $"Yo'qotildi: {reason}", operatorId);
                 break;
 
-            case EnumLeadStatus.Contacted:
-                lead.LastContactedAt ??= DateTime.Now;
-                LogActivity(lead, EnumLeadActivityType.StatusChanged, $"{previous} → {status}", operatorId);
-                break;
-
             default:
                 LogActivity(lead, EnumLeadActivityType.StatusChanged, $"{previous} → {status}", operatorId);
                 break;
@@ -294,8 +285,9 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
 
         lead.LastContactedAt = DateTime.Now;
         lead.LastActivity = DateTime.Now;
-        if (lead.Status is EnumLeadStatus.New or EnumLeadStatus.Assigned)
-            lead.Status = EnumLeadStatus.Contacted;
+        // Yangi lead bilan bog'lanilgach, u "Qayta aloqa" bosqichiga o'tadi.
+        if (lead.Status is EnumLeadStatus.New)
+            lead.Status = EnumLeadStatus.FollowUp;
 
         LogActivity(lead, EnumLeadActivityType.Contacted, "Bog'lanildi", operatorId);
         await context.SaveChangesAsync();
