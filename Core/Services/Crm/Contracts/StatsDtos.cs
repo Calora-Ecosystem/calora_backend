@@ -42,6 +42,9 @@ public record OperatorLeaderboardRowDto
     public long OperatorId { get; set; }
     public string OperatorName { get; set; } = null!;
     public int Leads { get; set; }
+
+    /// <summary>Current active (non Won/Lost) leads — the operator's live workload.</summary>
+    public int ActiveLeads { get; set; }
     public int Calls { get; set; }
     public int Sales { get; set; }
     public long Revenue { get; set; }

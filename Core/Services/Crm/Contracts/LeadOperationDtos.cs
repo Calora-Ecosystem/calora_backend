@@ -9,6 +9,14 @@ public record AssignLeadDto
     public long OperatorId { get; set; }
 }
 
+public record AssignManyDto
+{
+    [Required] public long OperatorId { get; set; }
+
+    /// <summary>Leads to assign to the operator (at least one).</summary>
+    [Required, MinLength(1)] public long[] LeadIds { get; set; } = [];
+}
+
 public record MoveStatusDto
 {
     [Required] public EnumLeadStatus Status { get; set; }

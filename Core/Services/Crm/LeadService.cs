@@ -215,6 +215,58 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
         await context.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Bulk-assign several leads to one operator in a single call, so the Head of Sales can hand
+    /// out a batch without one request per lead. Returns how many leads were (re)assigned.
+    /// </summary>
+    public async Task<int> AssignManyAsync(IReadOnlyCollection<long> leadIds, long operatorId, long actorId)
+    {
+        if (leadIds.Count == 0) return 0;
+
+        var isOperator = await context.Users
+            .FromSqlInterpolated($"SELECT * FROM users WHERE id = {operatorId} AND roles @> '[\"Operator\"]'::jsonb")
+            .AnyAsync();
+        if (!isOperator)
+            throw new OperatorNotFoundException();
+
+        var leads = await context.Leads.Where(l => leadIds.Contains(l.Id)).ToListAsync();
+        var now = DateTime.Now;
+        foreach (var lead in leads)
+        {
+            lead.OperatorId = operatorId;
+            lead.LastActivity = now;
+            LogActivity(lead, EnumLeadActivityType.Assigned, "Boshqaruvchi tomonidan biriktirildi", actorId);
+        }
+
+        await context.SaveChangesAsync();
+        return leads.Count;
+    }
+
+    /// <summary>
+    /// Takes a lead back from its operator into the unassigned pool: clears the operator and resets
+    /// the lead to "New" (Yangi) so it can be redistributed. Pending follow-ups are dropped. Won/Lost
+    /// leads are closed and cannot be pulled back.
+    /// </summary>
+    public async Task UnassignAsync(long leadId, long actorId)
+    {
+        var lead = await context.Leads.FirstOrDefaultAsync(l => l.Id == leadId)
+                   ?? throw new LeadNotFoundException();
+
+        if (lead.Status is EnumLeadStatus.Won or EnumLeadStatus.Lost)
+            throw new InvalidLeadTransitionException();
+
+        var pending = await context.FollowUps.Where(f => f.LeadId == lead.Id && !f.IsDone).ToListAsync();
+        if (pending.Count > 0) context.FollowUps.RemoveRange(pending);
+
+        lead.OperatorId = null;
+        lead.Status = EnumLeadStatus.New;
+        lead.NextFollowUpAt = null;
+        lead.LastActivity = DateTime.Now;
+
+        LogActivity(lead, EnumLeadActivityType.Assigned, "Operatordan olib qo'yildi (Yangi)", actorId);
+        await context.SaveChangesAsync();
+    }
+
     #endregion
 
     #region Status & contact
@@ -467,14 +519,19 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
         var dayOperatorId = operatorScopeId ?? q.OperatorId;
 
         // Agenda = "what needs my attention today": an active lead whose follow-up is due today or
-        // already overdue, or a lead that was assigned to me but not yet contacted (still New).
+        // already overdue, or a lead still New, OR a lead I already worked today. The last clause
+        // matters so a lead does NOT vanish from the board the moment I act on it — e.g. moving a
+        // New lead to "Bog'lanish" logs today's activity and keeps it visible in the day's board.
         if (q.Agenda == true)
         {
-            var todayEnd = now.Date.AddDays(1);
+            var todayStart = now.Date;
+            var todayEnd = todayStart.AddDays(1);
             queryable = queryable.Where(l =>
                 l.Status != EnumLeadStatus.Won && l.Status != EnumLeadStatus.Lost &&
                 (l.Status == EnumLeadStatus.New ||
-                 (l.NextFollowUpAt != null && l.NextFollowUpAt < todayEnd)));
+                 (l.NextFollowUpAt != null && l.NextFollowUpAt < todayEnd) ||
+                 context.LeadActivities.Any(a => a.LeadId == l.Id && a.ActorId == dayOperatorId
+                     && a.CreatedAt >= todayStart && a.CreatedAt < todayEnd)));
         }
 
         // WorkedOn = leads the operator actually touched on the given calendar day (any real
@@ -499,13 +556,21 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
                 (l.User.Phone != null && EF.Functions.ILike(l.User.Phone, $"%{s}%")));
         }
 
-        // Standart tartib: avval ustuvorlik (priority), keyin qiziqish/ko'rishlar soni
-        // (obuna sahifasini ochganlar), so'ng ball. DataQuery aniq sort bermasa shu qo'llanadi.
-        return await queryable
-            .OrderByDescending(l => l.Priority)
-            .ThenByDescending(l => l.SubscriptionOpenedCount)
-            .ThenByDescending(l => l.Score)
-            .ThenByDescending(l => l.LastActivity)
+        // Ordering. DataQuery aniq sort bermaganda shu qo'llanadi:
+        //  • SortByActivity (Head of Sales / Admin taqsimlash): oxirgi faollik bo'yicha — eng
+        //    so'nggi faol lead tepada; teng bo'lsa eng yangi lead.
+        //  • Aks holda standart tartib: ustuvorlik → qiziqish → ball → faollik.
+        var ordered = q.SortByActivity == true
+            ? queryable
+                .OrderByDescending(l => l.LastActivity)
+                .ThenByDescending(l => l.CreatedAt)
+            : queryable
+                .OrderByDescending(l => l.Priority)
+                .ThenByDescending(l => l.SubscriptionOpenedCount)
+                .ThenByDescending(l => l.Score)
+                .ThenByDescending(l => l.LastActivity);
+
+        return await ordered
             .Select(l => new GetLeadDto
             {
                 Id = l.Id,
