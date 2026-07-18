@@ -82,6 +82,22 @@ public class CrmController(LeadService leadService, CrmStatsService statsService
         return 200;
     }
 
+    /// <summary>Bulk-assign several leads to one operator. HeadOfSales / SuperAdmin only.</summary>
+    [HttpPatch("leads/assign-bulk")]
+    [RoleAuthorize(EnumRole.HeadOfSales, EnumRole.SuperAdmin)]
+    [ProducesResponseType<WrapperGeneric<int>>(200)]
+    public async Task<Wrapper> AssignMany([FromBody] AssignManyDto dto) =>
+        (await leadService.AssignManyAsync(dto.LeadIds, dto.OperatorId, this.UserId), 200);
+
+    /// <summary>Take a lead back from its operator into the unassigned pool (resets it to New).</summary>
+    [HttpPatch("leads/{id:long:min(1)}/unassign")]
+    [RoleAuthorize(EnumRole.HeadOfSales, EnumRole.SuperAdmin)]
+    public async Task<Wrapper> Unassign(long id)
+    {
+        await leadService.UnassignAsync(id, this.UserId);
+        return 200;
+    }
+
     #endregion
 
     #region Notes

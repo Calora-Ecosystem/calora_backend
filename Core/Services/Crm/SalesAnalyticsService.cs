@@ -189,6 +189,8 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
         foreach (var op in operators)
         {
             var leads = await context.Leads.CountAsync(l => l.OperatorId == op.Id);
+            var activeLeads = await context.Leads.CountAsync(l => l.OperatorId == op.Id
+                && l.Status != EnumLeadStatus.Won && l.Status != EnumLeadStatus.Lost);
             var agg = await statsService.AggregateSalesAsync(op.Id, null, null);
             var calls = await context.LeadActivities.CountAsync(a => a.ActorId == op.Id && a.Type == EnumLeadActivityType.Contacted);
             var conversion = leads == 0 ? 0 : Math.Round(agg.Sales * 100.0 / leads, 1);
@@ -198,6 +200,7 @@ public class SalesAnalyticsService(AppDbContext context, CrmStatsService statsSe
                 OperatorId = op.Id,
                 OperatorName = op.Name,
                 Leads = leads,
+                ActiveLeads = activeLeads,
                 Calls = calls,
                 Sales = agg.Sales,
                 Revenue = agg.Revenue,

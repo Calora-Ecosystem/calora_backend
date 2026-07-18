@@ -32,6 +32,12 @@ public record GetLeadsQuery : DataQueryRequest
     /// </summary>
     public DateTime? WorkedOn { get; set; }
 
+    /// <summary>
+    /// Distribution ordering for the Head-of-Sales / Admin leads view: most recently active leads
+    /// first (newest activity on top), so the freshest leads can be handed out quickly.
+    /// </summary>
+    public bool? SortByActivity { get; set; }
+
     /// <summary>Global search across user name / email / phone.</summary>
     public string? Search { get; set; }
 }
