@@ -50,3 +50,17 @@ public enum EnumStatsPeriod
     Week,
     Month
 }
+
+/// <summary>What an operator did on a single day — the daily accountability snapshot.</summary>
+public record OperatorDayLogDto
+{
+    public DateTime Date { get; init; }
+    public int LeadsTouched { get; init; }
+    public int Contacted { get; init; }
+    public int NotesAdded { get; init; }
+    public int FollowUpsSet { get; init; }
+    public int FollowUpsDone { get; init; }
+    public int StatusMoves { get; init; }
+    public int Won { get; init; }
+    public int Lost { get; init; }
+}

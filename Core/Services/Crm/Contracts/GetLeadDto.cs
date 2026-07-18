@@ -24,4 +24,10 @@ public record GetLeadDto
     public DateTime? NextFollowUpAt { get; set; }
     public bool FollowUpOverdue { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>Type of the most recent operator action on this lead (null if untouched).</summary>
+    public EnumLeadActivityType? LastActionType { get; set; }
+
+    /// <summary>When the most recent operator action happened.</summary>
+    public DateTime? LastActionAt { get; set; }
 }

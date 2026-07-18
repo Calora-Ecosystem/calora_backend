@@ -123,8 +123,8 @@ public class CrmStatsService(AppDbContext context)
         var (from, to) = ResolveRange(period);
 
         // "Worked" = leads the operator actively touched (contacted, status change, note,
-        // follow-up, won/lost). Auto-assignment also stamps ActorId, so exclude it — otherwise
-        // a lead the operator never engaged with would inflate the count.
+        // follow-up, won/lost). Assignment also stamps ActorId (the Head of Sales), so exclude it
+        // — otherwise a lead the operator never engaged with would inflate the count.
         var leadsWorked = await context.LeadActivities
             .Where(a => a.ActorId == operatorId && a.Type != EnumLeadActivityType.Assigned
                                                 && a.CreatedAt >= from && a.CreatedAt <= to)
@@ -151,6 +151,47 @@ public class CrmStatsService(AppDbContext context)
             CardSales = agg.CardSales,
             PlatformSales = agg.PlatformSales,
             PromoSales = agg.PromoSales
+        };
+    }
+
+    /// <summary>
+    /// What the operator actually did on a single calendar day — powers the "kunlik faollik"
+    /// (daily activity) review on the operator kanban. Counts are derived from the activity log
+    /// and completed follow-ups, so they reflect real work, not lead state.
+    /// </summary>
+    public async Task<OperatorDayLogDto> GetDayLogAsync(long operatorId, DateTime date)
+    {
+        var start = date.Date;
+        var end = start.AddDays(1);
+
+        var acts = context.LeadActivities.Where(a =>
+            a.ActorId == operatorId && a.CreatedAt >= start && a.CreatedAt < end);
+
+        var leadsTouched = await acts
+            .Where(a => a.Type != EnumLeadActivityType.Assigned)
+            .Select(a => a.LeadId).Distinct().CountAsync();
+        var contacted = await acts.CountAsync(a => a.Type == EnumLeadActivityType.Contacted);
+        var notesAdded = await acts.CountAsync(a => a.Type == EnumLeadActivityType.NoteAdded);
+        var followUpsSet = await acts.CountAsync(a => a.Type == EnumLeadActivityType.FollowUpSet);
+        var statusMoves = await acts.CountAsync(a => a.Type == EnumLeadActivityType.StatusChanged);
+        var won = await acts.CountAsync(a => a.Type == EnumLeadActivityType.Won);
+        var lost = await acts.CountAsync(a => a.Type == EnumLeadActivityType.Lost);
+
+        var followUpsDone = await context.FollowUps.CountAsync(f =>
+            f.OperatorId == operatorId && f.IsDone && f.DoneAt != null
+            && f.DoneAt >= start && f.DoneAt < end);
+
+        return new OperatorDayLogDto
+        {
+            Date = start,
+            LeadsTouched = leadsTouched,
+            Contacted = contacted,
+            NotesAdded = notesAdded,
+            FollowUpsSet = followUpsSet,
+            FollowUpsDone = followUpsDone,
+            StatusMoves = statusMoves,
+            Won = won,
+            Lost = lost
         };
     }
 }
