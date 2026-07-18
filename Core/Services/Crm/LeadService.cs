@@ -79,16 +79,10 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
         lead.Temperature = GetTemperature(lead.Score);
         lead.Priority = GetLeadPriority(lead);
 
-        // Persist first so a brand new lead gets its Id, then (maybe) auto-assign it.
+        // No auto-assignment: leads stay unassigned until the Head of Sales distributes them
+        // to operators from the leads-management view. This keeps ownership deliberate — an
+        // operator only works leads that were handed to them, never a machine-routed queue.
         await context.SaveChangesAsync();
-
-        // Auto-assignment: only leads that have heated up (Hot/VeryHot) are routed to an
-        // operator, so operators focus on people ready to buy and aren't flooded with cold
-        // leads. A lead that turns hot while still unassigned gets picked up here too.
-        var isActive = lead.Status != EnumLeadStatus.Won && lead.Status != EnumLeadStatus.Lost;
-        var isHot = lead.Temperature is EnumLeadTemperature.Hot or EnumLeadTemperature.VeryHot;
-        if (lead.OperatorId is null && isActive && isHot)
-            await AssignLeadAsync(lead);
 
         logger.LogInformation("LeadEvent {Event} applied for UserId {UserId}", dto.Event, dto.UserId);
     }
@@ -142,8 +136,9 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
 
     /// <summary>
     /// True when an operator has taken a real action on the lead — contact, status move, note,
-    /// follow-up, or a manual won/lost. Auto-assignment (<see cref="EnumLeadActivityType.Assigned"/>)
-    /// is a system action and does NOT count as operator involvement.
+    /// follow-up, or a manual won/lost. Assignment (<see cref="EnumLeadActivityType.Assigned"/>)
+    /// is performed by the Head of Sales, not the operator, so it does NOT count as operator
+    /// involvement.
     /// </summary>
     private async Task<bool> HasOperatorWorkedAsync(long leadId) =>
         leadId != 0 && await context.LeadActivities.AnyAsync(a =>
@@ -192,49 +187,6 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
             Description = description,
             ActorId = actorId
         });
-    }
-
-    #endregion
-
-    #region Assignment (least-loaded round-robin)
-
-    private async Task AssignLeadAsync(Lead lead)
-    {
-        var operatorId = await PickOperatorAsync();
-        if (operatorId is null)
-        {
-            logger.LogWarning("No operators available to assign Lead {LeadId}", lead.Id);
-            return;
-        }
-
-        lead.OperatorId = operatorId;
-        // Status kanban bo'yicha boshqariladi (Yangi → Qayta aloqa → ...); biriktirish uni o'zgartirmaydi.
-        LogActivity(lead, EnumLeadActivityType.Assigned, "Operatorga biriktirildi", operatorId);
-        await context.SaveChangesAsync();
-    }
-
-    /// <summary>Returns the operator with the fewest active (non Won/Lost) leads.</summary>
-    private async Task<long?> PickOperatorAsync()
-    {
-        // Roles is a jsonb List<string>; use Postgres containment which EF can't translate from LINQ Contains.
-        const string operatorJson = "[\"Operator\"]";
-        var operators = await context.Users
-            .FromSqlInterpolated($"SELECT * FROM users WHERE roles @> {operatorJson}::jsonb")
-            .Select(u => u.Id)
-            .ToListAsync();
-
-        if (operators.Count == 0) return null;
-
-        var loads = await context.Leads
-            .Where(l => l.OperatorId != null && l.Status != EnumLeadStatus.Won && l.Status != EnumLeadStatus.Lost)
-            .GroupBy(l => l.OperatorId!.Value)
-            .Select(g => new { OperatorId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.OperatorId, x => x.Count);
-
-        return operators
-            .OrderBy(id => loads.GetValueOrDefault(id, 0))
-            .ThenBy(id => id)
-            .First();
     }
 
     #endregion
@@ -510,6 +462,34 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
         if (q.MaxScore.HasValue) queryable = queryable.Where(l => l.Score <= q.MaxScore.Value);
         if (q.Purchased.HasValue) queryable = queryable.Where(l => l.Purchased == q.Purchased.Value);
 
+        // The operator these daily filters are about: the caller when scoped, else the explicit
+        // OperatorId a Head of Sales is inspecting.
+        var dayOperatorId = operatorScopeId ?? q.OperatorId;
+
+        // Agenda = "what needs my attention today": an active lead whose follow-up is due today or
+        // already overdue, or a lead that was assigned to me but not yet contacted (still New).
+        if (q.Agenda == true)
+        {
+            var todayEnd = now.Date.AddDays(1);
+            queryable = queryable.Where(l =>
+                l.Status != EnumLeadStatus.Won && l.Status != EnumLeadStatus.Lost &&
+                (l.Status == EnumLeadStatus.New ||
+                 (l.NextFollowUpAt != null && l.NextFollowUpAt < todayEnd)));
+        }
+
+        // WorkedOn = leads the operator actually touched on the given calendar day (any real
+        // action, i.e. excluding the Head-of-Sales assignment stamp).
+        if (q.WorkedOn.HasValue)
+        {
+            var dayStart = q.WorkedOn.Value.Date;
+            var dayEnd = dayStart.AddDays(1);
+            queryable = queryable.Where(l => context.LeadActivities.Any(a =>
+                a.LeadId == l.Id &&
+                a.Type != EnumLeadActivityType.Assigned &&
+                (dayOperatorId == null ? a.ActorId != null : a.ActorId == dayOperatorId) &&
+                a.CreatedAt >= dayStart && a.CreatedAt < dayEnd));
+        }
+
         if (!string.IsNullOrWhiteSpace(q.Search))
         {
             var s = q.Search.Trim();
@@ -546,7 +526,17 @@ public class LeadService(AppDbContext context, ILogger<LeadService> logger)
                 LastContactedAt = l.LastContactedAt,
                 NextFollowUpAt = l.NextFollowUpAt,
                 FollowUpOverdue = l.NextFollowUpAt != null && l.NextFollowUpAt < now,
-                CreatedAt = l.CreatedAt
+                CreatedAt = l.CreatedAt,
+                LastActionType = context.LeadActivities
+                    .Where(a => a.LeadId == l.Id && a.ActorId != null && a.Type != EnumLeadActivityType.Assigned)
+                    .OrderByDescending(a => a.CreatedAt)
+                    .Select(a => (EnumLeadActivityType?)a.Type)
+                    .FirstOrDefault(),
+                LastActionAt = context.LeadActivities
+                    .Where(a => a.LeadId == l.Id && a.ActorId != null && a.Type != EnumLeadActivityType.Assigned)
+                    .OrderByDescending(a => a.CreatedAt)
+                    .Select(a => (DateTime?)a.CreatedAt)
+                    .FirstOrDefault()
             })
             .GetByDataQueryAsync(q);
     }

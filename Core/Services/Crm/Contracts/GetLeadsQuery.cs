@@ -19,6 +19,19 @@ public record GetLeadsQuery : DataQueryRequest
 
     public bool? Purchased { get; set; }
 
+    /// <summary>
+    /// Operator daily worklist: when true, returns only leads that need action today — a
+    /// follow-up due today or already overdue, or a freshly-assigned lead not yet contacted
+    /// (still "New"). Honoured for the operator scope.
+    /// </summary>
+    public bool? Agenda { get; set; }
+
+    /// <summary>
+    /// Daily activity review: when set, returns only leads the scoped operator performed some
+    /// action on (contacted, moved, noted, follow-up, won/lost) on that calendar day.
+    /// </summary>
+    public DateTime? WorkedOn { get; set; }
+
     /// <summary>Global search across user name / email / phone.</summary>
     public string? Search { get; set; }
 }

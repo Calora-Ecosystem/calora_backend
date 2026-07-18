@@ -145,5 +145,12 @@ public class CrmController(LeadService leadService, CrmStatsService statsService
     public async Task<Wrapper> GetMyStats([FromQuery] EnumStatsPeriod period = EnumStatsPeriod.Month) =>
         (await statsService.GetOperatorStatsAsync(this.UserId, period), 200);
 
+    /// <summary>What the current operator did on a given day (defaults to today).</summary>
+    [HttpGet("me/day-log")]
+    [RoleAuthorize(EnumRole.Operator)]
+    [ProducesResponseType<WrapperGeneric<OperatorDayLogDto>>(200)]
+    public async Task<Wrapper> GetMyDayLog([FromQuery] DateTime? date) =>
+        (await statsService.GetDayLogAsync(this.UserId, date ?? DateTime.Now), 200);
+
     #endregion
 }
