@@ -235,14 +235,6 @@ public class OrderService(
 
     public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, DataQueryRequest q)
     {
-        var ordersStat = dbContext.SubscriptionOrders
-            .GroupBy(x => x.PlanExtraId)
-            .Select(x => new { ExtraId = x.Key, Count = x.Count() })
-            .OrderByDescending(x => x.Count)
-            .FirstOrDefault();
-
-        var popularExtraId = ordersStat?.ExtraId ?? -1;
-
         return await dbContext
             .PlanExtras
             .Where(x => x.Plan == plan && x.IsActive)
@@ -250,7 +242,7 @@ public class OrderService(
             {
                 Id = x.Id, Duration = x.DurationInMonths, IsActive = x.IsActive,
                 Plan = x.Plan,
-                IsPopular = x.Id == popularExtraId,
+                IsPopular = x.IsPopular,
                 Fee = x.Fee / 100d,
                 OriginalFee = x.OriginalFee / 100d,
                 CreatedAt = x.CreatedAt

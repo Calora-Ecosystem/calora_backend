@@ -28,9 +28,40 @@ public class BillingController(
     ClickService clickService,
     PaymeService paymeService,
     RcService rcService,
-    CouponService couponService)
+    CouponService couponService,
+    PlanExtraService planExtraService)
     : AuthorizedController
 {
+    #region Plans (admin-managed)
+
+    [HttpGet("plans")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    [ProducesResponseType<WrapperGeneric<IEnumerable<GetPlanExtras>>>(200)]
+    public async Task<Wrapper> GetAllPlanExtras([FromQuery] DataQueryRequest query) =>
+        await planExtraService.GetAll(query);
+
+    [HttpGet("plans/{planExtraId:long:min(1)}")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    [ProducesResponseType<WrapperGeneric<GetPlanExtras>>(200)]
+    public async Task<Wrapper> GetPlanExtraById(long planExtraId) =>
+        (await planExtraService.GetById(planExtraId), 200);
+
+    [HttpPost("plans")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    [ProducesResponseType<WrapperGeneric<GetPlanExtras>>(200)]
+    public async Task<Wrapper> CreateOrUpdatePlanExtra([FromBody] CreateOrUpdatePlanExtraDto dto) =>
+        (await planExtraService.CreateOrUpdate(dto), 200);
+
+    [HttpDelete("plans/{planExtraId:long:min(1)}")]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> DeletePlanExtra(long planExtraId)
+    {
+        await planExtraService.Delete(planExtraId);
+        return 200;
+    }
+
+    #endregion
+
     #region Orders
 
     [HttpGet("orders")]

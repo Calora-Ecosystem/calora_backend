@@ -12,4 +12,11 @@ public class PlanExtra : AuditableModelBase<long>
     public long OriginalFee { get; set; } = 0;
     public bool IsActive { get; set; }
     public int DurationInMonths { get; set; }
+
+    /// <summary>
+    /// Admin-controlled "best offer" flag shown in the app. At most one active
+    /// plan extra per <see cref="Plan"/> carries it; enforced in
+    /// <see cref="Core.Services.Billing.PlanExtraService"/>.
+    /// </summary>
+    public bool IsPopular { get; set; }
 }
