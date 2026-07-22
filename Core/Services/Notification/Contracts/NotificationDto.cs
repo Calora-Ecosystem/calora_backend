@@ -33,6 +33,9 @@ public class PushNotificationDto : NotificationDto
     public string? Image { get; set; }
     public DateTime? Scheduled { get; set; }
     public Dictionary<string, string>? Meta { get; set; }
+
+    /// <summary>When set, the push is skipped at send time if the user already logged this menu today.</summary>
+    public Core.Enums.EnumMenu? MealGateMenu { get; set; }
 }
 
 public class SmsNotificationDto : NotificationDto

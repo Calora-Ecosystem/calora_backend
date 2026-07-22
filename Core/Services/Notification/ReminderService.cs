@@ -59,6 +59,57 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
             .ExecuteDeleteAsync();
     }
 
+    /// <summary>
+    /// Dispatches global, dashboard-scheduled meal reminders. For every active Food
+    /// <see cref="ReminderMessage"/> whose time falls in the current window, creates a scheduled
+    /// push for each user (with an active FCM device) who has not yet logged that menu today.
+    /// A second send-time gate in <see cref="NotificationService.SendPush(long)"/> catches users
+    /// who log the meal during the window.
+    /// </summary>
+    public async Task CheckMealReminders()
+    {
+        var now = DateTimeOffset.Now;
+        var nowSpan = now.TimeOfDay;
+        var windowEndSpan = now.AddMinutes(CheckReminderWindowInMin).TimeOfDay;
+        var today = now.Date;
+
+        var messages = await dbContext.ReminderMessages
+            .Where(x => x.IsActive && x.Time != null && x.Type == EnumMomentType.Food && x.Menu != null
+                        && x.Time > nowSpan && x.Time <= windowEndSpan)
+            .ToListAsync();
+
+        foreach (var msg in messages)
+        {
+            var menu = msg.Menu!.Value;
+            var scheduled = now.Add(msg.Time!.Value - nowSpan).DateTime;
+
+            var loggedUserIds = dbContext.DailyMenus
+                .Where(m => m.Menu == menu && m.Date == today)
+                .Select(m => m.UserId);
+
+            var userIds = await dbContext.Devices
+                .Where(d => d.IsActive && d.FcmToken != null && !loggedUserIds.Contains(d.UserId))
+                .Select(d => d.UserId)
+                .Distinct()
+                .ToListAsync();
+
+            if (userIds.Count == 0)
+                continue;
+
+            var pushes = userIds.Select(uid => new PushNotification
+            {
+                UserId = uid,
+                Title = msg.Title,
+                Description = msg.Description,
+                Scheduled = scheduled,
+                MealGateMenu = menu
+            });
+
+            await dbContext.PushNotifications.AddRangeAsync(pushes);
+            await dbContext.SaveChangesAsync();
+        }
+    }
+
     public async Task CheckReminders()
     {
         var now = DateTimeOffset.Now;

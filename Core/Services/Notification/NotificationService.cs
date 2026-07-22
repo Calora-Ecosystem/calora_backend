@@ -84,6 +84,7 @@ public partial class NotificationService(
         notification.Description = dto.Description;
         notification.Scheduled = dto.Scheduled;
         notification.Meta = dto.Meta;
+        notification.MealGateMenu = dto.MealGateMenu;
 
         dbContext.Update(notification);
         await dbContext.SaveChangesAsync();
@@ -103,7 +104,9 @@ public partial class NotificationService(
             UserId = reminder.UserId,
             Description = message.Description,
             Title = message.Title,
-            Scheduled = scheduled
+            Scheduled = scheduled,
+            // Food reminders with a menu are gated: only delivered if the user hasn't logged that meal.
+            MealGateMenu = reminder.Type == EnumMomentType.Food ? reminder.Menu : null
         };
 
         await this.CreateOrUpdatePushNotification(notification);

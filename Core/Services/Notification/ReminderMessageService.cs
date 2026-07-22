@@ -16,7 +16,8 @@ public class ReminderMessageService(AppDbContext dbContext)
     public async Task<Wrapper> GetAll(DataQueryRequest q)
     {
         return await dbContext.ReminderMessages
-            .Select(x => new GetReminderMessageShortDto(x.Id, x.Type, x.Menu, x.Title))
+            .Select(x => new GetReminderMessageShortDto(x.Id, x.Type, x.Menu, x.Title,
+                x.Time == null ? (TimeOnly?)null : TimeOnly.FromTimeSpan(x.Time.Value), x.IsActive))
             .GetByDataQueryAsync(q);
     }
 
@@ -24,7 +25,8 @@ public class ReminderMessageService(AppDbContext dbContext)
     {
         return await dbContext.ReminderMessages
             .Where(x => x.Id == id)
-            .Select(x => new GetReminderMessageDto(x.Id, x.Type, x.Menu, x.Title, x.Description))
+            .Select(x => new GetReminderMessageDto(x.Id, x.Type, x.Menu, x.Title, x.Description,
+                x.Time == null ? (TimeOnly?)null : TimeOnly.FromTimeSpan(x.Time.Value), x.IsActive))
             .FirstOrDefaultAsync() ?? throw new ReminderMessageNotFoundException();
     }
 
@@ -40,6 +42,8 @@ public class ReminderMessageService(AppDbContext dbContext)
         entity.Menu = dto.Menu;
         entity.Title = dto.Title;
         entity.Description = dto.Description;
+        entity.Time = dto.Time?.ToTimeSpan();
+        entity.IsActive = dto.IsActive;
 
         entity = dbContext.Update(entity).Entity;
         await dbContext.SaveChangesAsync();
