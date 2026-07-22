@@ -47,6 +47,26 @@ public partial class NotificationService
     public async Task SendPush(long notificationId)
     {
         var notification = await dbContext.PushNotifications.GetByIdOrThrowsNotFoundException(notificationId);
+
+        // Send-time gate: skip meal reminders if the user has already logged that menu today.
+        if (notification.MealGateMenu.HasValue)
+        {
+            var today = DateTime.Now.Date;
+            var alreadyLogged = await dbContext.DailyMenus
+                .AnyAsync(m => m.UserId == notification.UserId
+                               && m.Menu == notification.MealGateMenu.Value
+                               && m.Date == today);
+
+            if (alreadyLogged)
+            {
+                notification.SentAt = DateTime.Now;
+                notification.SuccessCount = 0;
+                notification.FailureCount = 0;
+                await dbContext.SaveChangesAsync();
+                return;
+            }
+        }
+
         var fcmTokens = await dbContext.Devices
             .Where(x => x.UserId == notification.UserId && x.IsActive && x.FcmToken != null)
             .Select(x => x.FcmToken!)
