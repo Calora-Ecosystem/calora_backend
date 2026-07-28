@@ -6,6 +6,7 @@ using Core.Brokers.DbContext;
 using Core.Entities.Billing.Enum;
 using Core.Enums;
 using Core.Services.Dashboard.Contracts;
+using Core.Services.User.Contracts;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
 
@@ -236,6 +237,182 @@ public class DashboardService(AppDbContext context)
             DailyActiveUsers = FillDailySeries(actRows.ToDictionary(r => r.Date, r => r.Count), fromStart, lastDay),
             DailyPremium = FillDailySeries(premRows.ToDictionary(r => r.Date, r => r.Count), fromStart, lastDay),
         };
+    }
+
+    public async Task<GetAudienceAnalyticsDto> GetAudienceAnalytics()
+    {
+        var now = DateTime.Now;
+        var totalUsers = await context.Users.CountAsync();
+
+        // ── Soat bo'yicha ro'yxatdan o'tishlar (0–23) ────────────────
+        var hourRows = await context.Users
+            .GroupBy(x => x.CreatedAt.Hour)
+            .Select(g => new { Hour = g.Key, Count = g.Count() })
+            .ToListAsync();
+        var hourMap = hourRows.ToDictionary(r => r.Hour, r => r.Count);
+        var hourly = Enumerable.Range(0, 24)
+            .Select(h => new HourCountDto { Hour = h, Count = hourMap.GetValueOrDefault(h, 0) })
+            .ToList();
+        int? peakHour = hourly.Any(h => h.Count > 0)
+            ? hourly.OrderByDescending(h => h.Count).First().Hour
+            : null;
+
+        // ── Hafta kunlari bo'yicha (0=Yakshanba … 6=Shanba) ──────────
+        // Postgres DOW: 0=Yakshanba, mos kelishi uchun to'g'ridan-to'g'ri ishlatamiz.
+        var weekdayRows = await context.Users
+            .GroupBy(x => x.CreatedAt.DayOfWeek)
+            .Select(g => new { Day = g.Key, Count = g.Count() })
+            .ToListAsync();
+        var weekdayMap = weekdayRows.ToDictionary(r => (int)r.Day, r => r.Count);
+        var weekdays = Enumerable.Range(0, 7)
+            .Select(d => new WeekdayCountDto { Weekday = d, Count = weekdayMap.GetValueOrDefault(d, 0) })
+            .ToList();
+
+        // ── Profil (extra) kesimlari ─────────────────────────────────
+        var profiledUsers = await context.UserExtras.CountAsync();
+
+        var genderRows = await context.UserExtras
+            .Where(x => x.Gender == EnumGender.Male || x.Gender == EnumGender.Female)
+            .GroupBy(x => x.Gender)
+            .Select(g => new GenderCountDto { Gender = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        // Yosh guruhlari — tug'ilgan yil orqali (default/bo'sh sanalarni chetlab).
+        var birthYears = await context.UserExtras
+            .Where(x => x.BirthDate.Year > 1920)
+            .Select(x => x.BirthDate.Year)
+            .ToListAsync();
+        var ageGroups = BuildAgeGroups(birthYears, now.Year);
+
+        var purposeRows = await context.UserExtras
+            .GroupBy(x => x.Purpose)
+            .Select(g => new { Key = g.Key, Count = g.Count() })
+            .ToListAsync();
+        var purposeBreakdown = MapEnumCounts<EnumPurpose>(purposeRows.Select(r => ((int)r.Key, r.Count)));
+
+        var activityRows = await context.UserExtras
+            .GroupBy(x => x.ActivityLevel)
+            .Select(g => new { Key = g.Key, Count = g.Count() })
+            .ToListAsync();
+        var activityBreakdown = MapEnumCounts<EnumActivityLevel>(activityRows.Select(r => ((int)r.Key, r.Count)));
+
+        var languageRows = await context.UserExtras
+            .GroupBy(x => x.Language)
+            .Select(g => new { Key = g.Key, Count = g.Count() })
+            .ToListAsync();
+        var languageBreakdown = MapEnumCounts<EnumLanguage>(languageRows.Select(r => ((int)r.Key, r.Count)));
+
+        return new GetAudienceAnalyticsDto
+        {
+            TotalUsers = totalUsers,
+            ProfiledUsers = profiledUsers,
+            HourlyRegistrations = hourly,
+            WeekdayRegistrations = weekdays,
+            PeakHour = peakHour,
+            GenderBreakdown = genderRows,
+            AgeGroups = ageGroups,
+            PurposeBreakdown = purposeBreakdown,
+            ActivityLevelBreakdown = activityBreakdown,
+            LanguageBreakdown = languageBreakdown,
+        };
+    }
+
+    private static List<EnumCountDto> MapEnumCounts<TEnum>(IEnumerable<(int Key, int Count)> rows)
+        where TEnum : struct, Enum =>
+        rows
+            .Select(r => new EnumCountDto
+            {
+                Value = r.Key,
+                Name = Enum.IsDefined(typeof(TEnum), r.Key)
+                    ? Enum.GetName(typeof(TEnum), r.Key)!
+                    : "Unknown",
+                Count = r.Count,
+            })
+            .OrderBy(x => x.Value)
+            .ToList();
+
+    private static List<AgeGroupCountDto> BuildAgeGroups(IReadOnlyCollection<int> birthYears, int currentYear)
+    {
+        string[] labels = ["<18", "18-24", "25-34", "35-44", "45-54", "55+"];
+        var counts = labels.ToDictionary(l => l, _ => 0);
+        foreach (var year in birthYears)
+        {
+            var age = currentYear - year;
+            var label = age switch
+            {
+                < 18 => "<18",
+                <= 24 => "18-24",
+                <= 34 => "25-34",
+                <= 44 => "35-44",
+                <= 54 => "45-54",
+                _ => "55+",
+            };
+            counts[label]++;
+        }
+
+        return labels.Select(l => new AgeGroupCountDto { Group = l, Count = counts[l] }).ToList();
+    }
+
+    public async Task<GetUserDetailDto?> GetUserDetail(long userId)
+    {
+        var detail = await context.Users
+            .Where(x => x.Id == userId)
+            .Select(x => new GetUserDetailDto
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Email = x.Email,
+                Phone = x.Phone,
+                Roles = x.Roles,
+                CreatedAt = x.CreatedAt,
+                UpdatedAt = x.UpdatedAt,
+                Subscription = x.Subscription != null
+                    ? new SubscriptionDto
+                    {
+                        Id = x.Subscription.Id,
+                        StartsAt = x.Subscription.StartsAt,
+                        EndsAt = x.Subscription.EndsAt,
+                        Plan = x.Subscription.SubscriptionPlan,
+                        IsActive = x.Subscription.IsActive,
+                    }
+                    : null,
+                Extra = x.Extra != null
+                    ? new UserDetailExtraDto
+                    {
+                        Weight = x.Extra.Weight,
+                        EntryWeight = x.Extra.EntryWeight,
+                        Height = x.Extra.Height,
+                        Bmi = Math.Round(x.Extra.Bmi, 1),
+                        Gender = x.Extra.Gender,
+                        BirthDate = x.Extra.BirthDate,
+                        Purpose = x.Extra.Purpose,
+                        PhysicalActivity = x.Extra.PhysicalActivity,
+                        ActivityLevel = x.Extra.ActivityLevel,
+                        Language = x.Extra.Language,
+                        Photo = x.Extra.Photo,
+                    }
+                    : null,
+            })
+            .FirstOrDefaultAsync();
+
+        if (detail is null) return null;
+
+        if (detail.Extra is not null)
+            detail.Extra.Age = Math.Max(DateTime.Now.Year - detail.Extra.BirthDate.Year, 0);
+
+        detail.SignInCount = await context.SignLogs.CountAsync(x => x.UserId == userId);
+        detail.LastSignInAt = await context.SignLogs
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.SignAt)
+            .Select(x => (DateTime?)x.SignAt)
+            .FirstOrDefaultAsync();
+
+        detail.Norms = await context.UserNorms
+            .Where(x => x.UserId == userId)
+            .Select(x => new UserNormValueDto { Metric = x.Metric, Value = Math.Round(x.Value, 1) })
+            .ToListAsync();
+
+        return detail;
     }
 
     private static List<DailyCountDto> FillDailySeries(

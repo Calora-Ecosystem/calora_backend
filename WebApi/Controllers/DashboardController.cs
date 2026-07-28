@@ -37,6 +37,16 @@ public class DashboardController(DashboardService dashboardService, Subscription
     public async Task<Wrapper> GetUserStatisticsRange([FromQuery] DateTime from, [FromQuery] DateTime to) =>
         (await dashboardService.GetUserStatisticsRange(from, to), 200);
 
+    [HttpGet("users/audience")]
+    [ProducesResponseType<WrapperGeneric<GetAudienceAnalyticsDto>>(200)]
+    public async Task<Wrapper> GetAudienceAnalytics() =>
+        (await dashboardService.GetAudienceAnalytics(), 200);
+
+    [HttpGet("users/{userId:long:min(1)}/detail")]
+    [ProducesResponseType<WrapperGeneric<GetUserDetailDto>>(200)]
+    public async Task<Wrapper> GetUserDetail(long userId) =>
+        (await dashboardService.GetUserDetail(userId), 200);
+
     [HttpGet("orders/subscriptions")]
     [ProducesResponseType<WrapperGeneric<IEnumerable<GetSubscriptionOrdersDto>>>(200)]
     public async Task<Wrapper> GetAllOrders([FromQuery] DataQueryRequest query) =>
