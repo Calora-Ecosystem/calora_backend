@@ -244,12 +244,16 @@ public class DashboardService(AppDbContext context)
         var now = DateTime.Now;
         var totalUsers = await context.Users.CountAsync();
 
-        // ── Soat bo'yicha ro'yxatdan o'tishlar (0–23) ────────────────
-        var hourRows = await context.Users
-            .GroupBy(x => x.CreatedAt.Hour)
-            .Select(g => new { Hour = g.Key, Count = g.Count() })
+        // Soat/hafta kunlari kesimlarini xotirada hisoblaymiz — DateTime.Hour va
+        // DayOfWeek ni SQL'ga tarjima qilish provayderga bog'liq va ishonchsiz.
+        var createdAts = await context.Users
+            .Select(x => x.CreatedAt)
             .ToListAsync();
-        var hourMap = hourRows.ToDictionary(r => r.Hour, r => r.Count);
+
+        // ── Soat bo'yicha ro'yxatdan o'tishlar (0–23) ────────────────
+        var hourMap = createdAts
+            .GroupBy(d => d.Hour)
+            .ToDictionary(g => g.Key, g => g.Count());
         var hourly = Enumerable.Range(0, 24)
             .Select(h => new HourCountDto { Hour = h, Count = hourMap.GetValueOrDefault(h, 0) })
             .ToList();
@@ -258,12 +262,9 @@ public class DashboardService(AppDbContext context)
             : null;
 
         // ── Hafta kunlari bo'yicha (0=Yakshanba … 6=Shanba) ──────────
-        // Postgres DOW: 0=Yakshanba, mos kelishi uchun to'g'ridan-to'g'ri ishlatamiz.
-        var weekdayRows = await context.Users
-            .GroupBy(x => x.CreatedAt.DayOfWeek)
-            .Select(g => new { Day = g.Key, Count = g.Count() })
-            .ToListAsync();
-        var weekdayMap = weekdayRows.ToDictionary(r => (int)r.Day, r => r.Count);
+        var weekdayMap = createdAts
+            .GroupBy(d => (int)d.DayOfWeek)
+            .ToDictionary(g => g.Key, g => g.Count());
         var weekdays = Enumerable.Range(0, 7)
             .Select(d => new WeekdayCountDto { Weekday = d, Count = weekdayMap.GetValueOrDefault(d, 0) })
             .ToList();
