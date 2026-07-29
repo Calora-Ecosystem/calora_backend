@@ -41,38 +41,27 @@ public class DashboardService(AppDbContext context)
         var tomorrowStart = DateTime.Now.AddDays(1).Date;
 
         var totalUsers = await context.Users.CountAsync();
-        var usersGrowRatePercent =
-            Math.Round(
-                (await context.Users.CountAsync(x => x.CreatedAt >= todayStart && x.CreatedAt < tomorrowStart) * 1d /
-                    Math.Max(
-                        await context.Users.CountAsync(x => x.CreatedAt >= yesterdayStart && x.CreatedAt < todayStart),
-                        1) - 1) *
-                100, 2);
+        var usersToday = await context.Users.CountAsync(x => x.CreatedAt >= todayStart && x.CreatedAt < tomorrowStart);
+        var usersYesterday = await context.Users.CountAsync(x => x.CreatedAt >= yesterdayStart && x.CreatedAt < todayStart);
+        var usersGrowRatePercent = GrowthPercent(usersToday, usersYesterday);
 
         var salesQuery = context.Orders
             .Where(x => x.Status == EnumOrderStatus.Confirmed);
 
-        var totalSalesCount = await salesQuery
-            .CountAsync();
+        var totalSalesCount = await salesQuery.CountAsync();
 
-        var salesCountGrowRatePercent =
-            Math.Round(
-                (await salesQuery.CountAsync(x => x.UpdatedAt >= todayStart && x.UpdatedAt < tomorrowStart) * 1d /
-                    Math.Max(
-                        await salesQuery.CountAsync(x => x.UpdatedAt >= yesterdayStart && x.UpdatedAt < todayStart),
-                        1) - 1) *
-                100, 2);
+        var salesCountToday = await salesQuery.CountAsync(x => x.UpdatedAt >= todayStart && x.UpdatedAt < tomorrowStart);
+        var salesCountYesterday = await salesQuery.CountAsync(x => x.UpdatedAt >= yesterdayStart && x.UpdatedAt < todayStart);
+        var salesCountGrowRatePercent = GrowthPercent(salesCountToday, salesCountYesterday);
 
         // Amount tiyinda saqlanadi — so'mga o'tkazamiz (dashboard kartochkalari uchun).
         var totalSalesAmount = Math.Round(await salesQuery.SumAsync(x => x.Amount) / 100d, 2);
 
-        var salesAmountGrowRatePercent =
-            Math.Round(
-                (await salesQuery.Where(x => x.UpdatedAt >= todayStart && x.UpdatedAt < tomorrowStart)
-                        .SumAsync(x => x.Amount) * 1d /
-                    Math.Max(await salesQuery.Where(x => x.UpdatedAt >= yesterdayStart && x.UpdatedAt < todayStart)
-                        .SumAsync(x => x.Amount) * 1d, 1) - 1) *
-                100, 2);
+        var salesAmountToday = await salesQuery
+            .Where(x => x.UpdatedAt >= todayStart && x.UpdatedAt < tomorrowStart).SumAsync(x => x.Amount);
+        var salesAmountYesterday = await salesQuery
+            .Where(x => x.UpdatedAt >= yesterdayStart && x.UpdatedAt < todayStart).SumAsync(x => x.Amount);
+        var salesAmountGrowRatePercent = GrowthPercent(salesAmountToday, salesAmountYesterday);
 
         return new GetOverallSummaryDto
         {
@@ -425,8 +414,13 @@ public class DashboardService(AppDbContext context)
         return series;
     }
 
-    private static double GrowthPercent(double current, double previous) =>
-        Math.Round((current / Math.Max(previous, 1) - 1) * 100, 2);
+    // O'sish foizi. Oldingi davrda ma'lumot bo'lmasa (0), -100% ko'rsatish noto'g'ri:
+    // hozir ham 0 bo'lsa o'zgarish yo'q (0%), aks holda to'liq o'sish (+100%).
+    private static double GrowthPercent(double current, double previous)
+    {
+        if (previous <= 0) return current > 0 ? 100 : 0;
+        return Math.Round((current / previous - 1) * 100, 2);
+    }
 
     public async Task<Wrapper> GetSubscriptionOrders(DataQueryRequest query)
     {
