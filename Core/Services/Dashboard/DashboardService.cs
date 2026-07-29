@@ -21,7 +21,9 @@ public class DashboardService(AppDbContext context)
         // Group + sum in SQL, then round client-side (Math.Round inside the aggregate isn't translatable).
         // Confirmed savdolar bo'yicha — "Savdo" bo'limidagi ko'rsatkichlar bilan mos bo'lishi uchun.
         var rows = await context.Orders
-            .Where(x => x.Status == EnumOrderStatus.Confirmed && x.CreatedAt >= yearBegin)
+            // Faqat haqiqatda to'langan sotuvlar (Amount > 0). 100% promokod bilan
+            // bepul olingan premiumlar tushum hisoblanmaydi.
+            .Where(x => x.Status == EnumOrderStatus.Confirmed && x.Amount > 0 && x.CreatedAt >= yearBegin)
             .GroupBy(x => x.CreatedAt.Month)
             .Select(g => new { Month = g.Key, Total = g.Sum(y => y.Amount) })
             .ToListAsync();
@@ -45,8 +47,10 @@ public class DashboardService(AppDbContext context)
         var usersYesterday = await context.Users.CountAsync(x => x.CreatedAt >= yesterdayStart && x.CreatedAt < todayStart);
         var usersGrowRatePercent = GrowthPercent(usersToday, usersYesterday);
 
+        // Faqat haqiqatda to'langan sotuvlar (Amount > 0) — 100% promokod bilan
+        // bepul olingan premiumlar sotuv/tushum hisoblanmaydi.
         var salesQuery = context.Orders
-            .Where(x => x.Status == EnumOrderStatus.Confirmed);
+            .Where(x => x.Status == EnumOrderStatus.Confirmed && x.Amount > 0);
 
         var totalSalesCount = await salesQuery.CountAsync();
 
@@ -426,6 +430,9 @@ public class DashboardService(AppDbContext context)
     {
         return await context
             .SubscriptionOrders
+            // Eng yangi sotuvlar birinchi kelsin — mijoz sort bermasa ham so'nggi
+            // kunlardagi to'lovlar ro'yxatning boshida ko'rinadi.
+            .OrderByDescending(x => x.Order.CreatedAt)
             .Select(x => new GetSubscriptionOrdersDto
             {
                 Id = x.Id, UserId = x.Order.UserId, UserName = x.Order.User.Name,
