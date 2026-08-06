@@ -94,7 +94,7 @@ public class AiService(Client client, AppDbContext context, IMemoryCache cache)
         EnumLanguage language = EnumLanguage.Uzbek)
     {
         var response = await client.Models.GenerateContentAsync(
-            model: "gemini-3-flash-preview", contents: new Content()
+            model: "gemini-3.6-flash", contents: new Content()
             {
                 Parts = new List<Part>()
                 {
@@ -102,12 +102,16 @@ public class AiService(Client client, AppDbContext context, IMemoryCache cache)
                     {
                         Text =
                             @$"
-You are a nutrition expert. Analyze the image and identify every food item visible.
+You are a nutrition expert. Analyze the image and identify EVERY edible or drinkable item visible —
+this includes solid foods, dishes, snacks, fruits, sauces, and ALL beverages/drinks
+(water, juice, soda, tea, coffee, milk, alcohol, smoothies, etc.), regardless of the container
+(glass, cup, bottle, can, carton, box).
 Categories: {await GetMeta()}.
 Rules:
+- Do not skip drinks or liquids — treat them with the same priority as solid food items.
 - Always pick the closest matching categoryId (never 0 or negative).
-- Estimate the weight in grams of each food portion visible in the image.
-- For EVERY food item you MUST provide all four nutritional metrics calculated for the estimated weight:
+- Estimate the weight/volume in grams of each item visible in the image (for drinks, estimate grams based on volume, e.g. 1ml ≈ 1g).
+- For EVERY item you MUST provide all four nutritional metrics calculated for the estimated weight:
     Kcal   — total kilocalories (must be > 0)
     Protein — grams of protein   (must be > 0)
     Fat     — grams of fat       (must be > 0)
@@ -127,7 +131,7 @@ Rules:
                 }
             }, config: _config
         );
-
+        
         var json = response?.Candidates?
             .FirstOrDefault()?
             .Content?

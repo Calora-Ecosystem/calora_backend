@@ -1,5 +1,7 @@
 using Core.Brokers.GeminiBroker.Contracts;
+using Google.Apis.Auth.OAuth2;
 using Google.GenAI;
+using Google.GenAI.Types;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
