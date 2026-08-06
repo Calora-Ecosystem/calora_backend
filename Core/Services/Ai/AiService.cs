@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
@@ -8,13 +9,15 @@ using Google.GenAI;
 using Google.GenAI.Types;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Type = Google.GenAI.Types.Type;
 
 namespace Core.Services.Ai;
 
 [Injectable]
-public class AiService(Client client, AppDbContext context, IMemoryCache cache)
+public class AiService(Client client, AppDbContext context, IMemoryCache cache, ILogger<AiService> logger)
 {
+    private const string Model = "gemini-2.5-flash";
     private static readonly List<string> _foodMetrics = [
         nameof(EnumMetrics.Kcal),
         nameof(EnumMetrics.Protein),
@@ -25,6 +28,10 @@ public class AiService(Client client, AppDbContext context, IMemoryCache cache)
     private GenerateContentConfig _config = new GenerateContentConfig()
     {
         ResponseMimeType = "application/json",
+        ThinkingConfig = new ThinkingConfig()
+        {
+            ThinkingBudget = 0
+        },
         ResponseSchema = new Schema()
         {
             Type = Type.ARRAY,
@@ -93,11 +100,20 @@ public class AiService(Client client, AppDbContext context, IMemoryCache cache)
     public async Task<List<FoodResultDto>> RecognizeForFood(byte[] fileBuffer, string mimeType,
         EnumLanguage language = EnumLanguage.Uzbek)
     {
-        var response = await client.Models.GenerateContentAsync(
-            model: "gemini-3.6-flash", contents: new Content()
-            {
-                Parts = new List<Part>()
+        SentrySdk.SetTag("ai_model", Model);
+        SentrySdk.SetTag("ai_mime_type", mimeType);
+        SentrySdk.SetTag("ai_file_size_bytes", fileBuffer.Length.ToString());
+        SentrySdk.SetTag("ai_language", language.ToString());
+
+        var stopwatch = Stopwatch.StartNew();
+        GenerateContentResponse? response;
+        try
+        {
+            response = await client.Models.GenerateContentAsync(
+                model: Model, contents: new Content()
                 {
+                    Parts = new List<Part>()
+                    {
                     new Part()
                     {
                         Text =
@@ -130,23 +146,94 @@ Rules:
                     }
                 }
             }, config: _config
-        );
-        
-        var json = response?.Candidates?
-            .FirstOrDefault()?
-            .Content?
-            .Parts?
-            .FirstOrDefault()?
-            .Text;
+            );
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            SentrySdk.SetTag("ai_duration_ms", stopwatch.ElapsedMilliseconds.ToString());
+            logger.LogError(ex,
+                "Gemini request failed after {DurationMs}ms (model={Model}, mimeType={MimeType}, fileSizeBytes={FileSizeBytes})",
+                stopwatch.ElapsedMilliseconds, Model, mimeType, fileBuffer.Length);
+            throw;
+        }
+
+        stopwatch.Stop();
+
+        var candidate = response?.Candidates?.FirstOrDefault();
+        var finishReason = candidate?.FinishReason;
+        var blockReason = response?.PromptFeedback?.BlockReason;
+        var usage = response?.UsageMetadata;
+
+        SentrySdk.SetTag("ai_duration_ms", stopwatch.ElapsedMilliseconds.ToString());
+        SentrySdk.SetTag("ai_finish_reason", finishReason?.ToString() ?? "none");
+
+        if (blockReason is not null)
+            logger.LogWarning(
+                "Gemini blocked the prompt: {BlockReason} {BlockReasonMessage} (model={Model}, durationMs={DurationMs})",
+                blockReason, response?.PromptFeedback?.BlockReasonMessage, Model, stopwatch.ElapsedMilliseconds);
+
+        if (finishReason is not null && finishReason != FinishReason.STOP)
+            logger.LogWarning(
+                "Gemini candidate finished with {FinishReason}: {FinishMessage} (model={Model}, durationMs={DurationMs})",
+                finishReason, candidate?.FinishMessage, Model, stopwatch.ElapsedMilliseconds);
+
+        var json = candidate?.Content?.Parts?.FirstOrDefault()?.Text;
 
         if (string.IsNullOrWhiteSpace(json))
-            throw new InvalidAiResultException();
+        {
+            var invalidResultEx = new InvalidAiResultException();
+            logger.LogError(invalidResultEx,
+                "Gemini returned no text (model={Model}, durationMs={DurationMs}, finishReason={FinishReason}, blockReason={BlockReason})",
+                Model, stopwatch.ElapsedMilliseconds, finishReason, blockReason);
+            SentrySdk.CaptureException(invalidResultEx);
+            throw invalidResultEx;
+        }
 
-        var raw = JsonSerializer.Deserialize<List<FoodResultRaw>>(json, new JsonSerializerOptions()
-                  {
-                      PropertyNameCaseInsensitive = true,
-                  }) ??
-                  throw new AiResultParseException();
+        List<FoodResultRaw> raw;
+        try
+        {
+            raw = JsonSerializer.Deserialize<List<FoodResultRaw>>(json, new JsonSerializerOptions()
+            {
+                PropertyNameCaseInsensitive = true,
+            }) ?? throw new AiResultParseException();
+        }
+        catch (JsonException jsonEx)
+        {
+            var parseEx = new AiResultParseException();
+            SentrySdk.ConfigureScope(scope => scope.SetExtra("ai_raw_response", Truncate(json, 2000)));
+            logger.LogError(jsonEx,
+                "Failed to parse Gemini JSON (model={Model}, durationMs={DurationMs}): {RawJson}",
+                Model, stopwatch.ElapsedMilliseconds, Truncate(json, 2000));
+            SentrySdk.CaptureException(parseEx);
+            throw parseEx;
+        }
+
+        if (raw.Count == 0)
+            logger.LogWarning(
+                "Gemini recognized no items in the image (model={Model}, durationMs={DurationMs}, promptTokens={PromptTokens}, imageTokens={ImageTokens})",
+                Model, stopwatch.ElapsedMilliseconds,
+                usage?.PromptTokenCount,
+                usage?.PromptTokensDetails?.FirstOrDefault(d => d.Modality == MediaModality.IMAGE)?.TokenCount);
+
+        foreach (var item in raw)
+        {
+            if (item.CategoryId <= 0)
+                logger.LogWarning("Gemini returned an invalid categoryId {CategoryId} for item {ItemName}",
+                    item.CategoryId, item.Name);
+
+            if (item.Metrics is null || _foodMetrics.Any(m => !item.Metrics.ContainsKey(m)))
+                logger.LogWarning("Gemini returned incomplete metrics for item {ItemName}: {Metrics}",
+                    item.Name, item.Metrics is null ? "null" : string.Join(",", item.Metrics.Keys));
+            else
+                foreach (var m in _foodMetrics.Where(m => item.Metrics[m] <= 0))
+                    logger.LogWarning("Gemini returned non-positive {Metric}={Value} for item {ItemName}",
+                        m, item.Metrics[m], item.Name);
+        }
+
+        logger.LogInformation(
+            "Gemini recognized {ItemCount} item(s) (model={Model}, durationMs={DurationMs}, promptTokens={PromptTokens}, candidateTokens={CandidateTokens})",
+            raw.Count, Model, stopwatch.ElapsedMilliseconds, usage?.PromptTokenCount, usage?.CandidatesTokenCount);
 
         return raw.Select(r => new FoodResultDto
         {
@@ -166,4 +253,7 @@ Rules:
                     .ToList()
         }).ToList();
     }
+
+    private static string Truncate(string value, int maxLength) =>
+        value.Length <= maxLength ? value : value[..maxLength] + "...(truncated)";
 }
