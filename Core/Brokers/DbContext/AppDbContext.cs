@@ -1,6 +1,7 @@
 ﻿using BRB.Core.EF.DbContext;
 using Core.Entities;
 using Core.Entities.Auth;
+using Core.Entities.Logging;
 using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
 using Core.Entities.Billing.Payme;
@@ -35,6 +36,12 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<Food> Foods { get; set; }
     public DbSet<FoodCategory> FoodCategories { get; set; }
     public DbSet<FoodMetrics> FoodMetrics { get; set; }
+
+    #endregion
+
+    #region Logging
+
+    public DbSet<EventLog> EventLogs { get; set; }
 
     #endregion
 

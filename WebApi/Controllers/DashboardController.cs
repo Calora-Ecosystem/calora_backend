@@ -52,6 +52,21 @@ public class DashboardController(DashboardService dashboardService, Subscription
     public async Task<Wrapper> GetAllOrders([FromQuery] DataQueryRequest query) =>
         await dashboardService.GetSubscriptionOrders(query);
 
+    #region Event log (general-purpose analytics — AI, to'lovlar, notification va h.k.)
+
+    [HttpGet("events/sources")]
+    [ProducesResponseType<WrapperGeneric<List<string>>>(200)]
+    public async Task<Wrapper> GetEventLogSources() =>
+        (await dashboardService.GetEventLogSources(), 200);
+
+    [HttpGet("events/summary")]
+    [ProducesResponseType<WrapperGeneric<GetEventLogSummaryDto>>(200)]
+    public async Task<Wrapper> GetEventLogSummary(
+        [FromQuery] string source, [FromQuery] DateTime? from, [FromQuery] DateTime? to) =>
+        (await dashboardService.GetEventLogSummary(source, from, to), 200);
+
+    #endregion
+
     #region Subscriptions (admin-managed)
 
     [HttpGet("subscriptions/{userId:long:min(1)}")]
