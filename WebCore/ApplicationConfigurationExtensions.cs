@@ -30,6 +30,7 @@ using Swashbuckle.AspNetCore.SwaggerUI;
 using WebCore.ConfigContracts;
 using WebCore.Converters;
 using WebCore.Filters.Swagger;
+using WebCore.Middlewares;
 using GlobalExceptionHandlerMiddleware = WebCore.Middlewares.GlobalExceptionHandlerMiddleware;
 
 namespace WebCore;
@@ -49,6 +50,7 @@ public static class ApplicationConfigurationExtensions
             .ConfigureCors()
             .ConfigureGlobalExceptionHandler()
             .ConfigureHealthCheck()
+            .ConfigureGracefulShutdown()
             .ConfigureAuth()
             .AddRpcServices()
             .AddApplicationErrors()
@@ -89,6 +91,7 @@ public static class ApplicationConfigurationExtensions
 
 
         app.UseHealthChecks("/healthy");
+        app.UseGracefulShutdown();
         app.UseAuthorization();
         // app.UseAuthentication();
         app.UseCustom404Page("");
