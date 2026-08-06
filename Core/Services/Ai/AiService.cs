@@ -5,6 +5,7 @@ using Core.Brokers.DbContext;
 using Core.Services.Ai.Exceptions;
 using Core.Enums;
 using Core.Services.Ai.Contracts;
+using Core.Services.Logging;
 using Google.GenAI;
 using Google.GenAI.Types;
 using Microsoft.EntityFrameworkCore;
@@ -15,9 +16,11 @@ using Type = Google.GenAI.Types.Type;
 namespace Core.Services.Ai;
 
 [Injectable]
-public class AiService(Client client, AppDbContext context, IMemoryCache cache, ILogger<AiService> logger)
+public class AiService(
+    Client client, AppDbContext context, IMemoryCache cache, ILogger<AiService> logger, EventLogService eventLog)
 {
     private const string Model = "gemini-2.5-flash";
+    private const string EventSource = "ai.food_recognition";
     private static readonly List<string> _foodMetrics = [
         nameof(EnumMetrics.Kcal),
         nameof(EnumMetrics.Protein),
@@ -98,7 +101,7 @@ public class AiService(Client client, AppDbContext context, IMemoryCache cache, 
     }
 
     public async Task<List<FoodResultDto>> RecognizeForFood(byte[] fileBuffer, string mimeType,
-        EnumLanguage language = EnumLanguage.Uzbek)
+        EnumLanguage language = EnumLanguage.Uzbek, long? userId = null)
     {
         SentrySdk.SetTag("ai_model", Model);
         SentrySdk.SetTag("ai_mime_type", mimeType);
@@ -155,6 +158,9 @@ Rules:
             logger.LogError(ex,
                 "Gemini request failed after {DurationMs}ms (model={Model}, mimeType={MimeType}, fileSizeBytes={FileSizeBytes})",
                 stopwatch.ElapsedMilliseconds, Model, mimeType, fileBuffer.Length);
+            await eventLog.LogAsync(EventSource, "provider_error", EnumEventStatus.Error, userId,
+                stopwatch.ElapsedMilliseconds, ex.GetType().Name, ex.Message,
+                new Dictionary<string, string> { ["model"] = Model, ["mimeType"] = mimeType });
             throw;
         }
 
@@ -187,6 +193,14 @@ Rules:
                 "Gemini returned no text (model={Model}, durationMs={DurationMs}, finishReason={FinishReason}, blockReason={BlockReason})",
                 Model, stopwatch.ElapsedMilliseconds, finishReason, blockReason);
             SentrySdk.CaptureException(invalidResultEx);
+            await eventLog.LogAsync(EventSource, "invalid_result", EnumEventStatus.Error, userId,
+                stopwatch.ElapsedMilliseconds, nameof(InvalidAiResultException), null,
+                new Dictionary<string, string>
+                {
+                    ["model"] = Model,
+                    ["finishReason"] = finishReason?.ToString() ?? "",
+                    ["blockReason"] = blockReason?.ToString() ?? "",
+                });
             throw invalidResultEx;
         }
 
@@ -206,6 +220,9 @@ Rules:
                 "Failed to parse Gemini JSON (model={Model}, durationMs={DurationMs}): {RawJson}",
                 Model, stopwatch.ElapsedMilliseconds, Truncate(json, 2000));
             SentrySdk.CaptureException(parseEx);
+            await eventLog.LogAsync(EventSource, "parse_error", EnumEventStatus.Error, userId,
+                stopwatch.ElapsedMilliseconds, jsonEx.GetType().Name, jsonEx.Message,
+                new Dictionary<string, string> { ["model"] = Model });
             throw parseEx;
         }
 
@@ -234,6 +251,22 @@ Rules:
         logger.LogInformation(
             "Gemini recognized {ItemCount} item(s) (model={Model}, durationMs={DurationMs}, promptTokens={PromptTokens}, candidateTokens={CandidateTokens})",
             raw.Count, Model, stopwatch.ElapsedMilliseconds, usage?.PromptTokenCount, usage?.CandidatesTokenCount);
+
+        await eventLog.LogAsync(
+            EventSource,
+            raw.Count == 0 ? "empty_result" : "success",
+            raw.Count == 0 ? EnumEventStatus.Warning : EnumEventStatus.Success,
+            userId,
+            stopwatch.ElapsedMilliseconds,
+            metadata: new Dictionary<string, string>
+            {
+                ["model"] = Model,
+                ["mimeType"] = mimeType,
+                ["itemCount"] = raw.Count.ToString(),
+                ["promptTokens"] = usage?.PromptTokenCount?.ToString() ?? "",
+                ["candidateTokens"] = usage?.CandidatesTokenCount?.ToString() ?? "",
+                ["finishReason"] = finishReason?.ToString() ?? "",
+            });
 
         return raw.Select(r => new FoodResultDto
         {

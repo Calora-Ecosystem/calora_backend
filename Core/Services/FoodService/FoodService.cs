@@ -297,7 +297,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
             .ExecuteDeleteAsync();
     }
 
-    public async Task<List<FoodResultDto>> RecognizeFood(RecognizeFoodDto dto)
+    public async Task<List<FoodResultDto>> RecognizeFood(RecognizeFoodDto dto, long userId)
     {
         var rawLanguage = contextAccessor.HttpContext?.Request.Headers.AcceptLanguage.FirstOrDefault();
 
@@ -308,7 +308,7 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         byte[] buffer = new byte[dto.File.Length];
         await stream.ReadExactlyAsync(buffer, 0, buffer.Length);
 
-        return await aiService.RecognizeForFood(buffer, dto.File.ContentType, language);
+        return await aiService.RecognizeForFood(buffer, dto.File.ContentType, language, userId);
     }
 
     #endregion

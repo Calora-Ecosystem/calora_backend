@@ -426,6 +426,94 @@ public class DashboardService(AppDbContext context)
         return Math.Round((current / previous - 1) * 100, 2);
     }
 
+    /// <summary>Hozircha jurnalda qayd etilgan barcha Source qiymatlari — filtr uchun (masalan frontend dropdown).</summary>
+    public async Task<List<string>> GetEventLogSources()
+    {
+        return await context.EventLogs
+            .Select(x => x.Source)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync();
+    }
+
+    public async Task<GetEventLogSummaryDto> GetEventLogSummary(string source, DateTime? from, DateTime? to)
+    {
+        var toEnd = (to ?? DateTime.Now).Date.AddDays(1);
+        var fromStart = (from ?? toEnd.AddDays(-30)).Date;
+        if (toEnd <= fromStart) toEnd = fromStart.AddDays(1);
+        var lastDay = toEnd.AddDays(-1);
+
+        var query = context.EventLogs
+            .Where(x => x.Source == source && x.CreatedAt >= fromStart && x.CreatedAt < toEnd);
+
+        var totalCount = await query.CountAsync();
+        var successCount = await query.CountAsync(x => x.Status == EnumEventStatus.Success);
+        var warningCount = await query.CountAsync(x => x.Status == EnumEventStatus.Warning);
+        var errorCount = await query.CountAsync(x => x.Status == EnumEventStatus.Error);
+
+        var avgDurationMs = await query.Where(x => x.DurationMs != null).AverageAsync(x => (double?)x.DurationMs);
+        var maxDurationMs = await query.Where(x => x.DurationMs != null).MaxAsync(x => (long?)x.DurationMs);
+
+        var outcomeBreakdown = await query
+            .GroupBy(x => new { x.Outcome, x.Status })
+            .Select(g => new EventOutcomeCountDto { Outcome = g.Key.Outcome, Status = g.Key.Status, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .ToListAsync();
+
+        var topErrorTypes = await query
+            .Where(x => x.Status == EnumEventStatus.Error && x.ErrorType != null)
+            .GroupBy(x => x.ErrorType!)
+            .Select(g => new { ErrorType = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .Take(10)
+            .ToListAsync();
+
+        var topErrors = new List<EventErrorCountDto>();
+        foreach (var e in topErrorTypes)
+        {
+            var sample = await query
+                .Where(x => x.ErrorType == e.ErrorType)
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(x => x.ErrorMessage)
+                .FirstOrDefaultAsync();
+            topErrors.Add(new EventErrorCountDto { ErrorType = e.ErrorType, Count = e.Count, SampleMessage = sample });
+        }
+
+        // Kunlik trendni SQL'da emas, xotirada hisoblaymiz — DateTime.Date bo'yicha
+        // guruhlash + Status shartli sanoqlari provayderga bog'liq/ishonchsiz bo'lishi mumkin.
+        var rows = await query.Select(x => new { x.CreatedAt, x.Status }).ToListAsync();
+        var dailyTrend = new List<DailyEventCountDto>();
+        for (var day = fromStart; day <= lastDay; day = day.AddDays(1))
+        {
+            var dayRows = rows.Where(r => r.CreatedAt.Date == day).ToList();
+            dailyTrend.Add(new DailyEventCountDto
+            {
+                Date = day,
+                Total = dayRows.Count,
+                Success = dayRows.Count(r => r.Status == EnumEventStatus.Success),
+                Warning = dayRows.Count(r => r.Status == EnumEventStatus.Warning),
+                Error = dayRows.Count(r => r.Status == EnumEventStatus.Error),
+            });
+        }
+
+        return new GetEventLogSummaryDto
+        {
+            Source = source,
+            From = fromStart,
+            To = lastDay,
+            TotalCount = totalCount,
+            SuccessCount = successCount,
+            WarningCount = warningCount,
+            ErrorCount = errorCount,
+            ErrorRatePercent = totalCount > 0 ? Math.Round(errorCount * 100d / totalCount, 2) : 0,
+            AvgDurationMs = avgDurationMs.HasValue ? Math.Round(avgDurationMs.Value, 1) : null,
+            MaxDurationMs = maxDurationMs,
+            OutcomeBreakdown = outcomeBreakdown,
+            TopErrors = topErrors,
+            DailyTrend = dailyTrend,
+        };
+    }
+
     public async Task<Wrapper> GetSubscriptionOrders(DataQueryRequest query)
     {
         return await context
