@@ -301,8 +301,17 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
     {
         var rawLanguage = contextAccessor.HttpContext?.Request.Headers.AcceptLanguage.FirstOrDefault();
 
-        if (!Enum.TryParse<EnumLanguage>(rawLanguage, true, out var language))
-            language = EnumLanguage.Uzbek;
+        // The mobile app sends short codes ("UZ" / "ENG" / "RU"), which do not
+        // match the EnumLanguage member names, so a plain Enum.TryParse always
+        // failed and every request fell back to Uzbek. Map the codes explicitly
+        // (still accepting the full enum names for other callers).
+        var language = rawLanguage?.Trim().ToUpperInvariant() switch
+        {
+            "RU" or "RUSSIAN" => EnumLanguage.Russian,
+            "ENG" or "EN" or "ENGLISH" => EnumLanguage.English,
+            "CYRL" or "CYRILLIC" => EnumLanguage.Cyrillic,
+            _ => EnumLanguage.Uzbek,
+        };
 
         var stream = dto.File.OpenReadStream();
         byte[] buffer = new byte[dto.File.Length];
