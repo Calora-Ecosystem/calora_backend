@@ -48,12 +48,12 @@ public class NotificationController(NotificationService notificationService) : A
         return 200;
     }
 
-    [HttpPost("send")]
+    [HttpPost("batch")]
     [ProducesResponseType(typeof(WrapperGeneric<int>), 200)]
     [RoleAuthorize(EnumRole.SuperAdmin)]
-    public async Task<Wrapper> SendPushNotification([FromBody] SendPushNotificationDto dto)
+    public async Task<Wrapper> BatchPushNotification([FromBody] BatchPushNotificationDto dto)
     {
-        var count = await notificationService.SendPushNotifications(dto);
+        var count = await notificationService.SendBatchPushNotifications(dto);
         return (count, 200);
     }
 }
