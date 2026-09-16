@@ -1,4 +1,4 @@
-﻿using BRB.Core.Common.Models;
+using BRB.Core.Common.Models;
 using Core;
 using Core.Attributes;
 using Core.Enums;
@@ -46,5 +46,14 @@ public class NotificationController(NotificationService notificationService) : A
     {
         await notificationService.CreateOrUpdatePushNotification(dto);
         return 200;
+    }
+
+    [HttpPost("send")]
+    [ProducesResponseType(typeof(WrapperGeneric<int>), 200)]
+    [RoleAuthorize(EnumRole.SuperAdmin)]
+    public async Task<Wrapper> SendPushNotification([FromBody] SendPushNotificationDto dto)
+    {
+        var count = await notificationService.SendPushNotifications(dto);
+        return (count, 200);
     }
 }
