@@ -15,11 +15,27 @@ public partial class NotificationService
     public async Task<SendPushResultDto> SendPush(List<string> tokens,
         FirebaseAdmin.Messaging.Notification notification, Dictionary<string, string>? meta)
     {
+        var validTokens = tokens
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Distinct()
+            .ToList();
+
+        if (validTokens.Count == 0)
+        {
+            Log.Warning("No valid FCM tokens provided to SendPush. Total tokens: {Total}", tokens.Count);
+            return new SendPushResultDto
+            {
+                Total = tokens.Count,
+                FailureCount = tokens.Count,
+                SuccessCount = 0
+            };
+        }
+
         var response = await FirebaseMessaging.DefaultInstance
             .SendEachForMulticastAsync(new MulticastMessage()
             {
                 Notification = notification,
-                Tokens = tokens,
+                Tokens = validTokens,
                 Data = meta,
                 Android = new AndroidConfig()
                 {
@@ -35,10 +51,27 @@ public partial class NotificationService
                 }
             });
 
+        if (response.FailureCount > 0)
+        {
+            var firstFailure = response.Responses
+                .Select((r, idx) => new { Response = r, Token = validTokens[idx] })
+                .FirstOrDefault(x => !x.Response.IsSuccess);
+
+            var ex = firstFailure?.Response.Exception;
+            Log.Error(
+                "Firebase push failed for {FailureCount}/{Total} tokens. Sample token: {SampleToken}, Error: [{ErrorCode}/{MessagingErrorCode}] {ErrorMessage}",
+                response.FailureCount + (tokens.Count - validTokens.Count),
+                tokens.Count,
+                firstFailure?.Token,
+                ex?.ErrorCode,
+                ex?.MessagingErrorCode,
+                ex?.Message);
+        }
+
         return new SendPushResultDto
         {
             Total = tokens.Count,
-            FailureCount = response.FailureCount,
+            FailureCount = response.FailureCount + (tokens.Count - validTokens.Count),
             SuccessCount = response.SuccessCount
         };
     }
@@ -68,7 +101,7 @@ public partial class NotificationService
         }
 
         var fcmTokens = await dbContext.Devices
-            .Where(x => x.UserId == notification.UserId && x.IsActive && x.FcmToken != null)
+            .Where(x => x.UserId == notification.UserId && x.IsActive && x.FcmToken != null && x.FcmToken != "")
             .Select(x => x.FcmToken!)
             .ToListAsync();
 
@@ -155,11 +188,13 @@ public partial class NotificationService
         // 2. Fetch active FCM tokens (each user has at most 1 active token)
         var userIds = notifications.Select(n => n.UserId).Distinct().ToList();
         var activeDevices = await dbContext.Devices
-            .Where(d => userIds.Contains(d.UserId) && d.IsActive && d.FcmToken != null)
+            .Where(d => userIds.Contains(d.UserId) && d.IsActive && d.FcmToken != null && d.FcmToken != "")
             .Select(d => new { d.UserId, d.FcmToken })
             .ToListAsync();
 
-        var tokenByUserId = activeDevices.ToDictionary(d => d.UserId, d => d.FcmToken!);
+        var tokenByUserId = activeDevices
+            .GroupBy(d => d.UserId)
+            .ToDictionary(g => g.Key, g => g.First().FcmToken!);
 
         // 3. Mark notifications for users without active tokens as sent immediately
         var noTokenNotificationIds = notifications

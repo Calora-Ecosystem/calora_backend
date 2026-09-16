@@ -153,6 +153,9 @@ public static class ApplicationConfigurationExtensions
 
         builder.Logging.ClearProviders();
         builder.Logging.AddSerilog();
+        
+        if (!builder.Environment.IsDevelopment())
+            builder.Logging.SetMinimumLevel(LogLevel.Information);
 
         return builder;
     }
