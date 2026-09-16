@@ -26,7 +26,7 @@ public class DeviceService(AppDbContext dbContext)
             };
 
             device.Name = deviceDto.Name;
-            device.FcmToken = deviceDto.FcmToken;
+            device.FcmToken = string.IsNullOrWhiteSpace(deviceDto.FcmToken) ? null : deviceDto.FcmToken.Trim();
             device.IsActive = true;
 
             device = dbContext.Update(device).Entity;
