@@ -1,4 +1,4 @@
-﻿using BRB.Core.EF.DbContext;
+using BRB.Core.EF.DbContext;
 using Core.Entities;
 using Core.Entities.Auth;
 using Core.Entities.Logging;
@@ -131,5 +131,21 @@ public class AppDbContext : DefaultConfiguredDbContext
         modelBuilder
             .Entity<User>()
             .HasQueryFilter(x => !x.IsDeleted);
+
+        modelBuilder.Entity<PushNotification>(b =>
+        {
+            b.HasIndex(x => new { x.Scheduled, x.CreatedAt })
+                .HasDatabaseName("ix_push_notifications_enqueued_at_null")
+                .HasFilter("enqueued_at IS NULL");
+
+            b.HasIndex(x => new { x.UserId, x.SentAt })
+                .HasDatabaseName("ix_push_notifications_user_id_sent_at");
+        });
+
+        modelBuilder.Entity<Notification>(b =>
+        {
+            b.HasIndex(x => new { x.UserId, x.HasRead })
+                .HasDatabaseName("ix_notifications_user_id_has_read");
+        });
     }
 }

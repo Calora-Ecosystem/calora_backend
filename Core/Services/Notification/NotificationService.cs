@@ -114,7 +114,7 @@ public partial class NotificationService(
         await this.CreateOrUpdatePushNotification(notification);
     }
 
-    public async Task<int> SendPushNotifications(SendPushNotificationDto dto)
+    public async Task<int> SendBatchPushNotifications(BatchPushNotificationDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Title))
             throw new BadRequestException("title_required");
@@ -128,14 +128,10 @@ public partial class NotificationService(
         }
         else
         {
-            var userIds = dto.UserIds?.ToList() ?? new List<long>();
-            if (dto.UserId > 0 && !userIds.Contains(dto.UserId))
-                userIds.Add(dto.UserId);
-
-            if (userIds.Count == 0)
+            if (dto.UserIds == null || dto.UserIds.Count == 0)
                 throw new BadRequestException("user_ids_required");
 
-            var distinctIds = userIds.Distinct().ToList();
+            var distinctIds = dto.UserIds.Distinct().ToList();
             targetUserIds = await dbContext.Users
                 .Where(x => distinctIds.Contains(x.Id))
                 .Select(x => x.Id)
