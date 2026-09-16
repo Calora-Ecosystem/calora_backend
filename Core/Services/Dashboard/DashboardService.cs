@@ -1,4 +1,4 @@
-﻿using BRB.Core.Common.Extensions;
+using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -535,4 +535,214 @@ public class DashboardService(AppDbContext context)
             })
             .GetByDataQueryAsync(query);
     }
+
+    #region AI Analytics (food_recognition statistics)
+
+    // Gemini 2.5 Flash pricing:
+    // Prompt: $0.30 per 1,000,000 tokens ($0.00000030/token)
+    // Candidate: $2.50 per 1,000,000 tokens ($0.00000250/token)
+    private const double PromptTokenPricePerMillion = 0.30;
+    private const double CandidateTokenPricePerMillion = 2.50;
+
+    public async Task<GetAiStatisticsDto> GetAiStatistics(int? days = 28, DateTime? from = null, DateTime? to = null)
+    {
+        var effectiveDays = days is > 0 ? days.Value : 28;
+        var toEnd = (to ?? DateTime.Now).Date.AddDays(1);
+        var fromStart = from?.Date ?? toEnd.AddDays(-effectiveDays).Date;
+        if (toEnd <= fromStart) toEnd = fromStart.AddDays(1);
+        var totalDays = Math.Max((int)(toEnd.Date - fromStart.Date).TotalDays, 1);
+        var lastDay = toEnd.AddDays(-1);
+
+        const string source = "ai.food_recognition";
+        var query = context.EventLogs
+            .AsNoTracking()
+            .Where(x => x.Source == source && x.CreatedAt >= fromStart && x.CreatedAt < toEnd);
+
+        var rows = await query
+            .Select(x => new
+            {
+                x.Id,
+                x.UserId,
+                x.CreatedAt,
+                x.Status,
+                x.DurationMs,
+                x.Metadata
+            })
+            .ToListAsync();
+
+        var totalRequests = rows.Count;
+        var successRequests = rows.Count(r => r.Status == EnumEventStatus.Success);
+        var errorRequests = rows.Count(r => r.Status == EnumEventStatus.Error);
+
+        var userGroups = rows
+            .Where(r => r.UserId.HasValue)
+            .GroupBy(r => r.UserId!.Value)
+            .ToList();
+
+        var totalAiUsers = userGroups.Count;
+
+        var userRequestCounts = userGroups.Select(g => g.Count()).ToList();
+        var minRequestsPerUser = userRequestCounts.Count > 0 ? userRequestCounts.Min() : 0;
+        var maxRequestsPerUser = userRequestCounts.Count > 0 ? userRequestCounts.Max() : 0;
+
+        var avgRequestsPerUser = totalAiUsers > 0
+            ? Math.Round((double)totalRequests / totalAiUsers, 2)
+            : 0;
+
+        var avgRequestsPerDay = totalDays > 0
+            ? Math.Round((double)totalRequests / totalDays, 2)
+            : 0;
+
+        var dayGroups = rows
+            .GroupBy(r => r.CreatedAt.Date)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var minRequestsPerDay = 0;
+        var maxRequestsPerDay = 0;
+        if (dayGroups.Count > 0)
+        {
+            minRequestsPerDay = dayGroups.Count < totalDays ? 0 : dayGroups.Values.Min();
+            maxRequestsPerDay = dayGroups.Values.Max();
+        }
+
+        var durations = rows.Where(r => r.DurationMs.HasValue).Select(r => (double)r.DurationMs!.Value).ToList();
+        double? avgDurationMs = durations.Count > 0 ? Math.Round(durations.Average(), 1) : null;
+
+        long totalPromptTokens = 0;
+        long totalCandidateTokens = 0;
+
+        foreach (var r in rows)
+        {
+            if (r.Metadata != null)
+            {
+                if (r.Metadata.TryGetValue("promptTokens", out var pt) && long.TryParse(pt, out var pVal))
+                    totalPromptTokens += pVal;
+                if (r.Metadata.TryGetValue("candidateTokens", out var ct) && long.TryParse(ct, out var cVal))
+                    totalCandidateTokens += cVal;
+            }
+        }
+
+        var totalTokens = totalPromptTokens + totalCandidateTokens;
+        var totalCostUsd = Math.Round(
+            (totalPromptTokens * PromptTokenPricePerMillion + totalCandidateTokens * CandidateTokenPricePerMillion) / 1_000_000.0,
+            4);
+
+        var costPerUserUsd = totalAiUsers > 0
+            ? Math.Round(totalCostUsd / totalAiUsers, 6)
+            : 0;
+
+        var costPerRequestUsd = totalRequests > 0
+            ? Math.Round(totalCostUsd / totalRequests, 6)
+            : 0;
+
+        var aiUserIds = userGroups.Select(g => g.Key).ToHashSet();
+
+        var premiumUserIds = await context.Subscriptions
+            .AsNoTracking()
+            .Where(s => s.SubscriptionPlan == EnumSPlans.Premium)
+            .Select(s => s.UserId)
+            .Distinct()
+            .ToListAsync();
+
+        var totalPremiumUsers = premiumUserIds.Count;
+        var activeAiPremiumUsers = premiumUserIds.Count(id => aiUserIds.Contains(id));
+        var aiAdoptionRatePercent = totalPremiumUsers > 0
+            ? Math.Round((double)activeAiPremiumUsers * 100.0 / totalPremiumUsers, 2)
+            : 0;
+
+        var dailyTrend = new List<DailyAiStatDto>();
+        for (var day = fromStart; day <= lastDay; day = day.AddDays(1))
+        {
+            var dayRows = rows.Where(r => r.CreatedAt.Date == day).ToList();
+            long dayPrompt = 0;
+            long dayCandidate = 0;
+
+            foreach (var r in dayRows)
+            {
+                if (r.Metadata != null)
+                {
+                    if (r.Metadata.TryGetValue("promptTokens", out var pt) && long.TryParse(pt, out var pVal))
+                        dayPrompt += pVal;
+                    if (r.Metadata.TryGetValue("candidateTokens", out var ct) && long.TryParse(ct, out var cVal))
+                        dayCandidate += cVal;
+                }
+            }
+
+            var dayCost = Math.Round(
+                (dayPrompt * PromptTokenPricePerMillion + dayCandidate * CandidateTokenPricePerMillion) / 1_000_000.0,
+                4);
+
+            dailyTrend.Add(new DailyAiStatDto
+            {
+                Date = day,
+                Requests = dayRows.Count,
+                Users = dayRows.Where(r => r.UserId.HasValue).Select(r => r.UserId!.Value).Distinct().Count(),
+                CostUsd = dayCost,
+                PromptTokens = dayPrompt,
+                CandidateTokens = dayCandidate
+            });
+        }
+
+        var topUsers = userGroups
+            .Select(g =>
+            {
+                long uPrompt = 0;
+                long uCandidate = 0;
+                foreach (var r in g)
+                {
+                    if (r.Metadata != null)
+                    {
+                        if (r.Metadata.TryGetValue("promptTokens", out var pt) && long.TryParse(pt, out var pVal))
+                            uPrompt += pVal;
+                        if (r.Metadata.TryGetValue("candidateTokens", out var ct) && long.TryParse(ct, out var cVal))
+                            uCandidate += cVal;
+                    }
+                }
+
+                var uCost = Math.Round(
+                    (uPrompt * PromptTokenPricePerMillion + uCandidate * CandidateTokenPricePerMillion) / 1_000_000.0,
+                    4);
+
+                return new TopAiUserDto
+                {
+                    UserId = g.Key,
+                    RequestCount = g.Count(),
+                    CostUsd = uCost
+                };
+            })
+            .OrderByDescending(u => u.RequestCount)
+            .Take(10)
+            .ToList();
+
+        return new GetAiStatisticsDto
+        {
+            From = fromStart,
+            To = lastDay,
+            Days = totalDays,
+            TotalAiUsers = totalAiUsers,
+            TotalRequests = totalRequests,
+            SuccessRequests = successRequests,
+            ErrorRequests = errorRequests,
+            AvgRequestsPerUser = avgRequestsPerUser,
+            AvgRequestsPerDay = avgRequestsPerDay,
+            MinRequestsPerUser = minRequestsPerUser,
+            MaxRequestsPerUser = maxRequestsPerUser,
+            MinRequestsPerDay = minRequestsPerDay,
+            MaxRequestsPerDay = maxRequestsPerDay,
+            AvgDurationMs = avgDurationMs,
+            TotalPromptTokens = totalPromptTokens,
+            TotalCandidateTokens = totalCandidateTokens,
+            TotalTokens = totalTokens,
+            TotalCostUsd = totalCostUsd,
+            CostPerUserUsd = costPerUserUsd,
+            CostPerRequestUsd = costPerRequestUsd,
+            TotalPremiumUsers = totalPremiumUsers,
+            ActiveAiPremiumUsers = activeAiPremiumUsers,
+            AiAdoptionRatePercent = aiAdoptionRatePercent,
+            DailyTrend = dailyTrend,
+            TopUsers = topUsers
+        };
+    }
+
+    #endregion
 }

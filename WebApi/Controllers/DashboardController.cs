@@ -1,4 +1,4 @@
-﻿using BRB.Core.Common.Models;
+using BRB.Core.Common.Models;
 using Core.Attributes;
 using Core.Enums;
 using Core.Services.Billing;
@@ -64,6 +64,16 @@ public class DashboardController(DashboardService dashboardService, Subscription
     public async Task<Wrapper> GetEventLogSummary(
         [FromQuery] string source, [FromQuery] DateTime? from, [FromQuery] DateTime? to) =>
         (await dashboardService.GetEventLogSummary(source, from, to), 200);
+
+    #endregion
+
+    #region AI Analytics (food recognition usage, cost, tokens, premium adoption)
+
+    [HttpGet("ai/statistics")]
+    [ProducesResponseType<WrapperGeneric<GetAiStatisticsDto>>(200)]
+    public async Task<Wrapper> GetAiStatistics(
+        [FromQuery] int? days = 28, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null) =>
+        (await dashboardService.GetAiStatistics(days, from, to), 200);
 
     #endregion
 
