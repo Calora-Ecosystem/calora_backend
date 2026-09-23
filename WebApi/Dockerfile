@@ -12,17 +12,14 @@ COPY WebApi/WebApi.csproj WebApi/
 COPY Core/Core.csproj Core/
 COPY WebCore/WebCore.csproj WebCore/
 
-RUN --mount=type=cache,target=/root/.nuget/packages \
-    dotnet restore CaloraService.sln
+RUN dotnet restore CaloraService.sln
 
 COPY . .
 
 WORKDIR /src/WebApi
-RUN --mount=type=cache,target=/root/.nuget/packages \
-    dotnet publish WebApi.csproj \
+RUN dotnet publish WebApi.csproj \
     -c $BUILD_CONFIGURATION \
     -o /publish \
-    --no-restore \
     /p:UseAppHost=false
 
 FROM base AS final
