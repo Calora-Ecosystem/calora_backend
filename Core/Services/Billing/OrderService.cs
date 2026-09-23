@@ -36,7 +36,12 @@ public class OrderService(
     {
         await dbContext.Users.ExistsOrThrowsNotFoundException(userId);
 
-        if (await dbContext.Subscriptions.AnyAsync(x => x.UserId == userId && x.IsActive))
+        // Tarifni o'zgartirish: Payme/Click orqali yangi tarif joriy muddat tugagach boshlanadi
+        // (AcceptSubscriptionPaymentAsync muddatni ustiga qo'shadi). Store (IAP) obunasini esa
+        // faqat App Store / Google Play'ning o'zida o'zgartirish mumkin — aks holda RevenueCat
+        // RENEWAL hodisasi tugash sanasini qayta yozib, Payme/Click'ga to'langan muddat yo'qoladi.
+        if (await dbContext.Subscriptions.AnyAsync(x => x.UserId == userId && x.IsActive) &&
+            (dto.Provider == EnumPaymentProviders.Iap || await IsStoreManaged(userId)))
             throw new UserAlreadySubscribedException();
 
         var planExtra = await dbContext.PlanExtras.GetByIdOrThrowsNotFoundException(dto.PlanExtraId);
@@ -127,6 +132,16 @@ public class OrderService(
             PaymentLink = await this.MakePaymentLink(order.UserId, order.Id)
         };
     }
+
+    /// <summary>Faol obuna App Store / Google Play (RevenueCat) orqali to'langanmi.</summary>
+    private async Task<bool> IsStoreManaged(long userId) =>
+        await dbContext.Subscriptions.AnyAsync(x =>
+            x.UserId == userId && x.IsActive && x.Source == EnumSubscriptionSource.Payment) &&
+        await dbContext.SubscriptionOrders
+            .Where(x => x.Order.UserId == userId && x.Order.Status == EnumOrderStatus.Confirmed)
+            .OrderByDescending(x => x.Order.UpdatedAt)
+            .Select(x => (EnumPaymentProviders?)x.Order.Provider)
+            .FirstOrDefaultAsync() == EnumPaymentProviders.Iap;
 
     public async Task<Wrapper> GetOrders(DataQueryRequest q, long? userId = null)
     {
@@ -251,6 +266,7 @@ public class OrderService(
 
         subscription.SubscriptionPlan = orderExtra.Plan;
         subscription.IsActive = true;
+        subscription.CancelledAt = null;
         subscription.Source = EnumSubscriptionSource.Payment;
 
         await dbContext.SaveChangesAsync();

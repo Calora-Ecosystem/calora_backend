@@ -27,7 +27,16 @@ public class GetMySubscriptionDto
     /// <summary>Oxirgi sotib olingan paket davomiyligi (oy).</summary>
     public int? DurationInMonths { get; set; }
 
-    /// <summary>Store (IAP) obunasi avtomatik yangilanadi.</summary>
+    /// <summary>
+    /// Obuna holati: <c>Free</c> — premium yo'q, <c>Active</c> — faol,
+    /// <c>Cancelled</c> — store'da bekor qilingan (premium <see cref="EndsAt"/> gacha qoladi).
+    /// </summary>
+    public EnumMySubscriptionStatus Status { get; set; }
+
+    /// <summary>App Store / Google Play obunasi — tarif va bekor qilish store'ning o'zida.</summary>
+    public bool ManagedByStore { get; set; }
+
+    /// <summary>Obuna avtomatik yangilanadi (store obunasi va bekor qilinmagan).</summary>
     public bool AutoRenew { get; set; }
 
     /// <summary>Keyingi to'lov sanasi — faqat avtomatik yangilanadigan obunada.</summary>
@@ -35,4 +44,11 @@ public class GetMySubscriptionDto
 
     /// <summary>Bepul AI skan limiti holati (premiumda cheksiz).</summary>
     public Core.Services.Ai.Contracts.AiQuotaDto AiQuota { get; set; } = null!;
+}
+
+public enum EnumMySubscriptionStatus
+{
+    Free = 1,
+    Active,
+    Cancelled
 }

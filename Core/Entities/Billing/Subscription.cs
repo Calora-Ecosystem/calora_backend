@@ -27,5 +27,11 @@ public class Subscription : AuditableModelBase<long>
     /// </summary>
     public int BonusDays { get; set; }
 
+    /// <summary>
+    /// Store obunasining avtomatik yangilanishi bekor qilingan vaqt (RevenueCat CANCELLATION).
+    /// Premium <see cref="EndsAt"/> gacha saqlanadi, keyingi to'lov bo'lmaydi.
+    /// </summary>
+    public DateTime? CancelledAt { get; set; }
+
     public User User { get; set; } = null!;
 }
