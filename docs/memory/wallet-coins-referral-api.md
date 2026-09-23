@@ -18,6 +18,7 @@ Sozlamalar: `Coins` bo'limi (`CoinConfig`, hammasining default'i bor).
 - `GET wallet/ranking?from&to` — davrda ishlab topilgan coinlar, javob shakli `users/steps/stat` bilan bir xil (`user, sum, index`).
 - `GET wallet/market?category=`, `POST wallet/market/{id}/purchase`, `GET wallet/purchases`; admin: `GET/POST wallet/market/items`, `DELETE wallet/market/items/{id}`.
 - Mukofot turlari: `PremiumDays` (`GrantPremiumDays`, source=Coins, `requiresTokenRefresh`), `AiScans`, `Coupon` (user uchun bir martalik `coupons`), `Voucher`.
+- Do'kon faqat Premium tariflar (migration `MarketOnlyPremiumTariffs`): `mi_premium_7` 150→7 kun, `mi_premium_30` 300→30 (popular), `mi_premium_75` 600→75, `mi_premium_120` 900→120. Xarid `GrantPremiumDays` (source=Coins) — faol premium bo'lsa muddat ustiga qo'shiladi; muddat tugasa `expire_granted_subscriptions` job o'chiradi. Boshqa mahsulotlar is_active=false.
 
 ## Referral (`referrals`)
 1. `GET referrals/me` → code, invited, active, friendsGoal (5), premiumDays (30), progressFriends, friendsLeft, premiumsEarned, referredBy, canApplyCode, discountPercent, hasDiscount.
