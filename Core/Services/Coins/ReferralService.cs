@@ -24,7 +24,7 @@ namespace Core.Services.Coins;
 /// "Do'stni taklif qilish".
 /// <list type="number">
 /// <item>Har bir userning taklif kodi bor (<c>CALORA-XXXX</c>).</item>
-/// <item>Yangi user ro'yxatdan o'tgach kodni tasdiqlaydi (<see cref="Apply"/>) — "men shu userdan kirdim".</item>
+/// <item>User do'stining kodini Invite friends sahifasida tasdiqlaydi (<see cref="Apply"/>) — "men shu userdan kirdim".</item>
 /// <item>Do'st onboarding'ni tugatgach (profil yaratilgach) "faol" bo'ladi (<see cref="TryQualify"/>).</item>
 /// <item>Har <see cref="CoinConfig.ReferralPremiumFriends"/> ta faol do'st uchun taklif qiluvchiga
 /// <see cref="CoinConfig.ReferralPremiumDays"/> kun premium beriladi.</item>
@@ -43,13 +43,14 @@ public class ReferralService(
     ILogger<ReferralService> logger)
 {
     private const string CodePrefix = "CALORA-";
+    private const int CodeLength = 6;
     private const string ReferrerTxTitle = "coin_tx_referral";
     private const string ReferredTxTitle = "coin_tx_referral_welcome";
     private CoinConfig Config => options.Value;
 
     public async Task<ReferralInfoDto> GetMy(long userId)
     {
-        var code = await GetOrCreateCode(userId);
+        var code = await GetLatestCode(userId) ?? await CreateCode(userId);
 
         var invited = await dbContext.Referrals.CountAsync(x => x.ReferrerId == userId);
         var active = await dbContext.Referrals.CountAsync(x => x.ReferrerId == userId && x.QualifiedAt != null);
@@ -79,7 +80,7 @@ public class ReferralService(
             PremiumsEarned = premiumsEarned,
             IsReferred = referredBy is not null,
             ReferredBy = referredBy,
-            CanApplyCode = referredBy is null && createdAt >= DateTime.Now.AddDays(-Config.ReferralApplyWindowDays),
+            CanApplyCode = referredBy is null && IsWithinApplyWindow(createdAt),
             DiscountPercent = Config.ReferredDiscountPercent,
             HasDiscount = discountPercent > 0
         };
@@ -108,8 +109,8 @@ public class ReferralService(
     }
 
     /// <summary>
-    /// Yangi user do'stining kodini tasdiqlaydi. Bir marta, o'z kodini emas va
-    /// ro'yxatdan o'tgandan keyin <see cref="CoinConfig.ReferralApplyWindowDays"/> kun ichida.
+    /// User do'stining kodini tasdiqlaydi ("men shu userdan kirdim"). Bir marta, o'z kodini emas;
+    /// <see cref="CoinConfig.ReferralApplyWindowDays"/> &gt; 0 bo'lsa faqat shu kun ichida.
     /// </summary>
     public async Task<ApplyReferralResultDto> Apply(long userId, ApplyReferralCodeDto dto)
     {
@@ -125,13 +126,13 @@ public class ReferralService(
                        .FirstOrDefaultAsync()
                    ?? throw new UserNotFoundException();
 
-        if (user.CreatedAt < DateTime.Now.AddDays(-Config.ReferralApplyWindowDays))
+        if (!IsWithinApplyWindow(user.CreatedAt))
             throw new ReferralWindowExpiredException();
 
-        var referrer = await dbContext.Users
+        var referrer = await dbContext.ReferralCodes
                            .AsNoTracking()
-                           .Where(x => x.ReferralCode == code)
-                           .Select(x => new { x.Id, x.Name })
+                           .Where(x => x.Code == code)
+                           .Select(x => new { x.User.Id, x.User.Name })
                            .FirstOrDefaultAsync()
                        ?? throw new ReferralCodeNotFoundException();
 
@@ -144,6 +145,7 @@ public class ReferralService(
         {
             ReferrerId = referrer.Id,
             ReferredUserId = userId,
+            Code = code,
             ReferrerReward = Config.ReferralReward,
             ReferredReward = Config.ReferredReward
         };
@@ -273,38 +275,40 @@ public class ReferralService(
         return granted;
     }
 
-    private async Task<string> GetOrCreateCode(long userId)
-    {
-        var existing = await dbContext.Users
-            .Where(x => x.Id == userId)
-            .Select(x => x.ReferralCode)
+    private bool IsWithinApplyWindow(DateTime userCreatedAt) =>
+        Config.ReferralApplyWindowDays <= 0 ||
+        userCreatedAt >= DateTime.Now.AddDays(-Config.ReferralApplyWindowDays);
+
+    /// <summary>Ulashish uchun yangi taklif kodi. Oldingi kodlar ham amal qilaveradi.</summary>
+    public Task<string> CreateNewCode(long userId) => CreateCode(userId);
+
+    private Task<string?> GetLatestCode(long userId) =>
+        dbContext.ReferralCodes
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Select(x => x.Code)
             .FirstOrDefaultAsync();
 
-        if (existing is not null)
-            return existing;
-
+    private async Task<string> CreateCode(long userId)
+    {
         for (var attempt = 0; attempt < 5; attempt++)
         {
-            var code = CodeGenerator.Generate(CodePrefix, 4);
+            var code = CodeGenerator.Generate(CodePrefix, CodeLength);
 
-            if (await dbContext.Users.IgnoreQueryFilters().AnyAsync(x => x.ReferralCode == code))
+            if (await dbContext.ReferralCodes.AnyAsync(x => x.Code == code))
                 continue;
 
             try
             {
-                var updated = await dbContext.Users
-                    .Where(x => x.Id == userId && x.ReferralCode == null)
-                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.ReferralCode, code));
-
-                if (updated > 0)
-                    return code;
-
-                // Parallel so'rov allaqachon kod yaratgan.
-                return await dbContext.Users.Where(x => x.Id == userId).Select(x => x.ReferralCode!).FirstAsync();
+                dbContext.ReferralCodes.Add(new ReferralCode { UserId = userId, Code = code });
+                await dbContext.SaveChangesAsync();
+                return code;
             }
-            catch (Npgsql.PostgresException ex) when (ex.SqlState == Npgsql.PostgresErrorCodes.UniqueViolation)
+            catch (DbUpdateException)
             {
                 // Unique to'qnashuv — boshqa kod bilan qayta urinamiz.
+                dbContext.ChangeTracker.Clear();
             }
         }
 

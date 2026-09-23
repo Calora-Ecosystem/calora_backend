@@ -2,8 +2,6 @@ namespace Core.Services.Coins.Exceptions;
 
 public class InsufficientCoinsException() : Core.Exceptions.BadRequestException("insufficient_coins");
 
-public class NothingToExchangeException() : Core.Exceptions.BadRequestException("nothing_to_exchange");
-
 public class MarketItemNotFoundException() : Core.Exceptions.NotFoundException("market_item_not_found");
 
 public class MarketItemInUseException() : Core.Exceptions.BadRequestException("market_item_in_use");

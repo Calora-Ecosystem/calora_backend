@@ -3,8 +3,7 @@ using Core.Enums;
 namespace Core.Helpers;
 
 /// <summary>
-/// Qadamdan masofa va yoqilgan kkal hisoblash formulasi. <c>users/steps/metrics</c>
-/// va coin hamyonidagi Calora hisobi bir xil formuladan foydalanishi uchun.
+/// Qadamdan masofa va yoqilgan kkal hisoblash formulasi (<c>users/steps/metrics</c>).
 /// </summary>
 public static class StepMetricsHelper
 {

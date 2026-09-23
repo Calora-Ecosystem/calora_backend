@@ -11,13 +11,14 @@ using WebCore.Controller;
 namespace WebApi.Controllers;
 
 /// <summary>
-/// Profil → Hamyon: coin balansi, Calora → coin almashtirish, marketplace va coin reytingi.
+/// Profil → Hamyon: coin balansi (qadamdan avtomatik yig'iladi), marketplace va coin reytingi.
 /// </summary>
 [ApiController]
 [Route("wallet")]
 [RoleAuthorize(EnumRole.User)]
 public class WalletController(CoinService coinService) : AuthorizedController
 {
+    /// <summary>Balans. Chaqirilganda qadam coinlari ham sinxronlanadi (1000 qadam = 1 coin).</summary>
     [HttpGet]
     [ProducesResponseType<WrapperGeneric<WalletDto>>(200)]
     public async Task<Wrapper> GetWallet() => (await coinService.GetWallet(this.UserId), 200);
@@ -26,12 +27,6 @@ public class WalletController(CoinService coinService) : AuthorizedController
     [ProducesResponseType<WrapperGeneric<IEnumerable<CoinTransactionDto>>>(200)]
     public async Task<Wrapper> GetTransactions([FromQuery] DataQueryRequest q, [FromQuery] EnumCoinTxType? type) =>
         await coinService.GetTransactions(this.UserId, q, type);
-
-    /// <summary>Calora'ni coinga almashtirish (<c>caloraPerCoin</c> Calora = 1 coin).</summary>
-    [HttpPost("exchange")]
-    [ProducesResponseType<WrapperGeneric<ExchangeResultDto>>(200)]
-    public async Task<Wrapper> Exchange([FromBody] ExchangeCaloraDto dto) =>
-        (await coinService.Exchange(this.UserId, dto), 200);
 
     /// <summary>Coin reytingi (davr ichida ishlab topilgan coinlar). Davr berilmasa — butun vaqt.</summary>
     [HttpGet("ranking")]

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using BRB.Core.Common.Models.Base;
 using Core.Entities.Auth;
@@ -16,6 +17,9 @@ public class Referral : AuditableModelBase<long>
 {
     [ForeignKey(nameof(Referrer))] public long ReferrerId { get; set; }
     [ForeignKey(nameof(ReferredUser))] public long ReferredUserId { get; set; }
+
+    /// <summary>Tasdiqlangan kod (qaysi ulashishdan kelgani).</summary>
+    [MaxLength(20)] public string? Code { get; set; }
 
     /// <summary>
     /// Taklif qilingan user ilovaga to'liq kirgan (onboarding/profilni tugatgan) vaqt.

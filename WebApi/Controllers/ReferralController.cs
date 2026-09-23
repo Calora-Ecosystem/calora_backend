@@ -22,6 +22,13 @@ public class ReferralController(ReferralService referralService) : AuthorizedCon
     [ProducesResponseType<WrapperGeneric<ReferralInfoDto>>(200)]
     public async Task<Wrapper> GetMy() => (await referralService.GetMy(this.UserId), 200);
 
+    /// <summary>
+    /// Ulashish uchun yangi taklif kodi (har ulashishda boshqa kod). Oldingi kodlar ham amal qiladi.
+    /// </summary>
+    [HttpPost("code")]
+    [ProducesResponseType<WrapperGeneric<string>>(200)]
+    public async Task<Wrapper> CreateCode() => (await referralService.CreateNewCode(this.UserId), 200);
+
     /// <summary>Taklif qilingan do'stlar va holati: <c>Joined</c> — ro'yxatdan o'tdi, <c>Active</c> — ilovaga kirdi.</summary>
     [HttpGet("invited")]
     [ProducesResponseType<WrapperGeneric<IEnumerable<ReferredFriendDto>>>(200)]

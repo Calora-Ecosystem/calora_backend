@@ -18,7 +18,10 @@ public class User : SoftDeletableAndAuditableModelBase<long>
     public DateTime RTokenExpireAt { get; set; }
     [Column(TypeName = "jsonb")] public List<string> Roles { get; set; } = null!;
 
-    /// <summary>Do'st taklif qilish kodi; birinchi so'rovda lazy generatsiya qilinadi.</summary>
+    /// <summary>
+    /// Eski (birinchi) taklif kodi. Endi kodlar <c>referral_codes</c> jadvalida — har ulashishda yangisi;
+    /// bu ustun faqat migratsiya uchun qolgan.
+    /// </summary>
     [MaxLength(20)] public string? ReferralCode { get; set; }
 
     public UserExtra? Extra { get; set; } = null!;
