@@ -27,3 +27,4 @@ Sozlamalar: `Coins` bo'limi (`CoinConfig`, hammasining default'i bor).
 5. `GET referrals/invited` — do'stlar ro'yxati, `status`: `Joined` (ro'yxatdan o'tdi) / `Active` (ilovaga kirdi).
 6. Taklif qilingan user birinchi premium xaridida `ReferredDiscountPercent` (10%) chegirma: `billing/orders/subscription/plans/{plan}` → `referralDiscountPercent`, `discountedFee`; order `referral_discount` ustunida. Faqat Click/Payme — IAP narxini store belgilaydi. Chegirma to'lov tasdiqlanganda ishlatilgan bo'ladi (`ReferralDiscountService`).
 7. Push: kod tasdiqlandi / do'st faol bo'ldi / premium berildi.
+8. Kodlar `referral_codes` jadvalida (`CALORA-XXXXXX`): `POST referrals/code` har ulashishda yangi kod beradi, eski kodlar ham amal qiladi; `referrals/me` oxirgisini qaytaradi. `referrals.code` — qaysi kod tasdiqlangani. `users.referral_code` eski, faqat migratsiya uchun.

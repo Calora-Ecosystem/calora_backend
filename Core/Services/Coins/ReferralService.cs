@@ -43,13 +43,14 @@ public class ReferralService(
     ILogger<ReferralService> logger)
 {
     private const string CodePrefix = "CALORA-";
+    private const int CodeLength = 6;
     private const string ReferrerTxTitle = "coin_tx_referral";
     private const string ReferredTxTitle = "coin_tx_referral_welcome";
     private CoinConfig Config => options.Value;
 
     public async Task<ReferralInfoDto> GetMy(long userId)
     {
-        var code = await GetOrCreateCode(userId);
+        var code = await GetLatestCode(userId) ?? await CreateCode(userId);
 
         var invited = await dbContext.Referrals.CountAsync(x => x.ReferrerId == userId);
         var active = await dbContext.Referrals.CountAsync(x => x.ReferrerId == userId && x.QualifiedAt != null);
@@ -128,10 +129,10 @@ public class ReferralService(
         if (!IsWithinApplyWindow(user.CreatedAt))
             throw new ReferralWindowExpiredException();
 
-        var referrer = await dbContext.Users
+        var referrer = await dbContext.ReferralCodes
                            .AsNoTracking()
-                           .Where(x => x.ReferralCode == code)
-                           .Select(x => new { x.Id, x.Name })
+                           .Where(x => x.Code == code)
+                           .Select(x => new { x.User.Id, x.User.Name })
                            .FirstOrDefaultAsync()
                        ?? throw new ReferralCodeNotFoundException();
 
@@ -144,6 +145,7 @@ public class ReferralService(
         {
             ReferrerId = referrer.Id,
             ReferredUserId = userId,
+            Code = code,
             ReferrerReward = Config.ReferralReward,
             ReferredReward = Config.ReferredReward
         };
@@ -277,38 +279,36 @@ public class ReferralService(
         Config.ReferralApplyWindowDays <= 0 ||
         userCreatedAt >= DateTime.Now.AddDays(-Config.ReferralApplyWindowDays);
 
-    private async Task<string> GetOrCreateCode(long userId)
-    {
-        var existing = await dbContext.Users
-            .Where(x => x.Id == userId)
-            .Select(x => x.ReferralCode)
+    /// <summary>Ulashish uchun yangi taklif kodi. Oldingi kodlar ham amal qilaveradi.</summary>
+    public Task<string> CreateNewCode(long userId) => CreateCode(userId);
+
+    private Task<string?> GetLatestCode(long userId) =>
+        dbContext.ReferralCodes
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Select(x => x.Code)
             .FirstOrDefaultAsync();
 
-        if (existing is not null)
-            return existing;
-
+    private async Task<string> CreateCode(long userId)
+    {
         for (var attempt = 0; attempt < 5; attempt++)
         {
-            var code = CodeGenerator.Generate(CodePrefix, 4);
+            var code = CodeGenerator.Generate(CodePrefix, CodeLength);
 
-            if (await dbContext.Users.IgnoreQueryFilters().AnyAsync(x => x.ReferralCode == code))
+            if (await dbContext.ReferralCodes.AnyAsync(x => x.Code == code))
                 continue;
 
             try
             {
-                var updated = await dbContext.Users
-                    .Where(x => x.Id == userId && x.ReferralCode == null)
-                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.ReferralCode, code));
-
-                if (updated > 0)
-                    return code;
-
-                // Parallel so'rov allaqachon kod yaratgan.
-                return await dbContext.Users.Where(x => x.Id == userId).Select(x => x.ReferralCode!).FirstAsync();
+                dbContext.ReferralCodes.Add(new ReferralCode { UserId = userId, Code = code });
+                await dbContext.SaveChangesAsync();
+                return code;
             }
-            catch (Npgsql.PostgresException ex) when (ex.SqlState == Npgsql.PostgresErrorCodes.UniqueViolation)
+            catch (DbUpdateException)
             {
                 // Unique to'qnashuv — boshqa kod bilan qayta urinamiz.
+                dbContext.ChangeTracker.Clear();
             }
         }
 

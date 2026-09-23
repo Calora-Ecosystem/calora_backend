@@ -40,6 +40,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<MarketItem> MarketItems { get; set; }
     public DbSet<MarketPurchase> MarketPurchases { get; set; }
     public DbSet<Referral> Referrals { get; set; }
+    public DbSet<ReferralCode> ReferralCodes { get; set; }
     public DbSet<ReferralPremiumGrant> ReferralPremiumGrants { get; set; }
     public DbSet<UserCoinStat> UserCoinStats { get; set; }
 
