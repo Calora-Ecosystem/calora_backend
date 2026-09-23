@@ -8,6 +8,7 @@ using Core.Entities.Billing.Enum;
 using Core.Entities.Billing.Payme;
 using Core.Enums;
 using Core.Services.Auth;
+using Core.Services.Coins;
 using Core.Services.Billing.Click;
 using Core.Services.Billing.Contracts;
 using Core.Services.Billing.Payme;
@@ -27,7 +28,8 @@ public class OrderService(
     AppDbContext dbContext,
     IServiceProvider serviceProvider,
     AuthService authService,
-    CouponService couponService)
+    CouponService couponService,
+    ReferralDiscountService referralDiscountService)
 {
     public async Task<CreateSubscriptionOrderResponseDto> CreateSubscriptionOrder(long userId,
         CreateSubscriptionOrderDto dto)
@@ -48,6 +50,13 @@ public class OrderService(
         if (dto.CouponId.HasValue)
             await dbContext.Coupons.ExistsOrThrowsNotFoundException(dto.CouponId.Value);
 
+        // Referral chegirmasi faqat backend narxni belgilaydigan provayderlarda (Click/Payme).
+        // IAP narxini App Store / Google Play belgilaydi.
+        var referralDiscount = dto.Provider == EnumPaymentProviders.Iap
+            ? 0
+            : ReferralDiscountService.Calculate(planExtra.Fee,
+                await referralDiscountService.GetAvailablePercent(userId));
+
         Order order = null!;
         bool paymentRequired = true;
 
@@ -55,7 +64,8 @@ public class OrderService(
         {
             order = new Order()
             {
-                Amount = planExtra.Fee,
+                Amount = planExtra.Fee - referralDiscount,
+                ReferralDiscount = referralDiscount,
                 Type = EnumOrderType.Subscription,
                 Provider = dto.Provider,
                 UserId = userId,
@@ -171,6 +181,10 @@ public class OrderService(
 
         if (order is null) return false;
 
+        // Idempotent: provayder (RevenueCat, Click, Payme) bir xil orderni qayta yuborsa,
+        // obuna ikkinchi marta uzaytirilmaydi.
+        if (order.Status == EnumOrderStatus.Confirmed) return true;
+
         var result = await (order.Type switch
         {
             EnumOrderType.Subscription => AcceptSubscriptionPaymentAsync(order),
@@ -179,6 +193,9 @@ public class OrderService(
 
         order.Status = result ? EnumOrderStatus.Confirmed : EnumOrderStatus.Cancelled;
         await dbContext.SaveChangesAsync();
+
+        if (result && order.ReferralDiscount > 0)
+            await referralDiscountService.MarkUsed(order.UserId, order.Id);
 
         return result;
     }
@@ -199,16 +216,43 @@ public class OrderService(
 
         await authService.KillAllUserSessions(order.UserId);
 
-        var subscription = new Subscription()
-        {
-            SubscriptionPlan = orderExtra.Plan,
-            UserId = order.UserId,
-            StartsAt = now,
-            EndsAt = now.AddMonths(orderExtra.PlanExtra.DurationInMonths),
-            IsActive = true,
-        };
+        // subscriptions.user_id unique — eski (muddati o'tgan yoki coin evaziga olingan) qatorni yangilaymiz.
+        var subscription = await dbContext.Subscriptions.FirstOrDefaultAsync(x => x.UserId == order.UserId);
 
-        dbContext.Add(subscription);
+        if (subscription is null)
+        {
+            subscription = new Subscription { UserId = order.UserId };
+            dbContext.Add(subscription);
+        }
+
+        // Faol premium (masalan coin/referral evaziga olingan) qolgan kunlari yo'qolmaydi.
+        var hasActiveGrant = subscription is { IsActive: true, Id: > 0 } && subscription.EndsAt > now;
+
+        if (order.Provider == EnumPaymentProviders.Iap)
+        {
+            // IAP: EndsAt RevenueCat'dan keladi (RcService.SyncExpiration), qolgan kunlar bonus bo'ladi.
+            subscription.BonusDays = hasActiveGrant && subscription.Source != EnumSubscriptionSource.Payment
+                ? (int)Math.Ceiling((subscription.EndsAt - now).TotalDays)
+                : 0;
+            subscription.StartsAt = now;
+            subscription.EndsAt = now.AddMonths(orderExtra.PlanExtra.DurationInMonths)
+                .AddDays(subscription.BonusDays);
+        }
+        else
+        {
+            var startsFrom = hasActiveGrant ? subscription.EndsAt : now;
+
+            if (!hasActiveGrant)
+                subscription.StartsAt = now;
+
+            subscription.BonusDays = 0;
+            subscription.EndsAt = startsFrom.AddMonths(orderExtra.PlanExtra.DurationInMonths);
+        }
+
+        subscription.SubscriptionPlan = orderExtra.Plan;
+        subscription.IsActive = true;
+        subscription.Source = EnumSubscriptionSource.Payment;
+
         await dbContext.SaveChangesAsync();
         
         BackgroundJob.Enqueue<LeadService>(service => service.HandleEventAsync(new Core.Services.Crm.Contracts.HandleLeadEventDto(subscription.UserId, EnumLeadEvent.Purchased)));
@@ -233,8 +277,10 @@ public class OrderService(
         });
     }
 
-    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, DataQueryRequest q)
+    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, DataQueryRequest q, long? userId = null)
     {
+        var percent = userId.HasValue ? await referralDiscountService.GetAvailablePercent(userId.Value) : 0;
+
         return await dbContext
             .PlanExtras
             .Where(x => x.Plan == plan && x.IsActive)
@@ -245,6 +291,8 @@ public class OrderService(
                 IsPopular = x.IsPopular,
                 Fee = x.Fee / 100d,
                 OriginalFee = x.OriginalFee / 100d,
+                ReferralDiscountPercent = percent,
+                DiscountedFee = (x.Fee - x.Fee * percent / 100) / 100d,
                 CreatedAt = x.CreatedAt
             })
             .GetByDataQueryAsync(q);

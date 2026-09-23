@@ -5,6 +5,8 @@ using Core.Entities.Logging;
 using Core.Entities.Billing;
 using Core.Entities.Billing.Enum;
 using Core.Entities.Billing.Payme;
+using Core.Entities.Coins;
+using Core.Entities.Groups;
 using Core.Entities.Course;
 using Core.Entities.Crm;
 using Core.Entities.FoodEntites;
@@ -27,6 +29,26 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<UserNormGeneral> UserNorms { get; set; }
     public DbSet<UserDaily> UserDailies { get; set; }
     public DbSet<UserNormByMenu> UserNormByMenus { get; set; }
+    public DbSet<UserAiQuota> UserAiQuotas { get; set; }
+
+    #endregion
+
+    #region Coins
+
+    public DbSet<CoinWallet> CoinWallets { get; set; }
+    public DbSet<CoinTransaction> CoinTransactions { get; set; }
+    public DbSet<MarketItem> MarketItems { get; set; }
+    public DbSet<MarketPurchase> MarketPurchases { get; set; }
+    public DbSet<Referral> Referrals { get; set; }
+    public DbSet<ReferralPremiumGrant> ReferralPremiumGrants { get; set; }
+    public DbSet<UserCoinStat> UserCoinStats { get; set; }
+
+    #endregion
+
+    #region Groups
+
+    public DbSet<StepGroup> StepGroups { get; set; }
+    public DbSet<StepGroupMember> StepGroupMembers { get; set; }
 
     #endregion
 
@@ -114,6 +136,12 @@ public class AppDbContext : DefaultConfiguredDbContext
 
         modelBuilder.Entity<UserStepStat>()
             .HasNoKey();
+
+        modelBuilder.Entity<UserCoinStat>()
+            .HasNoKey();
+
+        // Keyless query types have no table of their own.
+        modelBuilder.Entity<UserCoinStat>().ToView(null);
 
         modelBuilder.Ignore<UserNormGeneral>();
 

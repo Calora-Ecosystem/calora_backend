@@ -4,6 +4,7 @@ using Core;
 using Core.Attributes;
 using Core.Entities.FoodEntites;
 using Core.Enums;
+using Core.Services.Ai;
 using Core.Services.Ai.Contracts;
 using Core.Services.FoodService;
 using Core.Services.FoodService.Contracts.Category;
@@ -18,7 +19,7 @@ namespace WebApi.Controllers;
 [ApiController]
 [Route("food")]
 [RoleAuthorize(EnumRole.User)]
-public class FoodController(FoodService service) : AuthorizedController
+public class FoodController(FoodService service, AiQuotaService aiQuotaService) : AuthorizedController
 {
     #region Food
 
@@ -59,10 +60,20 @@ public class FoodController(FoodService service) : AuthorizedController
         (await service.UpdateFood(foodId, this.UserId, dto), 200);
 
 
+    /// <summary>
+    /// AI orqali ovqatni aniqlash (rasm yoki ovoz). Premium — cheksiz; boshqalar uchun
+    /// bepul limit (<c>food/recognization/quota</c>). Limit tugasa 403 <c>ai_free_limit_exceeded</c>.
+    /// </summary>
     [HttpPost("recognization")]
-    [RoleAuthorize(EnumRole.User, Plans = [EnumSPlans.Premium])]
     public async Task<WrapperGeneric<IEnumerable<FoodResultDto>>> RecognizeFood([FromForm] RecognizeFoodDto dto) =>
         (await service.RecognizeFood(dto, this.UserId), 200);
+
+    /// <summary>
+    /// Bepul AI skan/ovoz limiti holati (masalan "3/5").
+    /// </summary>
+    [HttpGet("recognization/quota")]
+    [ProducesResponseType(typeof(WrapperGeneric<AiQuotaDto>), 200)]
+    public async Task<Wrapper> GetRecognitionQuota() => (await aiQuotaService.Get(this.UserId), 200);
 
     /// <summary>
     /// 

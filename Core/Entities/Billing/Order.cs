@@ -18,4 +18,7 @@ public class Order : AuditableModelBase<long>
     public User User { get; set; } = null!;
     [ForeignKey(nameof(Coupon))] public long? CouponId { get; set; }
     public Coupon? Coupon { get; set; } = null!;
+
+    /// <summary>Referral orqali kelgan userga berilgan chegirma summasi (tiyin).</summary>
+    public long ReferralDiscount { get; set; }
 }
