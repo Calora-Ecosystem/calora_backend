@@ -99,6 +99,7 @@ builder.WebHost.UseSentry(options =>
 var app = builder.Build();
 
 app.UseRateLimiter();
+
 app.ConfigureDefaults();
 
 app.UseHangfireDashboard(options: new DashboardOptions()
