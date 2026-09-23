@@ -18,7 +18,11 @@ using ResultWrapper.Library;
 namespace Core.Services.FoodService;
 
 [Injectable]
-public class FoodService(AppDbContext dbContext, AiService aiService, IHttpContextAccessor contextAccessor)
+public class FoodService(
+    AppDbContext dbContext,
+    AiService aiService,
+    AiQuotaService aiQuotaService,
+    IHttpContextAccessor contextAccessor)
 {
     private const int DefaultFoodWeightMetric = 400;
 
@@ -299,6 +303,9 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
 
     public async Task<List<FoodResultDto>> RecognizeFood(RecognizeFoodDto dto, long userId)
     {
+        // Premium bo'lmaganlar uchun bepul limit (rasm va ovoz bitta hovuzdan).
+        var metered = await aiQuotaService.EnsureCanUse(userId);
+
         var rawLanguage = contextAccessor.HttpContext?.Request.Headers.AcceptLanguage.FirstOrDefault();
 
         // The mobile app sends short codes ("UZ" / "ENG" / "RU"), which do not
@@ -317,7 +324,13 @@ public class FoodService(AppDbContext dbContext, AiService aiService, IHttpConte
         byte[] buffer = new byte[dto.File.Length];
         await stream.ReadExactlyAsync(buffer, 0, buffer.Length);
 
-        return await aiService.RecognizeForFood(buffer, dto.File.ContentType, language, userId);
+        var result = await aiService.RecognizeForFood(buffer, dto.File.ContentType, language, userId);
+
+        // Faqat muvaffaqiyatli natija limitdan yechiladi.
+        if (metered && result.Count > 0)
+            await aiQuotaService.Consume(userId);
+
+        return result;
     }
 
     #endregion

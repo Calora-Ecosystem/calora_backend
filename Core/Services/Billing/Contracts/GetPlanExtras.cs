@@ -13,4 +13,10 @@ public record GetPlanExtras
     public double Fee { get; set; }
     public double OriginalFee { get; set; }
     public bool IsPopular { get; set; }
+
+    /// <summary>Referral orqali kelgan userning birinchi xaridi uchun chegirma foizi (0 — yo'q).</summary>
+    public int ReferralDiscountPercent { get; set; }
+
+    /// <summary>Referral chegirmasidan keyingi narx (Click/Payme; IAP narxini store belgilaydi).</summary>
+    public double DiscountedFee { get; set; }
 }

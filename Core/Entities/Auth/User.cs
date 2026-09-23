@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Core.Entities.Auth;
 
 [Index(nameof(Email))]
+[Index(nameof(ReferralCode), IsUnique = true)]
 public class User : SoftDeletableAndAuditableModelBase<long>
 {
     [MaxLength(300)] public string Name { get; set; } = null!;
@@ -16,6 +17,9 @@ public class User : SoftDeletableAndAuditableModelBase<long>
     [MaxLength(50)] public string? RToken { get; set; }
     public DateTime RTokenExpireAt { get; set; }
     [Column(TypeName = "jsonb")] public List<string> Roles { get; set; } = null!;
+
+    /// <summary>Do'st taklif qilish kodi; birinchi so'rovda lazy generatsiya qilinadi.</summary>
+    [MaxLength(20)] public string? ReferralCode { get; set; }
 
     public UserExtra? Extra { get; set; } = null!;
     public Subscription? Subscription { get; set; } = null!;

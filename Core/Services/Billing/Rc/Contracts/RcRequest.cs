@@ -11,6 +11,12 @@ public record RcRequest
 public class Event
 {
     public long EventTimestampMs { get; set; }
+
+    /// <summary>RevenueCat hodisa turi: INITIAL_PURCHASE, RENEWAL, CANCELLATION, EXPIRATION va h.k.</summary>
+    public string? Type { get; set; }
+
+    /// <summary>Entitlement tugash vaqti (unix ms).</summary>
+    public long? ExpirationAtMs { get; set; }
     public string ProductId { get; set; } = null!;
     public SubscriberAttributes SubscriberAttributes { get; set; } = null!;
     public string Id { get; set; } = null!;

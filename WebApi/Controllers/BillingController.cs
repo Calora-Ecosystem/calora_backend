@@ -29,7 +29,8 @@ public class BillingController(
     PaymeService paymeService,
     RcService rcService,
     CouponService couponService,
-    PlanExtraService planExtraService)
+    PlanExtraService planExtraService,
+    SubscriptionService subscriptionService)
     : AuthorizedController
 {
     #region Plans (admin-managed)
@@ -78,11 +79,19 @@ public class BillingController(
         return await orderService.GetOrders(query, this.UserId);
     }
 
+    /// <summary>
+    /// Profil → "Obuna" paneli: joriy tarif, holat, tugash / keyingi to'lov sanasi va bepul AI limiti.
+    /// </summary>
+    [HttpGet("subscription/my")]
+    [RoleAuthorize(EnumRole.User)]
+    [ProducesResponseType<WrapperGeneric<GetMySubscriptionDto>>(200)]
+    public async Task<Wrapper> GetMySubscription() => (await subscriptionService.GetMy(this.UserId), 200);
+
     [HttpGet("orders/subscription/plans/{plan}")]
     [RoleAuthorize(EnumRole.User)]
     [ProducesResponseType<WrapperGeneric<IEnumerable<GetPlanExtras>>>(200)]
     public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, [FromQuery] DataQueryRequest query) =>
-        await orderService.GetPlanExtras(plan, query);
+        await orderService.GetPlanExtras(plan, query, this.UserId);
 
     [HttpPost("orders/subscription")]
     [RoleAuthorize(EnumRole.User)]
@@ -110,14 +119,21 @@ public class BillingController(
     /// <summary>
     /// TEMPORARY (staging test): disables a user's premium by phone number so
     /// the subscription can be re-purchased. Pass the phone with or without the
-    /// 998 country code. Remove this endpoint before production.
+    /// 998 country code. Production'da 404 qaytaradi (avtorizatsiyasiz endpoint).
     /// </summary>
     /// <param name="phone">User phone number, e.g. 901234567 or +998901234567</param>
     /// <returns>Number of subscriptions that were deactivated.</returns>
     [HttpPost("test/disable-premium")]
     [AllowAnonymous]
-    public async Task<Wrapper> DisablePremiumByPhone([FromQuery] string phone) =>
-        (await orderService.DisablePremiumByPhone(phone), 200);
+    [ApiExplorerSettings(IgnoreApi = true)]
+    public async Task<Wrapper> DisablePremiumByPhone([FromQuery] string phone,
+        [FromServices] IWebHostEnvironment environment)
+    {
+        if (environment.IsProduction())
+            throw new Core.Exceptions.NotFoundException();
+
+        return (await orderService.DisablePremiumByPhone(phone), 200);
+    }
 
     #endregion
 

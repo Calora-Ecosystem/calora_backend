@@ -7,7 +7,9 @@ using Core.Entities.Auth;
 using Core.Entities.Crm.Enum;
 using Core.Enums;
 using Core.Exceptions;
+using Core.Helpers;
 using Core.Services.Auth;
+using Core.Services.Coins;
 using Core.Services.User.Contracts;
 using Core.Services.User.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +20,11 @@ using ResultWrapper.Library;
 namespace Core.Services.User;
 
 [Injectable]
-public class UserService(AppDbContext context, AuthService authService, ILogger<UserService> logger)
+public class UserService(
+    AppDbContext context,
+    AuthService authService,
+    ReferralService referralService,
+    ILogger<UserService> logger)
 {
     public async Task<object> GetUserAsync(long authorizedUserId, long userId)
     {
@@ -247,6 +253,9 @@ public class UserService(AppDbContext context, AuthService authService, ILogger<
 
             await context.SaveChangesAsync();
         });
+
+        // Onboarding tugadi — agar user referral kodi bilan kelgan bo'lsa, taklif qiluvchiga hisoblanadi.
+        await referralService.TryQualify(userId);
     }
 
     // public async Task UpdateExtra(long userId, UpdateUserExtraDto dto)
@@ -502,10 +511,8 @@ group by ung.user_id
 
         const double mPerKm = 1000;
 
-        var distance = Math.Round((extra.Gender == EnumGender.Male ? 0.8 : 0.7 /*m*/) * totalFoots, 1);
-        var kcal = Math.Round(
-            extra.Weight * (distance / mPerKm /* convert to km */) * (extra.Gender == EnumGender.Male ? 1.06 : 0.98),
-            1);
+        var distance = Math.Round(StepMetricsHelper.DistanceM(extra.Gender, totalFoots), 1);
+        var kcal = Math.Round(StepMetricsHelper.KcalPerStep(extra.Weight, extra.Gender) * totalFoots, 1);
         var duration = Math.Round((distance / mPerKm /* convert to km */) / 5.1, 1); // 5.1 km/hour; duration is hour
 
         return new GetStepMetricsDto(userId, totalFoots, distance / mPerKm /* convert to km */, kcal, duration);
