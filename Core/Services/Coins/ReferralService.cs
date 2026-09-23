@@ -24,7 +24,7 @@ namespace Core.Services.Coins;
 /// "Do'stni taklif qilish".
 /// <list type="number">
 /// <item>Har bir userning taklif kodi bor (<c>CALORA-XXXX</c>).</item>
-/// <item>Yangi user ro'yxatdan o'tgach kodni tasdiqlaydi (<see cref="Apply"/>) — "men shu userdan kirdim".</item>
+/// <item>User do'stining kodini Invite friends sahifasida tasdiqlaydi (<see cref="Apply"/>) — "men shu userdan kirdim".</item>
 /// <item>Do'st onboarding'ni tugatgach (profil yaratilgach) "faol" bo'ladi (<see cref="TryQualify"/>).</item>
 /// <item>Har <see cref="CoinConfig.ReferralPremiumFriends"/> ta faol do'st uchun taklif qiluvchiga
 /// <see cref="CoinConfig.ReferralPremiumDays"/> kun premium beriladi.</item>
@@ -79,7 +79,7 @@ public class ReferralService(
             PremiumsEarned = premiumsEarned,
             IsReferred = referredBy is not null,
             ReferredBy = referredBy,
-            CanApplyCode = referredBy is null && createdAt >= DateTime.Now.AddDays(-Config.ReferralApplyWindowDays),
+            CanApplyCode = referredBy is null && IsWithinApplyWindow(createdAt),
             DiscountPercent = Config.ReferredDiscountPercent,
             HasDiscount = discountPercent > 0
         };
@@ -108,8 +108,8 @@ public class ReferralService(
     }
 
     /// <summary>
-    /// Yangi user do'stining kodini tasdiqlaydi. Bir marta, o'z kodini emas va
-    /// ro'yxatdan o'tgandan keyin <see cref="CoinConfig.ReferralApplyWindowDays"/> kun ichida.
+    /// User do'stining kodini tasdiqlaydi ("men shu userdan kirdim"). Bir marta, o'z kodini emas;
+    /// <see cref="CoinConfig.ReferralApplyWindowDays"/> &gt; 0 bo'lsa faqat shu kun ichida.
     /// </summary>
     public async Task<ApplyReferralResultDto> Apply(long userId, ApplyReferralCodeDto dto)
     {
@@ -125,7 +125,7 @@ public class ReferralService(
                        .FirstOrDefaultAsync()
                    ?? throw new UserNotFoundException();
 
-        if (user.CreatedAt < DateTime.Now.AddDays(-Config.ReferralApplyWindowDays))
+        if (!IsWithinApplyWindow(user.CreatedAt))
             throw new ReferralWindowExpiredException();
 
         var referrer = await dbContext.Users
@@ -272,6 +272,10 @@ public class ReferralService(
 
         return granted;
     }
+
+    private bool IsWithinApplyWindow(DateTime userCreatedAt) =>
+        Config.ReferralApplyWindowDays <= 0 ||
+        userCreatedAt >= DateTime.Now.AddDays(-Config.ReferralApplyWindowDays);
 
     private async Task<string> GetOrCreateCode(long userId)
     {

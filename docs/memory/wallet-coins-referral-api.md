@@ -20,7 +20,7 @@ Sozlamalar: `Coins` bo'limi (`CoinConfig`, hammasining default'i bor).
 
 ## Referral (`referrals`)
 1. `GET referrals/me` → code, invited, active, friendsGoal (5), premiumDays (30), progressFriends, friendsLeft, premiumsEarned, referredBy, canApplyCode, discountPercent, hasDiscount.
-2. `POST referrals/apply {code}` — yangi user ro'yxatdan o'tgach kodni tasdiqlaydi (`ReferralApplyWindowDays` ichida, bir marta, o'z kodi va A↔B taqiqlangan).
+2. `POST referrals/apply {code}` — user do'stining kodini tasdiqlaydi (bir marta, o'z kodi va A↔B taqiqlangan). `ReferralApplyWindowDays` = 0 (default) — istalgan user, eski userlar ham. Mobile'da kod faqat Profil → Invite friends sahifasida kiritiladi (onboarding'da emas).
 3. Do'st **faol** bo'ladi (`referrals.qualified_at`) profil/onboarding saqlanganda (`UserService.CreateOrUpdateExtra` → `ReferralService.TryQualify`). Kod onboarding'dan keyin kiritilsa — darhol.
 4. Har `ReferralPremiumFriends` (5) ta faol do'st → taklif qiluvchiga `ReferralPremiumDays` (30) kun premium (source=Referral). `referral_premium_grants (referrer_id, milestone)` unique — ikki marta berilmaydi.
 5. `GET referrals/invited` — do'stlar ro'yxati, `status`: `Joined` (ro'yxatdan o'tdi) / `Active` (ilovaga kirdi).

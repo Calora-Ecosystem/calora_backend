@@ -35,8 +35,11 @@ public class CoinConfig
     /// <summary>Referral orqali kelgan userga birinchi premium xaridida chegirma (%).</summary>
     public int ReferredDiscountPercent { get; set; } = 10;
 
-    /// <summary>Taklif kodini ro'yxatdan o'tgandan keyin necha kun ichida tasdiqlash mumkin.</summary>
-    public int ReferralApplyWindowDays { get; set; } = 7;
+    /// <summary>
+    /// Taklif kodini ro'yxatdan o'tgandan keyin necha kun ichida tasdiqlash mumkin.
+    /// 0 — cheklov yo'q: istalgan user (eski userlar ham) bir marta kod kirita oladi.
+    /// </summary>
+    public int ReferralApplyWindowDays { get; set; } = 0;
 
     /// <summary>Coupon turidagi marketplace mukofoti necha kun amal qiladi.</summary>
     public int CouponValidDays { get; set; } = 30;
