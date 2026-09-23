@@ -6,9 +6,6 @@ on:
       - main
       - staging
 
-env:
-#  SERVER_WORK_DIR: /root/zingoweb/production
-  IMAGE_NAME: ghcr.io/$(echo '${{github.REPOSITORY}}/${{github.ref_name}}:latest' | tr '[:upper:]' '[:lower:]')
 
 jobs:
   Publish:
@@ -19,13 +16,27 @@ jobs:
     steps:
       - name: Checking out
         uses: actions/checkout@v4.1.7
-      - name: Build
-        run: docker image build -f ./WebApi/Dockerfile -t ${{env.IMAGE_NAME}} .
+
+      - name: Set lower case image name
+        run: |
+          echo "IMAGE_NAME=ghcr.io/$(echo '${{ github.repository }}/${{ github.ref_name }}:latest' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Docker login
         uses: docker/login-action@v3.3.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push
-        run: docker image push ${{env.IMAGE_NAME}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./WebApi/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_NAME }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
