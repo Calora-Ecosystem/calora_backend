@@ -6,9 +6,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Core.Entities.Coins;
 
 /// <summary>
-/// Calora coin hamyoni (1 user = 1 hamyon). Balans faqat atomik
-/// <c>ExecuteUpdate</c> orqali o'zgartiriladi (<see cref="Core.Services.Coins.CoinService"/>),
-/// har bir o'zgarish <see cref="CoinTransaction"/> jadvaliga yoziladi.
+/// Coin hamyoni (1 user = 1 hamyon). Balans faqat atomik <c>ExecuteUpdate</c> orqali
+/// o'zgartiriladi (<see cref="Core.Services.Coins.CoinService"/>), har bir o'zgarish
+/// <see cref="CoinTransaction"/> jadvaliga yoziladi.
 /// </summary>
 [Index(nameof(UserId), IsUnique = true)]
 public class CoinWallet : AuditableModelBase<long>
@@ -23,9 +23,6 @@ public class CoinWallet : AuditableModelBase<long>
 
     /// <summary>Umr bo'yi sarflangan coinlar.</summary>
     public long TotalSpent { get; set; }
-
-    /// <summary>Coinga almashtirilgan Calora (qadamdan yoqilgan kkal) miqdori.</summary>
-    public long CaloraExchanged { get; set; }
 
     public User User { get; set; } = null!;
 }

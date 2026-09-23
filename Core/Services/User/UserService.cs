@@ -24,6 +24,7 @@ public class UserService(
     AppDbContext context,
     AuthService authService,
     ReferralService referralService,
+    CoinService coinService,
     ILogger<UserService> logger)
 {
     public async Task<object> GetUserAsync(long authorizedUserId, long userId)
@@ -420,6 +421,25 @@ public class UserService(
         {
             await transaction.RollbackAsync();
             throw;
+        }
+
+        if (dto.Metric == EnumMetrics.Step)
+            await SyncStepCoins(userId);
+    }
+
+    /// <summary>
+    /// Qadam saqlangach coinlarni hamyonga yozadi (1000 qadam = 1 coin). Xato bo'lsa ham
+    /// qadam saqlash buzilmaydi — keyingi sinxron yoki <c>GET wallet</c> yetkazib beradi.
+    /// </summary>
+    private async Task SyncStepCoins(long userId)
+    {
+        try
+        {
+            await coinService.SyncStepCoins(userId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Step coin sync failed for user {UserId}", userId);
         }
     }
 

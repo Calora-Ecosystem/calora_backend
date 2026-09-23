@@ -2,7 +2,7 @@ namespace Core.Entities.Coins.Enum;
 
 public enum EnumCoinTxType
 {
-    /// <summary>Calora → coin almashtirish (kirim).</summary>
+    /// <summary>Eski Calora → coin almashtirish (olib tashlangan; faqat tarixdagi yozuvlar uchun).</summary>
     CaloraExchange = 1,
 
     /// <summary>Do'st taklif qilgani uchun bonus (kirim).</summary>
@@ -12,5 +12,8 @@ public enum EnumCoinTxType
     Purchase,
 
     /// <summary>Admin tomonidan qo'lda o'zgartirish (kirim/chiqim).</summary>
-    Admin
+    Admin,
+
+    /// <summary>Kunlik qadam uchun coin: har <c>StepsPerCoin</c> qadam = 1 coin (kirim).</summary>
+    Steps
 }

@@ -20,14 +20,10 @@ using ResultWrapper.Library;
 namespace Core.Services.Coins;
 
 /// <summary>
-/// Calora coin hamyoni: qadamlardan yig'ilgan Calora'ni coinga almashtirish,
-/// marketplace xaridlari, tarix va coin reytingi.
-/// <para>
-/// Calora = qadamlardan yoqilgan kkal (<see cref="StepMetricsHelper"/>), faqat
-/// <see cref="CoinConfig.CaloraEarnStartDate"/> dan keyingi kunlar hisoblanadi.
-/// Balans o'zgarishlari atomik <c>ExecuteUpdate</c> bilan qilinadi (parallel so'rovlarda
-/// manfiy balans yoki ikki marta almashtirish bo'lmasligi uchun).
-/// </para>
+/// Coin hamyoni: qadamlardan avtomatik yig'iladigan coinlar (har <see cref="CoinConfig.StepsPerCoin"/>
+/// qadam = 1 coin, kuniga ko'pi bilan <see cref="CoinConfig.MaxDailyCoins"/>), marketplace xaridlari,
+/// tarix va coin reytingi. Balans o'zgarishlari atomik (<c>ExecuteUpdate</c> / qatorni qulflash) —
+/// parallel so'rovlarda manfiy balans yoki ikki marta berilgan coin bo'lmaydi.
 /// </summary>
 [Injectable]
 public class CoinService(
@@ -36,34 +32,35 @@ public class CoinService(
     AiQuotaService aiQuotaService,
     IOptions<CoinConfig> options)
 {
-    private const string CaloraExchangeTitle = "coin_tx_from_calora";
+    private const string DailyStepsTitle = "coin_tx_daily_steps";
     private CoinConfig Config => options.Value;
 
     #region Wallet
 
     public async Task<WalletDto> GetWallet(long userId)
     {
-        var earnedCalora = await GetEarnedCalora(userId);
+        await SyncStepCoins(userId);
 
         var wallet = await dbContext.CoinWallets
             .AsNoTracking()
             .Where(x => x.UserId == userId)
-            .Select(x => new { x.Balance, x.TotalEarned, x.TotalSpent, x.CaloraExchanged })
+            .Select(x => new { x.Balance, x.TotalEarned, x.TotalSpent })
             .FirstOrDefaultAsync();
 
-        var exchanged = wallet?.CaloraExchanged ?? 0;
-        var available = Math.Max(0, earnedCalora - exchanged);
+        var todayRef = DayRef(DateTime.Now.Date);
+        var todayCoins = await dbContext.CoinTransactions
+            .Where(x => x.UserId == userId && x.Type == EnumCoinTxType.Steps && x.RefId == todayRef)
+            .Select(x => x.Amount)
+            .FirstOrDefaultAsync();
 
         return new WalletDto
         {
             Balance = wallet?.Balance ?? 0,
             TotalEarned = wallet?.TotalEarned ?? 0,
             TotalSpent = wallet?.TotalSpent ?? 0,
-            EarnedCalora = earnedCalora,
-            CaloraExchanged = exchanged,
-            AvailableCalora = available,
-            CaloraPerCoin = Config.CaloraPerCoin,
-            MaxExchangeableCoins = available / Config.CaloraPerCoin
+            TodayCoins = todayCoins,
+            StepsPerCoin = Config.StepsPerCoin,
+            MaxDailyCoins = Config.MaxDailyCoins
         };
     }
 
@@ -80,60 +77,102 @@ public class CoinService(
                 Title = x.Title,
                 Amount = x.Amount,
                 Type = x.Type,
-                Calora = x.Calora,
                 CreatedAt = x.CreatedAt
             })
             .GetByDataQueryAsync(q);
     }
 
-    /// <summary>Calora'ni coinga almashtiradi (faqat butun <c>CaloraPerCoin</c> qismlari).</summary>
-    public async Task<ExchangeResultDto> Exchange(long userId, ExchangeCaloraDto dto)
+    /// <summary>
+    /// Qadamlar uchun coinlarni hamyonga yozadi: har kun uchun
+    /// <c>min(qadam / StepsPerCoin, MaxDailyCoins)</c> coin, kuniga bitta tarix yozuvi.
+    /// Qadam faqat oshib boradi (<c>users/dailies</c>), shuning uchun kun yozuvi ham faqat oshadi —
+    /// qayta chaqirish yoki kunni reset qilish coinni ikki marta bermaydi.
+    /// Hamyon qatori <c>FOR UPDATE</c> bilan qulflanadi — parallel sinxronlar farqni ikki marta qo'shmaydi.
+    /// </summary>
+    public async Task SyncStepCoins(long userId)
     {
-        var perCoin = Config.CaloraPerCoin;
-        var coins = dto.Calora / perCoin;
+        var createdAt = await dbContext.Users
+            .Where(x => x.Id == userId)
+            .Select(x => (DateTime?)x.CreatedAt)
+            .FirstOrDefaultAsync();
 
-        if (coins <= 0)
-            throw new NothingToExchangeException();
+        if (createdAt is null || Config.StepsPerCoin <= 0)
+            return;
 
-        var spend = coins * perCoin;
-        var earnedCalora = await GetEarnedCalora(userId);
+        var start = createdAt.Value.Date > Config.CoinsEarnStartDate.Date
+            ? createdAt.Value.Date
+            : Config.CoinsEarnStartDate.Date;
+
+        var days = await dbContext.UserDailies
+            .AsNoTracking()
+            .Where(x => x.UserId == userId && x.Metric == EnumMetrics.Step && x.Date >= start)
+            .Select(x => new { x.Date, x.Value })
+            .ToListAsync();
+
+        var expected = days
+            .GroupBy(x => x.Date.Date)
+            .Select(g => new
+            {
+                Day = g.Key,
+                Coins = Math.Min((long)(g.Max(x => x.Value) / Config.StepsPerCoin), Config.MaxDailyCoins)
+            })
+            .Where(x => x.Coins > 0)
+            .ToList();
+
+        if (expected.Count == 0)
+            return;
 
         await EnsureWallet(userId);
 
         await dbContext.Transactional(async () =>
         {
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"select 1 from coin_wallets where user_id = {userId} for update");
+
+            var credited = await dbContext.CoinTransactions
+                .Where(x => x.UserId == userId && x.Type == EnumCoinTxType.Steps)
+                .ToDictionaryAsync(x => x.RefId ?? 0);
+
             var now = DateTime.Now;
+            long delta = 0;
 
-            // Shart DB ichida tekshiriladi — parallel so'rovlar bir Calora'ni ikki marta almashtira olmaydi.
-            var affected = await dbContext.CoinWallets
-                .Where(x => x.UserId == userId && x.CaloraExchanged + spend <= earnedCalora)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(x => x.Balance, x => x.Balance + coins)
-                    .SetProperty(x => x.TotalEarned, x => x.TotalEarned + coins)
-                    .SetProperty(x => x.CaloraExchanged, x => x.CaloraExchanged + spend)
-                    .SetProperty(x => x.UpdatedAt, now));
-
-            if (affected == 0)
-                throw new NothingToExchangeException();
-
-            dbContext.CoinTransactions.Add(new CoinTransaction
+            foreach (var day in expected)
             {
-                UserId = userId,
-                Amount = coins,
-                Type = EnumCoinTxType.CaloraExchange,
-                Title = CaloraExchangeTitle,
-                Calora = spend
-            });
+                var dayRef = DayRef(day.Day);
+
+                if (credited.TryGetValue(dayRef, out var tx))
+                {
+                    if (tx.Amount >= day.Coins) continue;
+
+                    delta += day.Coins - tx.Amount;
+                    tx.Amount = day.Coins;
+                }
+                else
+                {
+                    delta += day.Coins;
+                    dbContext.CoinTransactions.Add(new CoinTransaction
+                    {
+                        UserId = userId,
+                        Amount = day.Coins,
+                        Type = EnumCoinTxType.Steps,
+                        Title = DailyStepsTitle,
+                        RefId = dayRef
+                    });
+                }
+            }
+
+            if (delta == 0)
+                return;
+
+            await dbContext.CoinWallets
+                .Where(x => x.UserId == userId)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.Balance, x => x.Balance + delta)
+                    .SetProperty(x => x.TotalEarned, x => x.TotalEarned + delta)
+                    .SetProperty(x => x.UpdatedAt, now));
 
             await dbContext.SaveChangesAsync();
         });
-
-        return new ExchangeResultDto
-        {
-            Coins = coins,
-            CaloraSpent = spend,
-            Wallet = await GetWallet(userId)
-        };
     }
 
     /// <summary>
@@ -172,41 +211,15 @@ public class CoinService(
             .Select(x => x.Balance)
             .FirstOrDefaultAsync();
 
-    /// <summary>
-    /// Qadamlardan yig'ilgan Calora (kkal). Kunlik qadam <see cref="CoinConfig.MaxDailySteps"/> bilan cheklanadi.
-    /// Profil (vazn/jins) bo'lmasa 0.
-    /// </summary>
-    private async Task<long> GetEarnedCalora(long userId)
-    {
-        var extra = await dbContext.UserExtras
-            .AsNoTracking()
-            .Where(x => x.UserId == userId)
-            .Select(x => new { x.Weight, x.Gender, x.User.CreatedAt })
-            .FirstOrDefaultAsync();
-
-        if (extra is null || extra.Weight <= 0)
-            return 0;
-
-        var start = extra.CreatedAt.Date > Config.CaloraEarnStartDate.Date
-            ? extra.CreatedAt.Date
-            : Config.CaloraEarnStartDate.Date;
-
-        double cap = Config.MaxDailySteps;
-
-        var steps = await dbContext.UserDailies
-            .AsNoTracking()
-            .Where(x => x.UserId == userId && x.Metric == EnumMetrics.Step && x.Date >= start)
-            .SumAsync(x => x.Value > cap ? cap : x.Value);
-
-        return (long)Math.Floor(steps * StepMetricsHelper.KcalPerStep(extra.Weight, extra.Gender));
-    }
+    /// <summary>Qadam kunining kaliti (yyyyMMdd) — <see cref="CoinTransaction.RefId"/>.</summary>
+    private static long DayRef(DateTime day) => day.Year * 10000L + day.Month * 100 + day.Day;
 
     private async Task EnsureWallet(long userId)
     {
         var now = DateTime.Now;
         await dbContext.Database.ExecuteSqlInterpolatedAsync($@"
-insert into coin_wallets (user_id, balance, total_earned, total_spent, calora_exchanged, created_at, updated_at)
-values ({userId}, 0, 0, 0, 0, {now}, {now})
+insert into coin_wallets (user_id, balance, total_earned, total_spent, created_at, updated_at)
+values ({userId}, 0, 0, 0, {now}, {now})
 on conflict (user_id) do nothing");
     }
 

@@ -10,17 +10,14 @@ public class WalletDto
     public long TotalEarned { get; set; }
     public long TotalSpent { get; set; }
 
-    /// <summary>Coinga almashtirish mumkin bo'lgan Calora (yig'ilgan − almashtirilgan).</summary>
-    public long AvailableCalora { get; set; }
+    /// <summary>Bugungi qadamlar uchun berilgan coin.</summary>
+    public long TodayCoins { get; set; }
 
-    /// <summary>Qadamlardan jami yig'ilgan Calora.</summary>
-    public long EarnedCalora { get; set; }
+    /// <summary>Necha qadam = 1 coin (default 1000).</summary>
+    public int StepsPerCoin { get; set; }
 
-    public long CaloraExchanged { get; set; }
-    public int CaloraPerCoin { get; set; }
-
-    /// <summary>Hozir almashtirsa necha coin chiqadi.</summary>
-    public long MaxExchangeableCoins { get; set; }
+    /// <summary>Bir kunda qadamdan olinadigan maksimal coin (default 22).</summary>
+    public int MaxDailyCoins { get; set; }
 }
 
 public class CoinTransactionDto
@@ -34,21 +31,7 @@ public class CoinTransactionDto
     public long Amount { get; set; }
 
     public EnumCoinTxType Type { get; set; }
-    public long? Calora { get; set; }
     public DateTime CreatedAt { get; set; }
-}
-
-public class ExchangeCaloraDto
-{
-    /// <summary>Almashtiriladigan Calora; faqat butun <c>CaloraPerCoin</c> qismlari hisoblanadi.</summary>
-    [Range(1, long.MaxValue)] public long Calora { get; set; }
-}
-
-public class ExchangeResultDto
-{
-    public long Coins { get; set; }
-    public long CaloraSpent { get; set; }
-    public WalletDto Wallet { get; set; } = null!;
 }
 
 public class MarketItemDto
