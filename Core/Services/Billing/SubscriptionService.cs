@@ -95,8 +95,10 @@ public class SubscriptionService(AppDbContext dbContext, AuthService authService
         // JWT plan claim bilan bir xil qoida (AuthService.MakeJwtFromUser).
         var isPremium = IsPremium(subscription);
 
-        var autoRenew = isPremium && subscription!.Source == EnumSubscriptionSource.Payment &&
-                        lastOrder?.Provider == EnumPaymentProviders.Iap;
+        var managedByStore = isPremium && subscription!.Source == EnumSubscriptionSource.Payment &&
+                             lastOrder?.Provider == EnumPaymentProviders.Iap;
+        var cancelled = managedByStore && subscription!.CancelledAt != null;
+        var autoRenew = managedByStore && !cancelled;
 
         return new GetMySubscriptionDto
         {
@@ -106,6 +108,10 @@ public class SubscriptionService(AppDbContext dbContext, AuthService authService
             Source = subscription?.Source,
             StartsAt = subscription?.StartsAt,
             EndsAt = subscription?.EndsAt,
+            Status = !isPremium
+                ? EnumMySubscriptionStatus.Free
+                : cancelled ? EnumMySubscriptionStatus.Cancelled : EnumMySubscriptionStatus.Active,
+            ManagedByStore = managedByStore,
             DaysLeft = isPremium ? Math.Max(0, (int)Math.Ceiling((subscription!.EndsAt - now).TotalDays)) : 0,
             Provider = lastOrder?.Provider,
             DurationInMonths = lastOrder?.DurationInMonths,

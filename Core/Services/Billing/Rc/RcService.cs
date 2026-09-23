@@ -16,8 +16,9 @@ namespace Core.Services.Billing.Rc;
 /// <list type="bullet">
 /// <item>INITIAL_PURCHASE / NON_RENEWING_PURCHASE (yoki turi yo'q — eski payload) — orderni qabul qiladi.</item>
 /// <item>RENEWAL / UNCANCELLATION / PRODUCT_CHANGE — orderni (kerak bo'lsa) qabul qiladi va tugash sanasini RevenueCat'dagi bilan sinxronlaydi.</item>
+/// <item>CANCELLATION — avtomatik yangilanish bekor qilingan deb belgilaydi (premium tugash sanasigacha qoladi).</item>
 /// <item>EXPIRATION — to'langan obunani o'chiradi.</item>
-/// <item>Qolganlari (CANCELLATION, BILLING_ISSUE, TEST, ...) — hech narsa qilmaydi: user tugash sanasigacha premium.</item>
+/// <item>Qolganlari (BILLING_ISSUE, TEST, ...) — hech narsa qilmaydi.</item>
 /// </list>
 /// Hammasi idempotent — RevenueCat qayta yuborsa obuna ikki marta uzaytirilmaydi.
 /// </summary>
@@ -37,6 +38,7 @@ public class RcService(
             null or "" or "INITIAL_PURCHASE" or "NON_RENEWING_PURCHASE" => RcAction.Accept,
             "RENEWAL" or "UNCANCELLATION" or "PRODUCT_CHANGE" => RcAction.Sync,
             "EXPIRATION" => RcAction.Expire,
+            "CANCELLATION" => RcAction.Cancel,
             _ => RcAction.Ignore
         };
 
@@ -65,6 +67,9 @@ public class RcService(
             case RcAction.Expire:
                 await Expire(orderId);
                 break;
+            case RcAction.Cancel:
+                await MarkCancelled(orderId);
+                break;
         }
     }
 
@@ -85,6 +90,7 @@ public class RcService(
 
         subscription.EndsAt = expiresAt.AddDays(subscription.BonusDays);
         subscription.IsActive = true;
+        subscription.CancelledAt = null; // yangilandi / qayta yoqildi
         subscription.Source = EnumSubscriptionSource.Payment;
 
         await dbContext.SaveChangesAsync();
@@ -125,6 +131,20 @@ public class RcService(
         await authService.KillAllUserSessions(userId.Value);
     }
 
+    /// <summary>User store'da avtomatik yangilanishni o'chirdi — premium tugash sanasigacha qoladi.</summary>
+    private async Task MarkCancelled(long orderId)
+    {
+        var userId = await GetOrderUserId(orderId);
+        if (userId is null) return;
+
+        var now = DateTime.Now;
+        await dbContext.Subscriptions
+            .Where(x => x.UserId == userId && x.IsActive && x.Source == EnumSubscriptionSource.Payment)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.CancelledAt, now)
+                .SetProperty(x => x.UpdatedAt, now));
+    }
+
     private Task<long?> GetOrderUserId(long orderId) =>
         dbContext.Orders
             .Where(x => x.Id == orderId)
@@ -153,6 +173,7 @@ public class RcService(
         Accept,
         Sync,
         Expire,
+        Cancel,
         Ignore
     }
 }
