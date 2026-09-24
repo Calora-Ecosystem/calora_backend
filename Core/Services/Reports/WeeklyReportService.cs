@@ -1,6 +1,5 @@
 using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
-using Core.Entities.Auth;
 using Core.Entities.Coins.Enum;
 using Core.Enums;
 using Core.Services.Reports.Contracts;
@@ -44,10 +43,10 @@ public class WeeklyReportService(AppDbContext dbContext)
             .Select(u => u.Name)
             .FirstOrDefaultAsync() ?? string.Empty;
 
-        // UserNorms TPC bazasi — user_dailies qatorlari aralashmasligi uchun faqat o'zini olamiz.
+        // UserNorms faqat user_norms jadvalini o'qiydi (user_dailies bilan UNION qilmaydi).
         var normRows = await dbContext.UserNorms
             .AsNoTracking()
-            .Where(x => x.UserId == userId && !(x is UserDaily))
+            .Where(x => x.UserId == userId)
             .Select(x => new { x.Metric, x.Value })
             .ToListAsync();
         var normMap = normRows.GroupBy(x => x.Metric).ToDictionary(g => g.Key, g => g.First().Value);
