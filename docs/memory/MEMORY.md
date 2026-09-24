@@ -6,3 +6,4 @@
 - [Free AI Quota & Subscription API](free-ai-quota-api.md) — 5 bepul AI limiti, obuna manbasi/bonus kunlar, RevenueCat webhook qoidalari.
 - [Wallet, Coins & Referral API](wallet-coins-referral-api.md) — 1000 qadam = 1 coin (kuniga 22), marketplace, reyting, referral: 5 do'st = 1 oy premium, 10% chegirma.
 - [Step Groups API](step-groups-api.md) — userlar yaratadigan qadam guruhlari, taklif kodi, guruh ichidagi reyting.
+- [Weekly Report API](weekly-report-api.md) — GET reports/weekly: 7 kunlik kkal/makros/qadam/suv, top taom, streak, badge'lar (Du–Ya).
