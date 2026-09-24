@@ -16,5 +16,5 @@ type: reference
 - `streak` — hafta oxiridan orqaga ketma-ket ovqat yozilgan kunlar (365 kungacha).
 - `kcalAvgChangePercent`/`stepsChangePercent` — o'tgan haftaga nisbatan, o'tgan haftada data bo'lmasa null.
 - `badges` (mobile lokalizatsiya kalitlari): `perfect_week` (≥5 kun normada), `consistent` (7 kun yozilgan), `step_master` (≥70k qadam), `protein_pro` (o'rtacha protein ≥90% norma), `hydrated` (≥5 kun suv normasi).
-- `UserNorms` TPC bazasi — `user_dailies` aralashmasligi uchun `!(x is UserDaily)` filtri ishlatilgan.
+- `UserNorms` so'rovi faqat `user_norms` jadvalini o'qiydi. `!(x is UserDaily)` filtri EF'da tarjima qilinmaydi (500 bergan edi) — qo'shmang.
 - Vazn hozircha yo'q: `user_dailies.Weight` progress (abs farq) saqlaydi, tarix emas.
