@@ -319,6 +319,7 @@ public class AuthService(
                     // kod esa server logiga yoziladi — test paytida qo'lda kiritish uchun.
                     logger.LogWarning("SMS not delivered ({Error}), OTP for {Phone}: {Otp}",
                         e.Message, destination, otp);
+                    await OtpTelegramNotifier.Send(destination, otp);
                 }
             }
         }
