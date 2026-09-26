@@ -1,6 +1,7 @@
 using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
 using Core.Entities.Coins.Enum;
+using Core.Entities.Course.Enum;
 using Core.Enums;
 using Core.Services.Reports.Contracts;
 using Microsoft.EntityFrameworkCore;
@@ -8,8 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Core.Services.Reports;
 
 /// <summary>
-/// Haftalik hisobot: <c>daily_menus</c> (kkal/makros), <c>user_dailies</c> (qadam, suv)
-/// va qadam coinlaridan yig'iladi. Alohida saqlanmaydi — har so'rovda hisoblanadi.
+/// Haftalik hisobot: <c>daily_menus</c> (kkal/makros), <c>user_dailies</c> (qadam, suv),
+/// coinlar, profil (vazn), kurs progressi, takliflar va qadam guruhlaridan yig'iladi. Alohida saqlanmaydi — har so'rovda hisoblanadi.
 /// </summary>
 [Injectable]
 public class WeeklyReportService(AppDbContext dbContext)
@@ -25,6 +26,7 @@ public class WeeklyReportService(AppDbContext dbContext)
     private const double StepMasterSteps = 70_000;
     private const double ProteinProRatio = 0.9;
     private const int HydratedDays = 5;
+    private const int StepGoalDays = 5;
 
     private record MenuRow(DateTime Date, EnumMenu Menu, long FoodId, double Kcal, double Protein, double Fat, double Carb);
 
@@ -57,7 +59,8 @@ public class WeeklyReportService(AppDbContext dbContext)
             Fat = normMap.GetValueOrDefault(EnumMetrics.Fat),
             Carb = normMap.GetValueOrDefault(EnumMetrics.Carb),
             Water = normMap.GetValueOrDefault(EnumMetrics.Water),
-            Step = normMap.GetValueOrDefault(EnumMetrics.Step)
+            Step = normMap.GetValueOrDefault(EnumMetrics.Step),
+            Weight = normMap.GetValueOrDefault(EnumMetrics.Weight)
         };
 
         var menus = await LoadMenus(userId, prevStart, end);
@@ -127,6 +130,9 @@ public class WeeklyReportService(AppDbContext dbContext)
         var prevSteps = dailies.Where(d => d.Date < start && d.Metric == EnumMetrics.Step).Sum(d => d.Value);
 
         var daysInNorm = days.Count(d => d.InNorm);
+        var stepDaysInNorm = norms.Step > 0 ? days.Count(d => d.Steps >= norms.Step) : 0;
+        var waterDaysInNorm = norms.Water > 0 ? days.Count(d => d.Water >= norms.Water) : 0;
+        var coins = await GetCoins(userId, start, end);
 
         return new WeeklyReportDto
         {
@@ -135,6 +141,9 @@ public class WeeklyReportService(AppDbContext dbContext)
             WeekEnd = end.AddDays(-1),
             LoggedDays = logged.Count,
             DaysInNorm = daysInNorm,
+            ActiveDays = days.Count(d => d.MealCount > 0 || d.Steps > 0 || d.Water > 0),
+            StepDaysInNorm = stepDaysInNorm,
+            WaterDaysInNorm = waterDaysInNorm,
             Norms = norms,
             Days = days,
             Totals = totals,
@@ -144,11 +153,93 @@ public class WeeklyReportService(AppDbContext dbContext)
             TopFood = topFood,
             HeaviestDay = logged.Count > 0 ? logged.MaxBy(d => d.Kcal)!.Date : null,
             MostActiveDay = totals.Steps > 0 ? days.MaxBy(d => d.Steps)!.Date : null,
-            CoinsEarned = await GetStepCoins(userId, start, end),
+            CoinsEarned = coins.Steps,
             Streak = await GetStreak(userId, end),
             KcalAvgChangePercent = logged.Count > 0 ? ChangePercent(prevKcalAvg, averages.Kcal) : null,
             StepsChangePercent = ChangePercent(prevSteps, totals.Steps),
-            Badges = GetBadges(days, norms, daysInNorm, logged.Count, totals, averages)
+            Body = await GetBody(userId, norms),
+            Coins = coins,
+            Course = await GetCourse(userId, start, end),
+            FriendsInvited = await dbContext.Referrals
+                .CountAsync(r => r.ReferrerId == userId && r.CreatedAt >= start && r.CreatedAt < end),
+            StepGroups = await dbContext.StepGroupMembers.CountAsync(m => m.UserId == userId),
+            Badges = GetBadges(days, norms, daysInNorm, stepDaysInNorm, logged.Count, totals, averages)
+        };
+    }
+
+    private async Task<WeeklyBodyDto> GetBody(long userId, WeeklyNormsDto norms)
+    {
+        var body = await dbContext.UserExtras
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .Select(x => new WeeklyBodyDto
+            {
+                Weight = x.Weight,
+                EntryWeight = x.EntryWeight,
+                Height = x.Height,
+                Bmi = x.Bmi,
+                Purpose = x.Purpose
+            })
+            .FirstOrDefaultAsync() ?? new WeeklyBodyDto();
+
+        body.TargetWeight = norms.Weight;
+        body.Bmi = Math.Round(body.Bmi, 1);
+        return body;
+    }
+
+    /// <summary>
+    /// Hafta ichidagi coin tranzaksiyalari. Qadam coinlari <c>RefId</c> (yyyyMMdd) bo'yicha,
+    /// qolganlari <c>CreatedAt</c> bo'yicha olinadi — qadam yozuvi kun davomida yangilanadi.
+    /// </summary>
+    private async Task<WeeklyCoinsDto> GetCoins(long userId, DateTime start, DateTime end)
+    {
+        var fromRef = long.Parse(start.ToString("yyyyMMdd"));
+        var toRef = long.Parse(end.AddDays(-1).ToString("yyyyMMdd"));
+
+        var steps = await dbContext.CoinTransactions
+            .Where(t => t.UserId == userId && t.Type == EnumCoinTxType.Steps &&
+                        t.RefId >= fromRef && t.RefId <= toRef)
+            .SumAsync(t => t.Amount);
+
+        var others = await dbContext.CoinTransactions
+            .AsNoTracking()
+            .Where(t => t.UserId == userId && t.Type != EnumCoinTxType.Steps &&
+                        t.CreatedAt >= start && t.CreatedAt < end)
+            .Select(t => new { t.Type, t.Amount })
+            .ToListAsync();
+
+        var balance = await dbContext.CoinWallets
+            .Where(w => w.UserId == userId)
+            .Select(w => (long?)w.Balance)
+            .FirstOrDefaultAsync() ?? 0;
+
+        return new WeeklyCoinsDto
+        {
+            Steps = steps,
+            Referral = others.Where(t => t.Type == EnumCoinTxType.Referral && t.Amount > 0).Sum(t => t.Amount),
+            Earned = steps + others.Where(t => t.Amount > 0).Sum(t => t.Amount),
+            Spent = -others.Where(t => t.Amount < 0).Sum(t => t.Amount),
+            Balance = balance
+        };
+    }
+
+    /// <summary>Hafta ichida tugatilgan (yoki qayta tugatilgan) darslar, mashqlar va workoutlar.</summary>
+    private async Task<WeeklyCourseDto> GetCourse(long userId, DateTime start, DateTime end)
+    {
+        var counts = await dbContext.CourseItemStates
+            .AsNoTracking()
+            .Where(x => x.UserId == userId && x.UpdatedAt >= start && x.UpdatedAt < end)
+            .GroupBy(x => x.Type)
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        int Count(EnumEntityType type) => counts.FirstOrDefault(c => c.Type == type)?.Count ?? 0;
+
+        return new WeeklyCourseDto
+        {
+            Lessons = Count(EnumEntityType.Lesson),
+            Exercises = Count(EnumEntityType.Exercise),
+            Workouts = Count(EnumEntityType.Workout)
         };
     }
 
@@ -206,18 +297,6 @@ public class WeeklyReportService(AppDbContext dbContext)
             .FirstOrDefaultAsync();
     }
 
-    /// <summary>Qadam coinlari kuniga bitta yozuv, <c>RefId</c> = yyyyMMdd.</summary>
-    private Task<long> GetStepCoins(long userId, DateTime start, DateTime end)
-    {
-        var fromRef = long.Parse(start.ToString("yyyyMMdd"));
-        var toRef = long.Parse(end.AddDays(-1).ToString("yyyyMMdd"));
-
-        return dbContext.CoinTransactions
-            .Where(t => t.UserId == userId && t.Type == EnumCoinTxType.Steps &&
-                        t.RefId >= fromRef && t.RefId <= toRef)
-            .SumAsync(t => t.Amount);
-    }
-
     /// <summary>Hafta oxiridan (<paramref name="end"/> dan oldingi kun) orqaga ketma-ket ovqat yozilgan kunlar.</summary>
     private async Task<int> GetStreak(long userId, DateTime end)
     {
@@ -237,13 +316,14 @@ public class WeeklyReportService(AppDbContext dbContext)
     }
 
     private static List<string> GetBadges(List<WeeklyDayDto> days, WeeklyNormsDto norms, int daysInNorm,
-        int loggedDays, WeeklyTotalsDto totals, WeeklyTotalsDto averages)
+        int stepDaysInNorm, int loggedDays, WeeklyTotalsDto totals, WeeklyTotalsDto averages)
     {
         var badges = new List<string>();
 
         if (daysInNorm >= PerfectWeekDays) badges.Add("perfect_week");
         if (loggedDays == 7) badges.Add("consistent");
         if (totals.Steps >= StepMasterSteps) badges.Add("step_master");
+        if (stepDaysInNorm >= StepGoalDays) badges.Add("step_goal");
         if (loggedDays > 0 && norms.Protein > 0 && averages.Protein >= norms.Protein * ProteinProRatio)
             badges.Add("protein_pro");
         if (norms.Water > 0 && days.Count(d => d.Water >= norms.Water) >= HydratedDays) badges.Add("hydrated");

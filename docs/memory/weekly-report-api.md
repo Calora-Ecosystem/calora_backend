@@ -17,4 +17,9 @@ type: reference
 - `kcalAvgChangePercent`/`stepsChangePercent` — o'tgan haftaga nisbatan, o'tgan haftada data bo'lmasa null.
 - `badges` (mobile lokalizatsiya kalitlari): `perfect_week` (≥5 kun normada), `consistent` (7 kun yozilgan), `step_master` (≥70k qadam), `protein_pro` (o'rtacha protein ≥90% norma), `hydrated` (≥5 kun suv normasi).
 - `UserNorms` so'rovi faqat `user_norms` jadvalini o'qiydi. `!(x is UserDaily)` filtri EF'da tarjima qilinmaydi (500 bergan edi) — qo'shmang.
-- Vazn hozircha yo'q: `user_dailies.Weight` progress (abs farq) saqlaydi, tarix emas.
+- `activeDays` — ovqat, qadam yoki suv yozilgan kunlar; `stepDaysInNorm`/`waterDaysInNorm` — normaga yetilgan kunlar. Mobile hisobotni faqat hafta butunlay bo'sh bo'lsa ko'rsatmaydi (faqat qadam bo'lsa ham ko'rsatadi).
+- `body` — `user_extras` dan joriy/boshlang'ich vazn, bo'y, BMI, purpose; `targetWeight` = `norms.weight` (user_norms Weight). Vazn tarixi yo'q: `user_dailies.Weight` progress (abs farq) saqlaydi, tarix emas.
+- `coins` — `steps` (RefId bo'yicha), `referral`, `earned` (barcha kirim), `spent` (chiqim, musbat), `balance` (hozirgi, `coin_wallets`). Qadamdan boshqalari `CreatedAt` bo'yicha.
+- `course` — `course_item_states` `UpdatedAt` hafta ichida: `lessons`/`exercises`/`workouts`.
+- `friendsInvited` — `referrals` (ReferrerId, CreatedAt hafta ichida); `stepGroups` — a'zo bo'lgan qadam guruhlari (hozirgi).
+- Badge `step_goal` — ≥5 kun qadam normasi.
