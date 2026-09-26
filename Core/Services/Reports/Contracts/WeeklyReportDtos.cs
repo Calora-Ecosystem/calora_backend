@@ -21,6 +21,15 @@ public record WeeklyReportDto
     /// <summary>Kaloriya normasi ichida bo'lgan kunlar (ovqat yozilgan va normaning 75%–110% oralig'ida).</summary>
     public int DaysInNorm { get; set; }
 
+    /// <summary>Ovqat, qadam yoki suv yozilgan kunlar. 0 bo'lsa hafta bo'sh — mobile hisobotni ko'rsatmaydi.</summary>
+    public int ActiveDays { get; set; }
+
+    /// <summary>Qadam normasiga yetilgan kunlar.</summary>
+    public int StepDaysInNorm { get; set; }
+
+    /// <summary>Suv normasiga yetilgan kunlar.</summary>
+    public int WaterDaysInNorm { get; set; }
+
     public WeeklyNormsDto Norms { get; set; } = null!;
 
     /// <summary>Doim 7 ta element, dushanbadan boshlab.</summary>
@@ -50,7 +59,22 @@ public record WeeklyReportDto
     public double? KcalAvgChangePercent { get; set; }
     public double? StepsChangePercent { get; set; }
 
-    /// <summary>Mobile lokalizatsiya kalitlari: <c>perfect_week</c>, <c>consistent</c>, <c>step_master</c>, <c>protein_pro</c>, <c>hydrated</c>.</summary>
+    /// <summary>Tana ko'rsatkichlari (profil bo'yicha, hisobot so'ralgan paytdagi).</summary>
+    public WeeklyBodyDto Body { get; set; } = null!;
+
+    /// <summary>Hafta davomidagi coin harakati va joriy balans.</summary>
+    public WeeklyCoinsDto Coins { get; set; } = null!;
+
+    /// <summary>Hafta davomida tugatilgan kurs elementlari.</summary>
+    public WeeklyCourseDto Course { get; set; } = null!;
+
+    /// <summary>Hafta davomida taklif kodi bilan qo'shilgan do'stlar.</summary>
+    public int FriendsInvited { get; set; }
+
+    /// <summary>User a'zo bo'lgan qadam guruhlari.</summary>
+    public int StepGroups { get; set; }
+
+    /// <summary>Mobile lokalizatsiya kalitlari: <c>perfect_week</c>, <c>consistent</c>, <c>step_master</c>, <c>step_goal</c>, <c>protein_pro</c>, <c>hydrated</c>.</summary>
     public List<string> Badges { get; set; } = [];
 }
 
@@ -62,6 +86,9 @@ public record WeeklyNormsDto
     public double Carb { get; set; }
     public double Water { get; set; }
     public double Step { get; set; }
+
+    /// <summary>Maqsad vazn, kg.</summary>
+    public double Weight { get; set; }
 }
 
 public record WeeklyDayDto
@@ -94,4 +121,40 @@ public record WeeklyTopFoodDto
     public MultiLanguageField Name { get; set; } = null!;
     public string? CoverUrl { get; set; }
     public int Count { get; set; }
+}
+
+public record WeeklyBodyDto
+{
+    /// <summary>Joriy, boshlang'ich (maqsad tanlangandagi) va maqsad vazn, kg. 0 — noma'lum.</summary>
+    public double Weight { get; set; }
+    public double EntryWeight { get; set; }
+    public double TargetWeight { get; set; }
+    public double Height { get; set; }
+    public double Bmi { get; set; }
+    public EnumPurpose? Purpose { get; set; }
+}
+
+public record WeeklyCoinsDto
+{
+    /// <summary>Qadamdan ishlangan (<see cref="WeeklyReportDto.CoinsEarned"/> bilan bir xil).</summary>
+    public long Steps { get; set; }
+
+    /// <summary>Taklif bonuslari.</summary>
+    public long Referral { get; set; }
+
+    /// <summary>Hafta davomidagi barcha kirim.</summary>
+    public long Earned { get; set; }
+
+    /// <summary>Hafta davomidagi chiqim (musbat son).</summary>
+    public long Spent { get; set; }
+
+    /// <summary>Hozirgi balans.</summary>
+    public long Balance { get; set; }
+}
+
+public record WeeklyCourseDto
+{
+    public int Lessons { get; set; }
+    public int Exercises { get; set; }
+    public int Workouts { get; set; }
 }
