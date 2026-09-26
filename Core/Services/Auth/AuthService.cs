@@ -23,6 +23,7 @@ using Core.Services.Crm.Enum;
 using Core.Services.Notification;
 using Core.Services.Notification.Contracts;
 using Google.Apis.Auth;
+using Microsoft.Extensions.Logging;
 using Hangfire;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -42,7 +43,8 @@ public class AuthService(
     DeviceService deviceService,
     IOptions<AuthConfig> authConfig,
     NotificationService notificationService,
-    AppleClient appleClient
+    AppleClient appleClient,
+    ILogger<AuthService> logger
 )
 {
     public async Task<object> SignInWithGoogle(SsoSignInDto dto)
@@ -301,12 +303,24 @@ public class AuthService(
                 true ||
 #endif
                 environment.IsProduction())
-                await notificationService.SendSms(new SmsNotificationDto()
+            {
+                try
                 {
-                    Phone = destination,
-                    Title = "Verification Code", // title doesn't sent. it is only for log
-                    Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
-                });
+                    await notificationService.SendSms(new SmsNotificationDto()
+                    {
+                        Phone = destination,
+                        Title = "Verification Code", // title doesn't sent. it is only for log
+                        Description = MessageTemplates.MakeMessage(MessageTemplates.OtpSign, otp)
+                    });
+                }
+                catch (ExternalServiceException e)
+                {
+                    // SMS provayder ishlamasa (balans tugagan va h.k.) so'rov xatosiz qaytadi,
+                    // kod esa server logiga yoziladi — test paytida qo'lda kiritish uchun.
+                    logger.LogWarning("SMS not delivered ({Error}), OTP for {Phone}: {Otp}",
+                        e.Message, destination, otp);
+                }
+            }
         }
 
         return new
