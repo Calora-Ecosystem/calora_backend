@@ -11,6 +11,7 @@ using Core.Services.Ai.Contracts;
 using Core.Services.FoodService.Contracts.Category;
 using Core.Services.FoodService.Contracts.FoodDtos;
 using Core.Services.User.Contracts;
+using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using ResultWrapper.Library;
@@ -25,6 +26,7 @@ public class FoodService(
     IHttpContextAccessor contextAccessor)
 {
     private const int DefaultFoodWeightMetric = 400;
+    private const int LatestFoodsLimit = 20;
 
     #region Category
 
@@ -77,21 +79,27 @@ public class FoodService(
             fIds = await dbContext.UserExtras.Where(x => x.UserId == userId.Value)
                 .SelectMany(x => x.FavouriteFoods.Select(food => food.Id)).ToListAsync();
 
-        var latest = q.Latest;
-        if (latest)
+        List<long>? latestIds = null;
+        if (q.Latest)
         {
             if (!userId.HasValue)
                 throw new AuthorizedUserRequiredException();
 
-            var ids = await dbContext.DailyMenus
+            // One row per food with its most recent log. EF drops an OrderBy
+            // placed before Distinct, so the old OrderBy+Distinct+Take returned
+            // an arbitrary set and freshly logged foods were often missing.
+            // Recency is the row Id, not DailyMenu.Date: Date is day-only and
+            // can be back-dated, yet a food just logged must show up first.
+            latestIds = await dbContext.DailyMenus
                 .Where(x => x.UserId == userId)
-                .OrderByDescending(x => x.Date)
+                .GroupBy(x => x.FoodId)
+                .Select(g => new { FoodId = g.Key, LastId = g.Max(m => m.Id) })
+                .OrderByDescending(x => x.LastId)
+                .Take(LatestFoodsLimit)
                 .Select(x => x.FoodId)
-                .Distinct()
-                .Take(10)
                 .ToListAsync();
 
-            queryable = queryable.Where(x => ids.Contains(x.Id));
+            queryable = queryable.Where(x => latestIds.Contains(x.Id));
         }
 
         if (q.IsUserFood.HasValue && q.IsUserFood.Value)
@@ -111,18 +119,33 @@ public class FoodService(
         var resultQuery = queryable
             .FilterByExpressions(q.FilteringExpression);
 
+        Expression<Func<Food, GetAllFoodDto>> toDto = x => new GetAllFoodDto
+        {
+            Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
+            CategoryName = x.Category != null ? x.Category.Name : null,
+            CoverUrl = x.CoverUrl,
+            IsFavourite = fIds.Contains(x.Id),
+            Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
+            IsUserFood = x.UserId.HasValue
+        };
+
+        if (latestIds is not null)
+        {
+            // "Last eaten" must be newest-first, not DB order. The set is capped
+            // at LatestFoodsLimit, so order by recency in memory, then page.
+            var foods = await resultQuery.Select(toDto).ToListAsync();
+            var page = foods
+                .OrderBy(x => latestIds.IndexOf(x.Id))
+                .AsQueryable()
+                .Page(q)
+                .ToList();
+            return (page, foods.Count);
+        }
+
         return (resultQuery
             .Sort(q)
             .Page(q)
-            .Select(x => new GetAllFoodDto
-            {
-                Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
-                CategoryName = x.Category != null ? x.Category.Name : null,
-                CoverUrl = x.CoverUrl,
-                IsFavourite = fIds.Contains(x.Id),
-                Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
-                IsUserFood = x.UserId.HasValue
-            }), await resultQuery.CountAsync());
+            .Select(toDto), await resultQuery.CountAsync());
     }
 
     public async Task<FoodDto> GetFoodById(long foodId, long? userId)
@@ -204,7 +227,17 @@ public class FoodService(
         }
 
         if (dto.CategoryId.HasValue)
-            await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId.Value);
+        {
+            // AI scan/voice picks the category id itself and can return one that
+            // doesn't exist (0, hallucinated, deleted). A user's own food doesn't
+            // need a category, so drop it instead of failing the whole meal log.
+            if (foodUserId.HasValue)
+            {
+                if (!await dbContext.FoodCategories.AnyAsync(x => x.Id == dto.CategoryId.Value))
+                    dto.CategoryId = null;
+            }
+            else await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId.Value);
+        }
 
         var food = dbContext.Foods.Add(new Food()
         {
