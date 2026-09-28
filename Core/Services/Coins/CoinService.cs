@@ -66,20 +66,60 @@ public class CoinService(
 
     public async Task<Wrapper> GetTransactions(long userId, DataQueryRequest q, EnumCoinTxType? type = null)
     {
-        return await dbContext.CoinTransactions
+        var query = dbContext.CoinTransactions
             .AsNoTracking()
             .Where(x => x.UserId == userId)
-            .Where(x => type == null || x.Type == type)
+            .Where(x => type == null || x.Type == type);
+
+        var total = await query.CountAsync();
+        var rows = await query
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new CoinTransactionDto
+            .ThenByDescending(x => x.Id)
+            .Page(q)
+            .Select(x => new { x.Id, x.Title, x.Amount, x.Type, x.CreatedAt, x.RefId })
+            .ToListAsync();
+
+        // Qadam coini kechroq yozilishi mumkin (masalan, ilova ochilganda bir necha kun
+        // uchun birdan) — tarixda coin qaysi kun va nechta qadam uchun ekani ko'rinsin.
+        DateTime? StepDay(EnumCoinTxType t, long? refId) =>
+            t == EnumCoinTxType.Steps && refId is > 0 ? FromDayRef(refId.Value) : null;
+
+        var stepDays = rows
+            .Select(x => StepDay(x.Type, x.RefId))
+            .OfType<DateTime>()
+            .ToList();
+
+        var stepsByDay = new Dictionary<DateTime, long>();
+        if (stepDays.Count > 0)
+        {
+            var from = stepDays.Min();
+            var to = stepDays.Max().AddDays(1);
+            stepsByDay = (await dbContext.UserDailies
+                    .AsNoTracking()
+                    .Where(x => x.UserId == userId && x.Metric == EnumMetrics.Step &&
+                                x.Date >= from && x.Date < to)
+                    .Select(x => new { x.Date, x.Value })
+                    .ToListAsync())
+                .GroupBy(x => x.Date.Date)
+                .ToDictionary(g => g.Key, g => (long)g.Max(x => x.Value));
+        }
+
+        var result = rows.Select(x =>
+        {
+            var day = StepDay(x.Type, x.RefId);
+            return new CoinTransactionDto
             {
                 Id = x.Id,
                 Title = x.Title,
                 Amount = x.Amount,
                 Type = x.Type,
-                CreatedAt = x.CreatedAt
-            })
-            .GetByDataQueryAsync(q);
+                CreatedAt = x.CreatedAt,
+                StepDate = day,
+                Steps = day.HasValue && stepsByDay.TryGetValue(day.Value, out var s) ? s : null
+            };
+        }).ToList();
+
+        return (result, total);
     }
 
     /// <summary>
@@ -213,6 +253,9 @@ public class CoinService(
 
     /// <summary>Qadam kunining kaliti (yyyyMMdd) — <see cref="CoinTransaction.RefId"/>.</summary>
     private static long DayRef(DateTime day) => day.Year * 10000L + day.Month * 100 + day.Day;
+
+    private static DateTime FromDayRef(long dayRef) =>
+        new((int)(dayRef / 10000), (int)(dayRef / 100 % 100), (int)(dayRef % 100));
 
     private async Task EnsureWallet(long userId)
     {
