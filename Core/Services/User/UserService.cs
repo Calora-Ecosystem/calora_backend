@@ -398,6 +398,12 @@ public class UserService(
 
     public async Task CreateOrUpdateDaily(long userId, CreateUserDailyDto dto)
     {
+        // Mobil bugungi qadamni UTC'da ("...Z") yuboradi: Toshkent 00:00–05:00 dagi qadam
+        // UTC bo'yicha kechagi kun bo'lib, noto'g'ri kunga yozilardi. Kunni server
+        // (Asia/Tashkent) vaqtida olamiz; offsetsiz sanalar o'zgarmaydi.
+        if (dto.Date.Kind == DateTimeKind.Utc)
+            dto.Date = dto.Date.ToLocalTime();
+
         var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         try
         {

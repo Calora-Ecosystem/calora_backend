@@ -32,6 +32,13 @@ public class CoinTransactionDto
 
     public EnumCoinTxType Type { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>Qadam coini uchun: coin qaysi kunning qadamlari uchun berilgan.
+    /// <see cref="CreatedAt"/> — coin yozilgan vaqt, u kechroq bo'lishi mumkin.</summary>
+    public DateTime? StepDate { get; set; }
+
+    /// <summary>Qadam coini uchun: o'sha kungi qadamlar soni.</summary>
+    public long? Steps { get; set; }
 }
 
 public class MarketItemDto

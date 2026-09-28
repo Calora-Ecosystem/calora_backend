@@ -15,6 +15,9 @@ Sozlamalar: `Coins` bo'limi (`CoinConfig`, hammasining default'i bor).
 
 ## Hamyon (`wallet`)
 - `GET wallet` (balance, todayCoins, stepsPerCoin, maxDailyCoins), `GET wallet/transactions?type=`
+  — qadam yozuvlarida `stepDate` (coin qaysi kun uchun, `ref_id`dan) va `steps` (o'sha kungi qadam) ham bor; `createdAt` — coin yozilgan vaqt (bir necha kun birdan yozilishi mumkin).
+- Balans = `CoinsEarnStartDate`dan beri har kun uchun `min(qadam/1000, 22)` yig'indisi — faqat bugungi qadam emas.
+- `users/dailies`: `Z` (UTC) bilan kelgan sana server vaqtiga (Asia/Tashkent) o'giriladi, keyin kun olinadi — aks holda 00:00–05:00 dagi qadam kechagi kunga tushardi.
 - `GET wallet/ranking?from&to` — davrda ishlab topilgan coinlar, javob shakli `users/steps/stat` bilan bir xil (`user, sum, index`).
 - `GET wallet/market?category=`, `POST wallet/market/{id}/purchase`, `GET wallet/purchases`; admin: `GET/POST wallet/market/items`, `DELETE wallet/market/items/{id}`.
 - Mukofot turlari: `PremiumDays` (`GrantPremiumDays`, source=Coins, `requiresTokenRefresh`), `AiScans`, `Coupon` (user uchun bir martalik `coupons`), `Voucher`.
