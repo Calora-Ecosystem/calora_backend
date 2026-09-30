@@ -13,6 +13,7 @@ using Core.Services.Billing;
 using Core.Services.Coins.Contracts;
 using Core.Services.Coins.Exceptions;
 using Core.Services.User.Contracts;
+using Core.Services.User.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using ResultWrapper.Library;
@@ -479,17 +480,7 @@ on conflict (user_id) do nothing");
     /// </summary>
     public async Task<Wrapper> Ranking(DateTime? from, DateTime? to, DataQueryRequest q)
     {
-        from ??= new DateTime(2000, 1, 1);
-        to ??= DateTime.Now.AddDays(1);
-
-        return await dbContext.UserCoinStats
-            .FromSql($@"
-select sub.user_id, sub.sum, ROW_NUMBER() OVER (ORDER BY sub.sum desc, sub.user_id) as index from (
-select t.user_id, sum(t.amount)::bigint as sum from coin_transactions t
-where t.amount > 0 and t.created_at >= {from} and t.created_at <= {to}
-group by t.user_id
-) sub
-")
+        return await RankedEarnings(from ?? new DateTime(2000, 1, 1), to ?? DateTime.Now.AddDays(1))
             .LeftJoin2(dbContext.UserExtras, stat => stat.UserId, extra => extra.UserId, (x, extra) =>
                 new GetCoinStatDto
                 {
@@ -504,6 +495,322 @@ group by t.user_id
                 })
             .OrderBy(x => x.Index)
             .GetByDataQueryAsync(q);
+    }
+
+    /// <summary>
+    /// Davrda ishlab topilgan coinlar bo'yicha reyting (<see cref="UserCoinStat.Index"/> 1 dan).
+    /// Qadam coini qadam kuni (<c>ref_id</c>) bo'yicha hisoblanadi, yozilgan vaqti bo'yicha emas —
+    /// bir necha kunlik qadam birdan sinxronlansa ham har kun o'z davriga tushadi. Boshqa kirimlar
+    /// (referral, admin) — yozilgan vaqti bo'yicha. O'chirilgan userlar reytingga kirmaydi.
+    /// Filtr <see cref="EarnedInPeriod"/> bilan bir xil.
+    /// </summary>
+    private IQueryable<UserCoinStat> RankedEarnings(DateTime from, DateTime to)
+    {
+        var steps = (int)EnumCoinTxType.Steps;
+        var fromRef = DayRef(from.Date);
+        var toRef = DayRef(to.Date);
+
+        return dbContext.UserCoinStats
+            .FromSql($@"
+select sub.user_id, sub.sum, ROW_NUMBER() OVER (ORDER BY sub.sum desc, sub.user_id) as index from (
+select t.user_id, sum(t.amount)::bigint as sum from coin_transactions t
+join users u on u.id = t.user_id and not u.is_deleted
+where t.amount > 0 and (
+    (t.type = {steps} and t.ref_id >= {fromRef} and t.ref_id <= {toRef}) or
+    (t.type <> {steps} and t.created_at >= {from} and t.created_at <= {to}))
+group by t.user_id
+) sub
+");
+    }
+
+    /// <summary>Davrdagi kirim yozuvlari — <see cref="RankedEarnings"/> filtri, LINQ uchun.</summary>
+    private IQueryable<CoinTransaction> EarnedInPeriod(DateTime from, DateTime to)
+    {
+        var fromRef = DayRef(from.Date);
+        var toRef = DayRef(to.Date);
+
+        return dbContext.CoinTransactions
+            .AsNoTracking()
+            .Where(x => x.Amount > 0 && !x.User.IsDeleted)
+            .Where(x => (x.Type == EnumCoinTxType.Steps && x.RefId >= fromRef && x.RefId <= toRef) ||
+                        (x.Type != EnumCoinTxType.Steps && x.CreatedAt >= from && x.CreatedAt <= to));
+    }
+
+    /// <summary>Kirim qaysi kunga tegishli: qadam coini — qadam kuni, qolganlari — yozilgan kun.</summary>
+    private static DateTime EarnDay(EnumCoinTxType type, long? refId, DateTime createdAt) =>
+        type == EnumCoinTxType.Steps && refId is > 0 ? FromDayRef(refId.Value) : createdAt.Date;
+
+    #endregion
+
+    #region Admin (dashboard)
+
+    /// <summary>Dashboard'dagi kunlik grafik/jadval uchun eng ko'p kun.</summary>
+    private const int MaxAdminDays = 366;
+
+    /// <summary>
+    /// Dashboard davri: <paramref name="from"/> kun boshidan <paramref name="to"/> kun oxirigacha
+    /// (ikkala kun ham kiradi). Berilmasa — coin ishga tushgan kundan bugungacha.
+    /// </summary>
+    private (DateTime From, DateTime To) AdminPeriod(DateTime? from, DateTime? to)
+    {
+        var start = (from ?? Config.CoinsEarnStartDate).Date;
+        var end = (to ?? DateTime.Now).Date;
+        if (end < start) (start, end) = (end, start);
+
+        return (start, end.AddDays(1).AddTicks(-10));
+    }
+
+    public async Task<AdminCoinSummaryDto> AdminSummary(DateTime? from, DateTime? to)
+    {
+        var (start, end) = AdminPeriod(from, to);
+
+        var earned = await EarnedInPeriod(start, end)
+            .GroupBy(x => x.Type == EnumCoinTxType.Steps)
+            .Select(g => new { IsSteps = g.Key, Sum = g.Sum(x => x.Amount) })
+            .ToListAsync();
+
+        var participants = await EarnedInPeriod(start, end)
+            .Select(x => x.UserId)
+            .Distinct()
+            .CountAsync();
+
+        var spent = await dbContext.CoinTransactions
+            .Where(x => x.Amount < 0 && x.CreatedAt >= start && x.CreatedAt <= end)
+            .SumAsync(x => -x.Amount);
+
+        var circulation = await dbContext.CoinWallets
+            .Where(x => !x.User.IsDeleted)
+            .SumAsync(x => x.Balance);
+
+        var stepCoins = earned.Where(x => x.IsSteps).Sum(x => x.Sum);
+        var bonusCoins = earned.Where(x => !x.IsSteps).Sum(x => x.Sum);
+
+        return new AdminCoinSummaryDto
+        {
+            From = start,
+            To = end,
+            Participants = participants,
+            Earned = stepCoins + bonusCoins,
+            StepCoins = stepCoins,
+            BonusCoins = bonusCoins,
+            Spent = spent,
+            AvgPerParticipant = participants > 0 ? Math.Round((double)(stepCoins + bonusCoins) / participants, 1) : 0,
+            BalanceInCirculation = circulation,
+            StepsPerCoin = Config.StepsPerCoin,
+            MaxDailyCoins = Config.MaxDailyCoins
+        };
+    }
+
+    /// <summary>
+    /// Dashboard coin reytingi: davrda ishlab topilgan coinlar, hamyon holati va faol kunlar.
+    /// <paramref name="search"/> (ism, email, telefon yoki user id) faqat ro'yxatni filtrlaydi —
+    /// <see cref="AdminCoinRankingDto.Rank"/> umumiy reytingdagi o'rin bo'lib qoladi.
+    /// </summary>
+    public async Task<Wrapper> AdminRanking(DateTime? from, DateTime? to, string? search, DataQueryRequest q)
+    {
+        var (start, end) = AdminPeriod(from, to);
+        var query = RankedEarnings(start, end);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            var pattern = $"%{term}%";
+            var id = long.TryParse(term, out var parsed) ? parsed : 0;
+
+            query = query.Where(x => x.UserId == id ||
+                                     EF.Functions.ILike(x.User.Name, pattern) ||
+                                     EF.Functions.ILike(x.User.Email!, pattern) ||
+                                     EF.Functions.ILike(x.User.Phone!, pattern));
+        }
+
+        var total = await query.CountAsync();
+        var page = await query
+            .OrderBy(x => x.Index)
+            .Page(q)
+            .Select(x => new { x.UserId, x.Sum, x.Index, x.User.Name, x.User.Email, x.User.Phone })
+            .ToListAsync();
+
+        var ids = page.Select(x => x.UserId).ToList();
+
+        var photos = (await dbContext.UserExtras
+                .AsNoTracking()
+                .Where(x => ids.Contains(x.UserId))
+                .Select(x => new { x.UserId, x.Photo })
+                .ToListAsync())
+            .DistinctBy(x => x.UserId)
+            .ToDictionary(x => x.UserId, x => x.Photo);
+
+        var wallets = await dbContext.CoinWallets
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.UserId))
+            .Select(x => new { x.UserId, x.Balance, x.TotalEarned, x.TotalSpent })
+            .ToDictionaryAsync(x => x.UserId);
+
+        var stats = (await EarnedInPeriod(start, end)
+                .Where(x => ids.Contains(x.UserId))
+                .Select(x => new { x.UserId, x.Type, x.RefId, x.Amount, x.CreatedAt, x.UpdatedAt })
+                .ToListAsync())
+            .GroupBy(x => x.UserId)
+            .ToDictionary(g => g.Key, g => new
+            {
+                StepCoins = g.Where(x => x.Type == EnumCoinTxType.Steps).Sum(x => x.Amount),
+                BonusCoins = g.Where(x => x.Type != EnumCoinTxType.Steps).Sum(x => x.Amount),
+                ActiveDays = g.Select(x => EarnDay(x.Type, x.RefId, x.CreatedAt)).Distinct().Count(),
+                MaxedDays = g.Count(x => x.Type == EnumCoinTxType.Steps && x.Amount >= Config.MaxDailyCoins),
+                LastEarnedAt = g.Max(x => x.UpdatedAt)
+            });
+
+        var result = page.Select(x =>
+        {
+            var wallet = wallets.GetValueOrDefault(x.UserId);
+            var stat = stats.GetValueOrDefault(x.UserId);
+
+            return new AdminCoinRankingDto
+            {
+                Rank = x.Index,
+                UserId = x.UserId,
+                Name = x.Name,
+                Email = x.Email,
+                Phone = x.Phone,
+                Photo = photos.GetValueOrDefault(x.UserId),
+                Earned = x.Sum,
+                StepCoins = stat?.StepCoins ?? 0,
+                BonusCoins = stat?.BonusCoins ?? 0,
+                ActiveDays = stat?.ActiveDays ?? 0,
+                MaxedDays = stat?.MaxedDays ?? 0,
+                Balance = wallet?.Balance ?? 0,
+                TotalEarned = wallet?.TotalEarned ?? 0,
+                TotalSpent = wallet?.TotalSpent ?? 0,
+                LastEarnedAt = stat?.LastEarnedAt
+            };
+        }).ToList();
+
+        return (result, total);
+    }
+
+    /// <summary>
+    /// Bitta userning coinlari: hamyon, davr reytingidagi o'rni va har bir kun uchun
+    /// qadam / qadam coini / bonus / sarf (davrdagi har kun, coinsiz kunlar ham).
+    /// </summary>
+    public async Task<AdminUserCoinsDto> AdminUserCoins(long userId, DateTime? from, DateTime? to)
+    {
+        var user = await dbContext.Users
+                       .AsNoTracking()
+                       .Where(x => x.Id == userId)
+                       .Select(x => new
+                       {
+                           x.Id, x.Name, x.Email, x.Phone, x.CreatedAt,
+                           Photo = x.Extra != null ? x.Extra.Photo : null
+                       })
+                       .FirstOrDefaultAsync()
+                   ?? throw new UserNotFoundException();
+
+        var (start, end) = AdminPeriod(from, to);
+
+        var wallet = await dbContext.CoinWallets
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .Select(x => new { x.Balance, x.TotalEarned, x.TotalSpent })
+            .FirstOrDefaultAsync();
+
+        var todayRef = DayRef(DateTime.Now.Date);
+        var todayCoins = await dbContext.CoinTransactions
+            .Where(x => x.UserId == userId && x.Type == EnumCoinTxType.Steps && x.RefId == todayRef)
+            .Select(x => x.Amount)
+            .FirstOrDefaultAsync();
+
+        var earned = await EarnedInPeriod(start, end)
+            .Where(x => x.UserId == userId)
+            .Select(x => new { x.Type, x.RefId, x.Amount, x.CreatedAt })
+            .ToListAsync();
+
+        var spentByDay = (await dbContext.CoinTransactions
+                .AsNoTracking()
+                .Where(x => x.UserId == userId && x.Amount < 0 && x.CreatedAt >= start && x.CreatedAt <= end)
+                .Select(x => new { x.Amount, x.CreatedAt })
+                .ToListAsync())
+            .GroupBy(x => x.CreatedAt.Date)
+            .ToDictionary(g => g.Key, g => -g.Sum(x => x.Amount));
+
+        var stepsByDay = (await dbContext.UserDailies
+                .AsNoTracking()
+                .Where(x => x.UserId == userId && x.Metric == EnumMetrics.Step &&
+                            x.Date >= start && x.Date <= end)
+                .Select(x => new { x.Date, x.Value })
+                .ToListAsync())
+            .GroupBy(x => x.Date.Date)
+            .ToDictionary(g => g.Key, g => (long)g.Max(x => x.Value));
+
+        var stepCoinsByDay = earned
+            .Where(x => x.Type == EnumCoinTxType.Steps)
+            .GroupBy(x => EarnDay(x.Type, x.RefId, x.CreatedAt))
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount));
+
+        var bonusByDay = earned
+            .Where(x => x.Type != EnumCoinTxType.Steps)
+            .GroupBy(x => x.CreatedAt.Date)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount));
+
+        AdminCoinDayDto Day(DateTime d) => new()
+        {
+            Date = d,
+            Steps = stepsByDay.GetValueOrDefault(d),
+            StepCoins = stepCoinsByDay.GetValueOrDefault(d),
+            BonusCoins = bonusByDay.GetValueOrDefault(d),
+            Spent = spentByDay.GetValueOrDefault(d)
+        };
+
+        var earnedDays = stepCoinsByDay.Keys.Union(bonusByDay.Keys).Select(Day).ToList();
+        var bestDay = earnedDays
+            .OrderByDescending(x => x.Earned)
+            .ThenByDescending(x => x.Date)
+            .FirstOrDefault();
+
+        // Ro'yxatdan o'tishdan oldingi va kelajakdagi kunlar ko'rsatilmaydi.
+        var firstDay = user.CreatedAt.Date > start ? user.CreatedAt.Date : start;
+        var lastDay = end.Date < DateTime.Now.Date ? end.Date : DateTime.Now.Date;
+        if ((lastDay - firstDay).Days >= MaxAdminDays)
+            firstDay = lastDay.AddDays(1 - MaxAdminDays);
+
+        var days = new List<AdminCoinDayDto>();
+        for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
+            days.Add(Day(d));
+
+        var rank = await RankedEarnings(start, end)
+            .Where(x => x.UserId == userId)
+            .Select(x => (int?)x.Index)
+            .FirstOrDefaultAsync();
+
+        var participants = await RankedEarnings(start, end).CountAsync();
+
+        return new AdminUserCoinsDto
+        {
+            UserId = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            Phone = user.Phone,
+            Photo = user.Photo,
+            RegisteredAt = user.CreatedAt,
+            Balance = wallet?.Balance ?? 0,
+            TotalEarned = wallet?.TotalEarned ?? 0,
+            TotalSpent = wallet?.TotalSpent ?? 0,
+            TodayCoins = todayCoins,
+            From = start,
+            To = end,
+            Rank = rank,
+            Participants = participants,
+            Earned = earned.Sum(x => x.Amount),
+            StepCoins = stepCoinsByDay.Values.Sum(),
+            BonusCoins = bonusByDay.Values.Sum(),
+            Spent = spentByDay.Values.Sum(),
+            ActiveDays = earnedDays.Count,
+            MaxedDays = stepCoinsByDay.Values.Count(x => x >= Config.MaxDailyCoins),
+            TotalSteps = stepsByDay.Values.Sum(),
+            BestDay = bestDay,
+            StepsPerCoin = Config.StepsPerCoin,
+            MaxDailyCoins = Config.MaxDailyCoins,
+            Days = days
+        };
     }
 
     #endregion

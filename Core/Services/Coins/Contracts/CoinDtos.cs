@@ -105,3 +105,125 @@ public record GetCoinStatDto
 
     public int Index { get; init; }
 }
+
+#region Admin (dashboard)
+
+/// <summary>Dashboard coin reytingi qatori: davrda ishlab topilgan coinlar va hamyon holati.</summary>
+public record AdminCoinRankingDto
+{
+    /// <summary>Davr bo'yicha reytingdagi o'rni (qidiruvdan qat'i nazar — umumiy reyting).</summary>
+    public int Rank { get; init; }
+
+    public long UserId { get; init; }
+    public string Name { get; init; } = null!;
+    public string? Email { get; init; }
+    public string? Phone { get; init; }
+    public string? Photo { get; init; }
+
+    /// <summary>Davrda ishlab topilgan coinlar (<see cref="StepCoins"/> + <see cref="BonusCoins"/>).</summary>
+    public long Earned { get; init; }
+
+    public long StepCoins { get; init; }
+
+    /// <summary>Qadamdan boshqa kirimlar (referral, admin va h.k.).</summary>
+    public long BonusCoins { get; init; }
+
+    /// <summary>Davrda coin yig'ilgan kunlar soni.</summary>
+    public int ActiveDays { get; init; }
+
+    /// <summary>Kunlik limitga (<c>MaxDailyCoins</c>) yetgan kunlar soni.</summary>
+    public int MaxedDays { get; init; }
+
+    public long Balance { get; init; }
+    public long TotalEarned { get; init; }
+    public long TotalSpent { get; init; }
+
+    /// <summary>Oxirgi marta coin yozilgan/oshgan vaqt.</summary>
+    public DateTime? LastEarnedAt { get; init; }
+}
+
+public record AdminCoinSummaryDto
+{
+    public DateTime From { get; init; }
+    public DateTime To { get; init; }
+
+    /// <summary>Davrda kamida 1 coin yig'gan userlar.</summary>
+    public int Participants { get; init; }
+
+    public long Earned { get; init; }
+    public long StepCoins { get; init; }
+    public long BonusCoins { get; init; }
+
+    /// <summary>Davrda marketplace'da sarflangan coinlar.</summary>
+    public long Spent { get; init; }
+
+    public double AvgPerParticipant { get; init; }
+
+    /// <summary>Barcha hamyonlardagi joriy balans yig'indisi.</summary>
+    public long BalanceInCirculation { get; init; }
+
+    public int StepsPerCoin { get; init; }
+    public int MaxDailyCoins { get; init; }
+}
+
+public record AdminUserCoinsDto
+{
+    public long UserId { get; init; }
+    public string Name { get; init; } = null!;
+    public string? Email { get; init; }
+    public string? Phone { get; init; }
+    public string? Photo { get; init; }
+    public DateTime RegisteredAt { get; init; }
+
+    public long Balance { get; init; }
+    public long TotalEarned { get; init; }
+    public long TotalSpent { get; init; }
+
+    /// <summary>Bugungi qadamlar uchun berilgan coin.</summary>
+    public long TodayCoins { get; init; }
+
+    public DateTime From { get; init; }
+    public DateTime To { get; init; }
+
+    /// <summary>Davr reytingidagi o'rni; davrda coin yig'magan bo'lsa null.</summary>
+    public int? Rank { get; init; }
+
+    /// <summary>Davr reytingidagi jami ishtirokchilar.</summary>
+    public int Participants { get; init; }
+
+    public long Earned { get; init; }
+    public long StepCoins { get; init; }
+    public long BonusCoins { get; init; }
+    public long Spent { get; init; }
+    public int ActiveDays { get; init; }
+    public int MaxedDays { get; init; }
+    public long TotalSteps { get; init; }
+    public AdminCoinDayDto? BestDay { get; init; }
+
+    public int StepsPerCoin { get; init; }
+    public int MaxDailyCoins { get; init; }
+
+    /// <summary>Davrning har bir kuni eskidan yangiga, coinsiz kunlar ham.</summary>
+    public List<AdminCoinDayDto> Days { get; init; } = [];
+}
+
+public record AdminCoinDayDto
+{
+    public DateTime Date { get; init; }
+
+    /// <summary>O'sha kungi qadamlar (<c>user_dailies</c>).</summary>
+    public long Steps { get; init; }
+
+    /// <summary>O'sha kun qadamlari uchun coin (qachon yozilganidan qat'i nazar).</summary>
+    public long StepCoins { get; init; }
+
+    /// <summary>O'sha kuni yozilgan boshqa kirimlar (referral, admin).</summary>
+    public long BonusCoins { get; init; }
+
+    /// <summary>O'sha kuni sarflangan coinlar (musbat son).</summary>
+    public long Spent { get; init; }
+
+    public long Earned => StepCoins + BonusCoins;
+}
+
+#endregion

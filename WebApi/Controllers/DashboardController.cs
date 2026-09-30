@@ -1,8 +1,11 @@
 using BRB.Core.Common.Models;
 using Core.Attributes;
+using Core.Entities.Coins.Enum;
 using Core.Enums;
 using Core.Services.Billing;
 using Core.Services.Billing.Contracts;
+using Core.Services.Coins;
+using Core.Services.Coins.Contracts;
 using Core.Services.Dashboard;
 using Core.Services.Dashboard.Contracts;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +17,10 @@ namespace WebApi.Controllers;
 [ApiController]
 [Route("dashboard")]
 [RoleAuthorize(EnumRole.SuperAdmin)]
-public class DashboardController(DashboardService dashboardService, SubscriptionService subscriptionService)
+public class DashboardController(
+    DashboardService dashboardService,
+    SubscriptionService subscriptionService,
+    CoinService coinService)
     : AuthorizedController
 {
     [HttpGet("summary")]
@@ -74,6 +80,39 @@ public class DashboardController(DashboardService dashboardService, Subscription
     public async Task<Wrapper> GetAiStatistics(
         [FromQuery] int? days = 28, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null) =>
         (await dashboardService.GetAiStatistics(days, from, to), 200);
+
+    #endregion
+
+    #region Coins (reyting, g'oliblarni aniqlash)
+
+    /// <summary>Davr bo'yicha coin statistikasi. Davr berilmasa — coin ishga tushgan kundan bugungacha.</summary>
+    [HttpGet("coins/summary")]
+    [ProducesResponseType<WrapperGeneric<AdminCoinSummaryDto>>(200)]
+    public async Task<Wrapper> GetCoinSummary([FromQuery] DateTime? from, [FromQuery] DateTime? to) =>
+        (await coinService.AdminSummary(from, to), 200);
+
+    /// <summary>
+    /// Coin reytingi: davrda (<c>from</c>/<c>to</c> — kunlar, ikkalasi ham kiradi) ishlab topilgan coinlar.
+    /// <c>search</c> — ism, email, telefon yoki user id; <c>rank</c> umumiy reytingdagi o'rin bo'lib qoladi.
+    /// </summary>
+    [HttpGet("coins/ranking")]
+    [ProducesResponseType<WrapperGeneric<IEnumerable<AdminCoinRankingDto>>>(200)]
+    public Task<Wrapper> GetCoinRanking([FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] string? search, [FromQuery] DataQueryRequest q) =>
+        coinService.AdminRanking(from, to, search, q);
+
+    /// <summary>Userning hamyoni, davr reytingidagi o'rni va kunma-kun coinlari.</summary>
+    [HttpGet("coins/users/{userId:long:min(1)}")]
+    [ProducesResponseType<WrapperGeneric<AdminUserCoinsDto>>(200)]
+    public async Task<Wrapper> GetUserCoins(long userId, [FromQuery] DateTime? from, [FromQuery] DateTime? to) =>
+        (await coinService.AdminUserCoins(userId, from, to), 200);
+
+    /// <summary>Userning hamyon tarixi (<c>wallet/transactions</c> bilan bir xil).</summary>
+    [HttpGet("coins/users/{userId:long:min(1)}/transactions")]
+    [ProducesResponseType<WrapperGeneric<IEnumerable<CoinTransactionDto>>>(200)]
+    public Task<Wrapper> GetUserCoinTransactions(long userId, [FromQuery] DataQueryRequest q,
+        [FromQuery] EnumCoinTxType? type) =>
+        coinService.GetTransactions(userId, q, type);
 
     #endregion
 
