@@ -19,6 +19,14 @@ Sozlamalar: `Coins` bo'limi (`CoinConfig`, hammasining default'i bor).
 - Balans = `CoinsEarnStartDate`dan beri har kun uchun `min(qadam/1000, 22)` yig'indisi — faqat bugungi qadam emas.
 - `users/dailies`: `Z` (UTC) bilan kelgan sana server vaqtiga (Asia/Tashkent) o'giriladi, keyin kun olinadi — aks holda 00:00–05:00 dagi qadam kechagi kunga tushardi.
 - `GET wallet/ranking?from&to` — davrda ishlab topilgan coinlar, javob shakli `users/steps/stat` bilan bir xil (`user, sum, index`).
+- Reyting davri (`CoinService.RankedEarnings` / `EarnedInPeriod`): qadam coini **qadam kuni** (`ref_id`) bo'yicha, boshqa kirimlar `created_at` bo'yicha; o'chirilgan userlar kirmaydi. Mobile va dashboard reytingi bir xil hisoblanadi.
+
+## Dashboard: coin reytingi (SuperAdmin, `DashboardController`)
+- `from`/`to` — kunlar (ikkalasi ham kiradi); berilmasa `CoinsEarnStartDate`dan bugungacha.
+- `GET dashboard/coins/summary` — participants, earned (stepCoins/bonusCoins), spent, avgPerParticipant, balanceInCirculation.
+- `GET dashboard/coins/ranking?search&Skip&Take` — rank, user (name/email/phone/photo), earned, stepCoins, bonusCoins, activeDays, maxedDays, balance, totalEarned, totalSpent, lastEarnedAt. `search` (ism/email/telefon/id) faqat filtrlaydi — `rank` umumiy reytingdagi o'rin.
+- `GET dashboard/coins/users/{id}` — hamyon, davrdagi rank/participants, bestDay va `days[]` (har kun: steps, stepCoins, bonusCoins, spent, earned; ro'yxatdan o'tishdan oldingi va kelajak kunlar yo'q, ko'pi bilan 366 kun).
+- `GET dashboard/coins/users/{id}/transactions?type` — `wallet/transactions` bilan bir xil.
 - `GET wallet/market?category=`, `POST wallet/market/{id}/purchase`, `GET wallet/purchases`; admin: `GET/POST wallet/market/items`, `DELETE wallet/market/items/{id}`.
 - Mukofot turlari: `PremiumDays` (`GrantPremiumDays`, source=Coins, `requiresTokenRefresh`), `AiScans`, `Coupon` (user uchun bir martalik `coupons`), `Voucher`.
 - Do'kon faqat Premium tariflar (migration `MarketOnlyPremiumTariffs`): `mi_premium_7` 150→7 kun, `mi_premium_30` 300→30 (popular), `mi_premium_75` 600→75, `mi_premium_120` 900→120. Xarid `GrantPremiumDays` (source=Coins) — faol premium bo'lsa muddat ustiga qo'shiladi; muddat tugasa `expire_granted_subscriptions` job o'chiradi. Boshqa mahsulotlar is_active=false.
