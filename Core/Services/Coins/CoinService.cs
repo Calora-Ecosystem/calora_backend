@@ -766,8 +766,8 @@ group by t.user_id
             .ThenByDescending(x => x.Date)
             .FirstOrDefault();
 
-        // Ro'yxatdan o'tishdan oldingi va kelajakdagi kunlar ko'rsatilmaydi.
-        var firstDay = user.CreatedAt.Date > start ? user.CreatedAt.Date : start;
+        // Coin ishga tushishidan / ro'yxatdan o'tishdan oldingi va kelajakdagi kunlar ko'rsatilmaydi.
+        var firstDay = new[] { start, user.CreatedAt.Date, Config.CoinsEarnStartDate.Date }.Max();
         var lastDay = end.Date < DateTime.Now.Date ? end.Date : DateTime.Now.Date;
         if ((lastDay - firstDay).Days >= MaxAdminDays)
             firstDay = lastDay.AddDays(1 - MaxAdminDays);
