@@ -27,4 +27,8 @@ public class CreateOrUpdatePlanExtraDto
 
     [SwaggerSchema("Marks this package as the \"best offer\". Only one per plan")]
     public bool IsPopular { get; set; }
+
+    [SwaggerSchema("Family plan (2 people): the buyer gets a code for the second person. " +
+                   "Omit to keep the current value (false for a new package)")]
+    public bool? IsFamily { get; set; }
 }

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
 using Core.Services.Ai.Exceptions;
@@ -84,13 +85,31 @@ public class AiService(
         public Dictionary<string, double>? Metrics { get; set; }
     }
 
+    private record CategoryRef(long Id, MultiLanguageField Name);
+
+    private static readonly TimeSpan CategoriesCacheTtl = TimeSpan.FromHours(1);
+
+    /// <summary>Food categories the AI may pick from; refreshed hourly so new ones get picked up.</summary>
+    private async Task<List<CategoryRef>> GetCategories()
+    {
+        return await cache.GetOrCreateAsync("food_categories_for_ai", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = CategoriesCacheTtl;
+            return await context.FoodCategories
+                .AsNoTracking()
+                .Select(x => new CategoryRef(x.Id, x.Name))
+                .ToListAsync();
+        }) ?? [];
+    }
+
     public async Task<String> GetMeta()
     {
         return await cache.GetOrCreateAsync("food_meta_for_ai", async entry =>
         {
-            var categories = await context.FoodCategories
+            entry.AbsoluteExpirationRelativeToNow = CategoriesCacheTtl;
+            var categories = (await GetCategories())
                 .Select(x => new { x.Id, x.Name })
-                .ToListAsync();
+                .ToList();
 
             // var foods = await context.Foods
             //     .Select(x => new { x.Id, x.Name })
@@ -98,6 +117,36 @@ public class AiService(
 
             return JsonSerializer.Serialize(new { categories });
         }) ?? throw new InvalidMetaException();
+    }
+
+    /// <summary>
+    /// The model sometimes returns a categoryId that doesn't exist (0, made up)
+    /// while its categoryName is right. Keep a real id, otherwise match the name
+    /// against every language of the categories — exact first, then partial —
+    /// so a scanned or spoken dish still lands in its category ("Quyuq
+    /// ovqatlar", "Suyuq ovqatlar", …). 0 when nothing matches.
+    /// </summary>
+    private static long ResolveCategoryId(long categoryId, string? categoryName, List<CategoryRef> categories)
+    {
+        if (categories.Any(x => x.Id == categoryId))
+            return categoryId;
+
+        var name = categoryName?.Trim();
+        if (string.IsNullOrEmpty(name))
+            return 0;
+
+        static IEnumerable<string> Names(MultiLanguageField field) =>
+            new[] { field.Uz, field.Ru, field.Eng, field.Cyrl }
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim());
+
+        var match = categories.FirstOrDefault(c =>
+                        Names(c.Name).Any(n => n.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                    ?? categories.FirstOrDefault(c =>
+                        Names(c.Name).Any(n => n.Contains(name, StringComparison.OrdinalIgnoreCase) ||
+                                               name.Contains(n, StringComparison.OrdinalIgnoreCase)));
+
+        return match?.Id ?? 0;
     }
 
     public async Task<List<FoodResultDto>> RecognizeForFood(byte[] fileBuffer, string mimeType,
@@ -128,7 +177,7 @@ this includes solid foods, dishes, snacks, fruits, sauces, and ALL beverages/dri
 Categories: {await GetMeta()}.
 Rules:
 - Do not skip drinks or liquids — treat them with the same priority as solid food items.
-- Always pick the closest matching categoryId (never 0 or negative).
+- categoryId MUST be one of the Id values in Categories above — pick the closest matching one (never 0, negative or an id that is not listed).
 - Estimate the weight/volume in grams of each item visible in the image (for drinks, estimate grams based on volume, e.g. 1ml ≈ 1g).
 - For EVERY item you MUST provide all four nutritional metrics calculated for the estimated weight:
     Kcal   — total kilocalories (must be > 0)
@@ -233,11 +282,18 @@ Rules:
                 usage?.PromptTokenCount,
                 usage?.PromptTokensDetails?.FirstOrDefault(d => d.Modality == MediaModality.IMAGE)?.TokenCount);
 
+        var categories = await GetCategories();
+
         foreach (var item in raw)
         {
-            if (item.CategoryId <= 0)
-                logger.LogWarning("Gemini returned an invalid categoryId {CategoryId} for item {ItemName}",
-                    item.CategoryId, item.Name);
+            var resolved = ResolveCategoryId(item.CategoryId, item.CategoryName, categories);
+            if (resolved != item.CategoryId)
+            {
+                logger.LogWarning(
+                    "Gemini returned an unknown categoryId {CategoryId} ({CategoryName}) for item {ItemName}; resolved to {ResolvedId}",
+                    item.CategoryId, item.CategoryName, item.Name, resolved);
+                item.CategoryId = resolved;
+            }
 
             if (item.Metrics is null || _foodMetrics.Any(m => !item.Metrics.ContainsKey(m)))
                 logger.LogWarning("Gemini returned incomplete metrics for item {ItemName}: {Metrics}",

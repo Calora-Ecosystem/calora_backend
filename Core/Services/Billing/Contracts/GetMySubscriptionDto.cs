@@ -15,7 +15,7 @@ public class GetMySubscriptionDto
 
     public bool IsActive { get; set; }
 
-    /// <summary>Obuna manbai: Payment, Admin, Coins yoki Referral.</summary>
+    /// <summary>Obuna manbai: Payment, Admin, Coins, Referral yoki Family.</summary>
     public EnumSubscriptionSource? Source { get; set; }
     public DateTime? StartsAt { get; set; }
     public DateTime? EndsAt { get; set; }
@@ -26,6 +26,9 @@ public class GetMySubscriptionDto
 
     /// <summary>Oxirgi sotib olingan paket davomiyligi (oy).</summary>
     public int? DurationInMonths { get; set; }
+
+    /// <summary>Oxirgi sotib olingan paket oilaviy tarif (kodlar: <c>billing/family/codes</c>).</summary>
+    public bool IsFamily { get; set; }
 
     /// <summary>
     /// Obuna holati: <c>Free</c> — premium yo'q, <c>Active</c> — faol,

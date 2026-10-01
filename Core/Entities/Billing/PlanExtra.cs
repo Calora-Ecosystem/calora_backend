@@ -19,4 +19,10 @@ public class PlanExtra : AuditableModelBase<long>
     /// <see cref="Core.Services.Billing.PlanExtraService"/>.
     /// </summary>
     public bool IsPopular { get; set; }
+
+    /// <summary>
+    /// Oilaviy tarif (2 kishi): to'langanda xaridor premium oladi va ikkinchi odam uchun
+    /// <see cref="FamilyCode"/> yaratiladi. Oddiy tariflar ro'yxatida ko'rinmaydi.
+    /// </summary>
+    public bool IsFamily { get; set; }
 }

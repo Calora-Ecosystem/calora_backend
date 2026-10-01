@@ -89,7 +89,7 @@ public class SubscriptionService(AppDbContext dbContext, AuthService authService
                         && x.Order.Type == EnumOrderType.Subscription
                         && x.Order.Status == EnumOrderStatus.Confirmed)
             .OrderByDescending(x => x.Order.UpdatedAt)
-            .Select(x => new { x.Order.Provider, x.PlanExtra.DurationInMonths })
+            .Select(x => new { x.Order.Provider, x.PlanExtra.DurationInMonths, x.PlanExtra.IsFamily })
             .FirstOrDefaultAsync();
 
         // JWT plan claim bilan bir xil qoida (AuthService.MakeJwtFromUser).
@@ -115,6 +115,7 @@ public class SubscriptionService(AppDbContext dbContext, AuthService authService
             DaysLeft = isPremium ? Math.Max(0, (int)Math.Ceiling((subscription!.EndsAt - now).TotalDays)) : 0,
             Provider = lastOrder?.Provider,
             DurationInMonths = lastOrder?.DurationInMonths,
+            IsFamily = lastOrder?.IsFamily ?? false,
             AutoRenew = autoRenew,
             NextPaymentAt = autoRenew ? subscription!.EndsAt : null,
             AiQuota = await aiQuotaService.Get(userId, isPremium)
@@ -122,7 +123,8 @@ public class SubscriptionService(AppDbContext dbContext, AuthService authService
     }
 
     /// <summary>
-    /// Premium'ni <paramref name="days"/> kunga beradi yoki uzaytiradi (coin xaridi, referral mukofoti).
+    /// Premium'ni <paramref name="days"/> kunga beradi yoki uzaytiradi (coin xaridi, referral mukofoti,
+    /// oilaviy kod).
     /// Faol obuna bo'lsa max(EndsAt, hozir) ga qo'shiladi va manbasi o'zgarmaydi (to'langan obuna
     /// "Coins"/"Referral" bo'lib qolib, job tomonidan o'chirilib ketmasligi uchun);
     /// aks holda hozirdan boshlanadi va manba <paramref name="source"/> bo'ladi.
@@ -164,7 +166,7 @@ public class SubscriptionService(AppDbContext dbContext, AuthService authService
     }
 
     /// <summary>
-    /// Recurring job: muddati o'tgan Coins/Referral obunalarini o'chiradi. To'langan (Payment)
+    /// Recurring job: muddati o'tgan Coins/Referral/Family obunalarini o'chiradi. To'langan (Payment)
     /// obunalar bu yerda o'chirilmaydi — ularni to'lov provayderi boshqaradi.
     /// </summary>
     public async Task DeactivateExpiredGrants()
@@ -173,7 +175,8 @@ public class SubscriptionService(AppDbContext dbContext, AuthService authService
 
         var expired = dbContext.Subscriptions.Where(x =>
             x.IsActive && x.EndsAt <= now &&
-            (x.Source == EnumSubscriptionSource.Coins || x.Source == EnumSubscriptionSource.Referral));
+            (x.Source == EnumSubscriptionSource.Coins || x.Source == EnumSubscriptionSource.Referral ||
+             x.Source == EnumSubscriptionSource.Family));
 
         var userIds = await expired.Select(x => x.UserId).ToListAsync();
         if (userIds.Count == 0) return;

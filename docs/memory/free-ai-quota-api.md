@@ -15,7 +15,7 @@ type: reference
 - `subscriptions.cancelled_at`: RevenueCat CANCELLATION → belgilanadi (premium EndsAt gacha qoladi), UNCANCELLATION/RENEWAL/yangi to'lov → tozalanadi.
 - Tarifni o'zgartirish: Payme/Click userga faol obuna ustiga yangi tarif sotib olishga ruxsat (yangi muddat joriysi tugagach boshlanadi). Store (IAP) obunasi faol bo'lsa — `user_already_subscribed`, tarif store'da o'zgartiriladi.
 - **Premium = `IsActive && plan != Free`** — JWT `plan` claim, AI limit va `subscription/my` bir xil qoidada. `EndsAt` claim'da TEKSHIRILMAYDI (IAP renewal'lar tarixan EndsAt'ni yangilamagan — tekshirilsa pullik userlar premiumni yo'qotadi).
-- `subscriptions.source`: Payment (default, mavjud qatorlar), Admin, Coins, Referral. Coins/Referral muddati o'tsa `expire_granted_subscriptions` Hangfire job (*/15) o'chiradi; Payment'ni faqat provayder o'chiradi.
+- `subscriptions.source`: Payment (default, mavjud qatorlar), Admin, Coins, Referral, Family (oilaviy kod — [family-plan-api](family-plan-api.md)). Coins/Referral/Family muddati o'tsa `expire_granted_subscriptions` Hangfire job (*/15) o'chiradi; Payment'ni faqat provayder o'chiradi.
 - `subscriptions.bonus_days`: IAP obunasi ustiga qo'shilgan referral/coin kunlari. `EndsAt = RevenueCat expiration + bonus_days`; EXPIRATION'da bonus qolsa obuna source=Referral bo'lib davom etadi.
 - `AcceptPaymentAsync` idempotent (Confirmed order qayta qabul qilinmaydi) va `subscriptions` qatorini upsert qiladi (user_id unique).
 

@@ -109,7 +109,7 @@ public static class CoreConfiguration
         RecurringJob.AddOrUpdate<Core.Services.Crm.LeadService>("crm_escalate_leads",
             service => service.EscalateLeadsAsync(), "*/15 * * * *");
 
-        // Muddati o'tgan coin/referral premiumlarini o'chiradi (to'langan obunalarga tegmaydi).
+        // Muddati o'tgan coin/referral/oilaviy premiumlarni o'chiradi (to'langan obunalarga tegmaydi).
         RecurringJob.AddOrUpdate<Core.Services.Billing.SubscriptionService>("expire_granted_subscriptions",
             service => service.DeactivateExpiredGrants(), "*/15 * * * *");
 
