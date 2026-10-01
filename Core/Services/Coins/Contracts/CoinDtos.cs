@@ -13,11 +13,14 @@ public class WalletDto
     /// <summary>Bugungi qadamlar uchun berilgan coin.</summary>
     public long TodayCoins { get; set; }
 
-    /// <summary>Necha qadam = 1 coin (default 1000).</summary>
+    /// <summary>Necha qadam = 1 coin — bugun amal qilayotgan qoida (dashboard'dan boshqariladi).</summary>
     public int StepsPerCoin { get; set; }
 
-    /// <summary>Bir kunda qadamdan olinadigan maksimal coin (default 22).</summary>
+    /// <summary>Bir kunda qadamdan olinadigan maksimal coin — bugungi qoida.</summary>
     public int MaxDailyCoins { get; set; }
+
+    /// <summary>Kelajakda kuchga kiradigan qoida (e'lon qilish uchun); yo'q bo'lsa null.</summary>
+    public CoinRuleBriefDto? NextRule { get; set; }
 }
 
 public class CoinTransactionDto
@@ -222,6 +225,12 @@ public record AdminCoinDayDto
 
     /// <summary>O'sha kuni sarflangan coinlar (musbat son).</summary>
     public long Spent { get; init; }
+
+    /// <summary>O'sha kunda amal qilgan qoida: necha qadam = 1 coin.</summary>
+    public int StepsPerCoin { get; init; }
+
+    /// <summary>O'sha kunda amal qilgan kunlik limit.</summary>
+    public int MaxDailyCoins { get; init; }
 
     public long Earned => StepCoins + BonusCoins;
 }

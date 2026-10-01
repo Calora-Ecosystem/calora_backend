@@ -18,7 +18,10 @@ namespace WebApi.Controllers;
 [RoleAuthorize(EnumRole.User)]
 public class WalletController(CoinService coinService) : AuthorizedController
 {
-    /// <summary>Balans. Chaqirilganda qadam coinlari ham sinxronlanadi (1000 qadam = 1 coin).</summary>
+    /// <summary>
+    /// Balans. Chaqirilganda qadam coinlari ham sinxronlanadi. <c>stepsPerCoin</c>/<c>maxDailyCoins</c> —
+    /// bugungi qoida (dashboard'dan boshqariladi), <c>nextRule</c> — kelajakda kuchga kiradigan qoida.
+    /// </summary>
     [HttpGet]
     [ProducesResponseType<WrapperGeneric<WalletDto>>(200)]
     public async Task<Wrapper> GetWallet() => (await coinService.GetWallet(this.UserId), 200);
