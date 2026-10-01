@@ -13,3 +13,15 @@ public class ReferralAlreadyAppliedException() : Core.Exceptions.BadRequestExcep
 public class ReferralSelfException() : Core.Exceptions.BadRequestException("referral_self");
 
 public class ReferralWindowExpiredException() : Core.Exceptions.BadRequestException("referral_window_expired");
+
+public class MarketItemInvalidException() : Core.Exceptions.BadRequestException("market_item_invalid");
+
+public class CoinRuleNotFoundException() : Core.Exceptions.NotFoundException("coin_rule_not_found");
+
+/// <summary>Qoida faqat bugundan yoki kelajakdan kuchga kirishi mumkin.</summary>
+public class CoinRulePastDateException() : Core.Exceptions.BadRequestException("coin_rule_past_date");
+
+/// <summary>O'tgan kunlardagi qoida tarixini o'zgartirib bo'lmaydi.</summary>
+public class CoinRuleLockedException() : Core.Exceptions.BadRequestException("coin_rule_locked");
+
+public class CoinRuleInvalidException() : Core.Exceptions.BadRequestException("coin_rule_invalid");

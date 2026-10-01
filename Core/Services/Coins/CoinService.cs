@@ -21,8 +21,8 @@ using ResultWrapper.Library;
 namespace Core.Services.Coins;
 
 /// <summary>
-/// Coin hamyoni: qadamlardan avtomatik yig'iladigan coinlar (har <see cref="CoinConfig.StepsPerCoin"/>
-/// qadam = 1 coin, kuniga ko'pi bilan <see cref="CoinConfig.MaxDailyCoins"/>), marketplace xaridlari,
+/// Coin hamyoni: qadamlardan avtomatik yig'iladigan coinlar (har N qadam = 1 coin, kunlik limit bilan —
+/// qoidalar <see cref="CoinRuleService"/>da, dashboard'dan boshqariladi), marketplace xaridlari,
 /// tarix va coin reytingi. Balans o'zgarishlari atomik (<c>ExecuteUpdate</c> / qatorni qulflash) —
 /// parallel so'rovlarda manfiy balans yoki ikki marta berilgan coin bo'lmaydi.
 /// </summary>
@@ -31,6 +31,7 @@ public class CoinService(
     AppDbContext dbContext,
     SubscriptionService subscriptionService,
     AiQuotaService aiQuotaService,
+    CoinRuleService coinRuleService,
     IOptions<CoinConfig> options)
 {
     private const string DailyStepsTitle = "coin_tx_daily_steps";
@@ -41,6 +42,10 @@ public class CoinService(
     public async Task<WalletDto> GetWallet(long userId)
     {
         await SyncStepCoins(userId);
+
+        var rules = await coinRuleService.GetRuleSet();
+        var rule = rules.Today;
+        var next = rules.Next;
 
         var wallet = await dbContext.CoinWallets
             .AsNoTracking()
@@ -60,8 +65,16 @@ public class CoinService(
             TotalEarned = wallet?.TotalEarned ?? 0,
             TotalSpent = wallet?.TotalSpent ?? 0,
             TodayCoins = todayCoins,
-            StepsPerCoin = Config.StepsPerCoin,
-            MaxDailyCoins = Config.MaxDailyCoins
+            StepsPerCoin = rule.StepsPerCoin,
+            MaxDailyCoins = rule.MaxDailyCoins,
+            NextRule = next is null
+                ? null
+                : new CoinRuleBriefDto
+                {
+                    StepsPerCoin = next.StepsPerCoin,
+                    MaxDailyCoins = next.MaxDailyCoins,
+                    EffectiveFrom = next.EffectiveFrom
+                }
         };
     }
 
@@ -125,7 +138,8 @@ public class CoinService(
 
     /// <summary>
     /// Qadamlar uchun coinlarni hamyonga yozadi: har kun uchun
-    /// <c>min(qadam / StepsPerCoin, MaxDailyCoins)</c> coin, kuniga bitta tarix yozuvi.
+    /// <c>min(qadam / StepsPerCoin, MaxDailyCoins)</c> coin (o'sha kunda amal qilgan qoida bo'yicha —
+    /// yangi qoida o'tgan kunlarga orqaga qarab coin qo'shmaydi), kuniga bitta tarix yozuvi.
     /// Qadam faqat oshib boradi (<c>users/dailies</c>), shuning uchun kun yozuvi ham faqat oshadi —
     /// qayta chaqirish yoki kunni reset qilish coinni ikki marta bermaydi.
     /// Hamyon qatori <c>FOR UPDATE</c> bilan qulflanadi — parallel sinxronlar farqni ikki marta qo'shmaydi.
@@ -137,7 +151,7 @@ public class CoinService(
             .Select(x => (DateTime?)x.CreatedAt)
             .FirstOrDefaultAsync();
 
-        if (createdAt is null || Config.StepsPerCoin <= 0)
+        if (createdAt is null)
             return;
 
         var start = createdAt.Value.Date > Config.CoinsEarnStartDate.Date
@@ -150,12 +164,14 @@ public class CoinService(
             .Select(x => new { x.Date, x.Value })
             .ToListAsync();
 
+        var rules = await coinRuleService.GetRuleSet();
+
         var expected = days
             .GroupBy(x => x.Date.Date)
             .Select(g => new
             {
                 Day = g.Key,
-                Coins = Math.Min((long)(g.Max(x => x.Value) / Config.StepsPerCoin), Config.MaxDailyCoins)
+                Coins = rules.CoinsFor(g.Key, g.Max(x => x.Value))
             })
             .Where(x => x.Coins > 0)
             .ToList();
@@ -400,8 +416,15 @@ on conflict (user_id) do nothing");
             .GetByDataQueryAsync(q);
     }
 
+    /// <summary>
+    /// Do'kon mahsulotini yaratadi/yangilaydi. Premium tarif kamida 1 kun bo'lishi kerak.
+    /// "Mashhur" belgisi bitta bo'ladi — shu kategoriyadagi boshqa mahsulotlardan olib tashlanadi.
+    /// </summary>
     public async Task<MarketItemDto> CreateOrUpdateMarketItem(CreateOrUpdateMarketItemDto dto)
     {
+        if (dto.RewardType == EnumMarketRewardType.PremiumDays && dto.RewardValue is < 1 or > 3650)
+            throw new MarketItemInvalidException();
+
         var item = dto.Id.HasValue
             ? await dbContext.MarketItems.FirstOrDefaultAsync(x => x.Id == dto.Id.Value)
               ?? throw new MarketItemNotFoundException()
@@ -417,7 +440,17 @@ on conflict (user_id) do nothing");
         item.IsActive = dto.IsActive;
         item.SortOrder = dto.SortOrder;
 
-        await dbContext.SaveChangesAsync();
+        await dbContext.Transactional(async () =>
+        {
+            await dbContext.SaveChangesAsync();
+
+            if (item.IsPopular)
+                await dbContext.MarketItems
+                    .Where(x => x.Id != item.Id && x.Category == item.Category && x.IsPopular)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.IsPopular, false)
+                        .SetProperty(x => x.UpdatedAt, DateTime.Now));
+        });
 
         return new MarketItemDto
         {
@@ -584,6 +617,7 @@ group by t.user_id
 
         var stepCoins = earned.Where(x => x.IsSteps).Sum(x => x.Sum);
         var bonusCoins = earned.Where(x => !x.IsSteps).Sum(x => x.Sum);
+        var rule = (await coinRuleService.GetRuleSet()).Today;
 
         return new AdminCoinSummaryDto
         {
@@ -596,8 +630,8 @@ group by t.user_id
             Spent = spent,
             AvgPerParticipant = participants > 0 ? Math.Round((double)(stepCoins + bonusCoins) / participants, 1) : 0,
             BalanceInCirculation = circulation,
-            StepsPerCoin = Config.StepsPerCoin,
-            MaxDailyCoins = Config.MaxDailyCoins
+            StepsPerCoin = rule.StepsPerCoin,
+            MaxDailyCoins = rule.MaxDailyCoins
         };
     }
 
@@ -631,6 +665,7 @@ group by t.user_id
             .ToListAsync();
 
         var ids = page.Select(x => x.UserId).ToList();
+        var rules = await coinRuleService.GetRuleSet();
 
         var photos = (await dbContext.UserExtras
                 .AsNoTracking()
@@ -656,7 +691,8 @@ group by t.user_id
                 StepCoins = g.Where(x => x.Type == EnumCoinTxType.Steps).Sum(x => x.Amount),
                 BonusCoins = g.Where(x => x.Type != EnumCoinTxType.Steps).Sum(x => x.Amount),
                 ActiveDays = g.Select(x => EarnDay(x.Type, x.RefId, x.CreatedAt)).Distinct().Count(),
-                MaxedDays = g.Count(x => x.Type == EnumCoinTxType.Steps && x.Amount >= Config.MaxDailyCoins),
+                MaxedDays = g.Count(x => x.Type == EnumCoinTxType.Steps &&
+                                         x.Amount >= rules.For(EarnDay(x.Type, x.RefId, x.CreatedAt)).MaxDailyCoins),
                 LastEarnedAt = g.Max(x => x.UpdatedAt)
             });
 
@@ -751,14 +787,23 @@ group by t.user_id
             .GroupBy(x => x.CreatedAt.Date)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount));
 
-        AdminCoinDayDto Day(DateTime d) => new()
+        var rules = await coinRuleService.GetRuleSet();
+        var todayRule = rules.Today;
+
+        AdminCoinDayDto Day(DateTime d)
         {
-            Date = d,
-            Steps = stepsByDay.GetValueOrDefault(d),
-            StepCoins = stepCoinsByDay.GetValueOrDefault(d),
-            BonusCoins = bonusByDay.GetValueOrDefault(d),
-            Spent = spentByDay.GetValueOrDefault(d)
-        };
+            var rule = rules.For(d);
+            return new AdminCoinDayDto
+            {
+                Date = d,
+                Steps = stepsByDay.GetValueOrDefault(d),
+                StepCoins = stepCoinsByDay.GetValueOrDefault(d),
+                BonusCoins = bonusByDay.GetValueOrDefault(d),
+                Spent = spentByDay.GetValueOrDefault(d),
+                StepsPerCoin = rule.StepsPerCoin,
+                MaxDailyCoins = rule.MaxDailyCoins
+            };
+        }
 
         var earnedDays = stepCoinsByDay.Keys.Union(bonusByDay.Keys).Select(Day).ToList();
         var bestDay = earnedDays
@@ -804,11 +849,11 @@ group by t.user_id
             BonusCoins = bonusByDay.Values.Sum(),
             Spent = spentByDay.Values.Sum(),
             ActiveDays = earnedDays.Count,
-            MaxedDays = stepCoinsByDay.Values.Count(x => x >= Config.MaxDailyCoins),
+            MaxedDays = stepCoinsByDay.Count(x => x.Value >= rules.For(x.Key).MaxDailyCoins),
             TotalSteps = stepsByDay.Values.Sum(),
             BestDay = bestDay,
-            StepsPerCoin = Config.StepsPerCoin,
-            MaxDailyCoins = Config.MaxDailyCoins,
+            StepsPerCoin = todayRule.StepsPerCoin,
+            MaxDailyCoins = todayRule.MaxDailyCoins,
             Days = days
         };
     }

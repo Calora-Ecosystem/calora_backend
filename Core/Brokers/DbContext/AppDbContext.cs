@@ -37,6 +37,7 @@ public class AppDbContext : DefaultConfiguredDbContext
 
     public DbSet<CoinWallet> CoinWallets { get; set; }
     public DbSet<CoinTransaction> CoinTransactions { get; set; }
+    public DbSet<CoinRule> CoinRules { get; set; }
     public DbSet<MarketItem> MarketItems { get; set; }
     public DbSet<MarketPurchase> MarketPurchases { get; set; }
     public DbSet<Referral> Referrals { get; set; }
