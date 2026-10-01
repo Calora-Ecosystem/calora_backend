@@ -67,6 +67,7 @@ public class CoinService(
             TodayCoins = todayCoins,
             StepsPerCoin = rule.StepsPerCoin,
             MaxDailyCoins = rule.MaxDailyCoins,
+            EarnStartDate = await coinRuleService.GetEarnStartDate(),
             NextRule = next is null
                 ? null
                 : new CoinRuleBriefDto
@@ -154,9 +155,9 @@ public class CoinService(
         if (createdAt is null)
             return;
 
-        var start = createdAt.Value.Date > Config.CoinsEarnStartDate.Date
-            ? createdAt.Value.Date
-            : Config.CoinsEarnStartDate.Date;
+        // Coin hisoblash kuni dashboard'dan belgilanadi (kelajak bo'lsa — hali hech kimga coin yozilmaydi).
+        var earnStart = await coinRuleService.GetEarnStartDate();
+        var start = createdAt.Value.Date > earnStart ? createdAt.Value.Date : earnStart;
 
         var days = await dbContext.UserDailies
             .AsNoTracking()
@@ -186,6 +187,10 @@ public class CoinService(
             await dbContext.Database.ExecuteSqlInterpolatedAsync(
                 $"select 1 from coin_wallets where user_id = {userId} for update");
 
+            // Qulfni kutayotganda admin hisoblash kunini o'zgartirib coinlarni o'chirgan bo'lishi mumkin —
+            // kunni qayta o'qiymiz, aks holda eski kunlar coini qayta yozilib qolardi.
+            var lockedStart = await coinRuleService.GetEarnStartDate(fresh: true);
+
             var credited = await dbContext.CoinTransactions
                 .Where(x => x.UserId == userId && x.Type == EnumCoinTxType.Steps)
                 .ToDictionaryAsync(x => x.RefId ?? 0);
@@ -195,6 +200,8 @@ public class CoinService(
 
             foreach (var day in expected)
             {
+                if (day.Day < lockedStart) continue;
+
                 var dayRef = DayRef(day.Day);
 
                 if (credited.TryGetValue(dayRef, out var tx))
@@ -584,9 +591,9 @@ group by t.user_id
     /// Dashboard davri: <paramref name="from"/> kun boshidan <paramref name="to"/> kun oxirigacha
     /// (ikkala kun ham kiradi). Berilmasa — coin ishga tushgan kundan bugungacha.
     /// </summary>
-    private (DateTime From, DateTime To) AdminPeriod(DateTime? from, DateTime? to)
+    private async Task<(DateTime From, DateTime To)> AdminPeriod(DateTime? from, DateTime? to)
     {
-        var start = (from ?? Config.CoinsEarnStartDate).Date;
+        var start = (from ?? await coinRuleService.GetEarnStartDate()).Date;
         var end = (to ?? DateTime.Now).Date;
         if (end < start) (start, end) = (end, start);
 
@@ -595,7 +602,7 @@ group by t.user_id
 
     public async Task<AdminCoinSummaryDto> AdminSummary(DateTime? from, DateTime? to)
     {
-        var (start, end) = AdminPeriod(from, to);
+        var (start, end) = await AdminPeriod(from, to);
 
         var earned = await EarnedInPeriod(start, end)
             .GroupBy(x => x.Type == EnumCoinTxType.Steps)
@@ -642,7 +649,7 @@ group by t.user_id
     /// </summary>
     public async Task<Wrapper> AdminRanking(DateTime? from, DateTime? to, string? search, DataQueryRequest q)
     {
-        var (start, end) = AdminPeriod(from, to);
+        var (start, end) = await AdminPeriod(from, to);
         var query = RankedEarnings(start, end);
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -741,7 +748,7 @@ group by t.user_id
                        .FirstOrDefaultAsync()
                    ?? throw new UserNotFoundException();
 
-        var (start, end) = AdminPeriod(from, to);
+        var (start, end) = await AdminPeriod(from, to);
 
         var wallet = await dbContext.CoinWallets
             .AsNoTracking()
@@ -812,7 +819,7 @@ group by t.user_id
             .FirstOrDefault();
 
         // Coin ishga tushishidan / ro'yxatdan o'tishdan oldingi va kelajakdagi kunlar ko'rsatilmaydi.
-        var firstDay = new[] { start, user.CreatedAt.Date, Config.CoinsEarnStartDate.Date }.Max();
+        var firstDay = new[] { start, user.CreatedAt.Date, await coinRuleService.GetEarnStartDate() }.Max();
         var lastDay = end.Date < DateTime.Now.Date ? end.Date : DateTime.Now.Date;
         if ((lastDay - firstDay).Days >= MaxAdminDays)
             firstDay = lastDay.AddDays(1 - MaxAdminDays);

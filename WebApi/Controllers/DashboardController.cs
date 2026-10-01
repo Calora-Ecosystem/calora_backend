@@ -119,6 +119,24 @@ public class DashboardController(
 
     #endregion
 
+    #region Coin hisoblash kuni va barcha coinlarni o'chirish
+
+    /// <summary>Coin hisoblash kuni, hozirgi coinlar holati (balans, tarix) va reset tarixi.</summary>
+    [HttpGet("coins/earn-start")]
+    [ProducesResponseType<WrapperGeneric<AdminCoinEarnStartDto>>(200)]
+    public async Task<Wrapper> GetCoinEarnStart() => (await coinRuleService.GetEarnStart(), 200);
+
+    /// <summary>
+    /// Coin hisoblash kunini o'rnatadi (shu kundan boshlab qadam coin beradi). <c>resetCoins=true</c> —
+    /// barcha userlarning coin balansi va coin tarixi o'chiriladi; do'kon xaridlari va Premium qoladi.
+    /// </summary>
+    [HttpPost("coins/earn-start")]
+    [ProducesResponseType<WrapperGeneric<AdminCoinEarnStartDto>>(200)]
+    public async Task<Wrapper> SaveCoinEarnStart([FromBody] SaveCoinEarnStartDto dto) =>
+        (await coinRuleService.SaveEarnStart(dto, this.UserId), 200);
+
+    #endregion
+
     #region Coin qoidasi (har N qadam = 1 coin)
 
     /// <summary>Joriy, kelajakdagi va o'tgan qadam → coin qoidalari.</summary>

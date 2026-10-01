@@ -25,3 +25,5 @@ public class CoinRulePastDateException() : Core.Exceptions.BadRequestException("
 public class CoinRuleLockedException() : Core.Exceptions.BadRequestException("coin_rule_locked");
 
 public class CoinRuleInvalidException() : Core.Exceptions.BadRequestException("coin_rule_invalid");
+
+public class CoinEarnStartInvalidException() : Core.Exceptions.BadRequestException("coin_earn_start_invalid");
