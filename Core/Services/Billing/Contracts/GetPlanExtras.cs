@@ -14,6 +14,9 @@ public record GetPlanExtras
     public double OriginalFee { get; set; }
     public bool IsPopular { get; set; }
 
+    /// <summary>Oilaviy tarif (2 kishi) — to'langanda ikkinchi odam uchun kod beriladi.</summary>
+    public bool IsFamily { get; set; }
+
     /// <summary>Referral orqali kelgan userning birinchi xaridi uchun chegirma foizi (0 — yo'q).</summary>
     public int ReferralDiscountPercent { get; set; }
 

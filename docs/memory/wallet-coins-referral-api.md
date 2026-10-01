@@ -25,7 +25,7 @@ Sozlamalar: `Coins` bo'limi (`CoinConfig`, hammasining default'i bor).
 - `from`/`to` — kunlar (ikkalasi ham kiradi); berilmasa `CoinsEarnStartDate`dan bugungacha.
 - `GET dashboard/coins/summary` — participants, earned (stepCoins/bonusCoins), spent, avgPerParticipant, balanceInCirculation.
 - `GET dashboard/coins/ranking?search&Skip&Take` — rank, user (name/email/phone/photo), earned, stepCoins, bonusCoins, activeDays, maxedDays, balance, totalEarned, totalSpent, lastEarnedAt. `search` (ism/email/telefon/id) faqat filtrlaydi — `rank` umumiy reytingdagi o'rin.
-- `GET dashboard/coins/users/{id}` — hamyon, davrdagi rank/participants, bestDay va `days[]` (har kun: steps, stepCoins, bonusCoins, spent, earned; ro'yxatdan o'tishdan oldingi va kelajak kunlar yo'q, ko'pi bilan 366 kun).
+- `GET dashboard/coins/users/{id}` — hamyon, davrdagi rank/participants, bestDay va `days[]` (har kun: steps, stepCoins, bonusCoins, spent, earned; coin ishga tushishidan va ro'yxatdan o'tishdan oldingi hamda kelajak kunlar yo'q, ko'pi bilan 366 kun).
 - `GET dashboard/coins/users/{id}/transactions?type` — `wallet/transactions` bilan bir xil.
 - `GET wallet/market?category=`, `POST wallet/market/{id}/purchase`, `GET wallet/purchases`; admin: `GET/POST wallet/market/items`, `DELETE wallet/market/items/{id}`.
 - Mukofot turlari: `PremiumDays` (`GrantPremiumDays`, source=Coins, `requiresTokenRefresh`), `AiScans`, `Coupon` (user uchun bir martalik `coupons`), `Voucher`.

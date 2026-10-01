@@ -70,8 +70,11 @@ public class FoodService(
     {
         var queryable = dbContext.Foods.AsQueryable();
 
-        if (userId is not null)
-            queryable = queryable.Where(x => x.UserId == userId || x.UserId.HasValue == false);
+        // A user sees the catalogue plus their own foods; an anonymous caller
+        // only the catalogue — never other users' private foods.
+        queryable = userId is not null
+            ? queryable.Where(x => x.UserId == userId || x.UserId.HasValue == false)
+            : queryable.Where(x => x.UserId.HasValue == false);
 
         var fIds = new List<long>(); //user favourite food ids
 
@@ -119,11 +122,18 @@ public class FoodService(
         var resultQuery = queryable
             .FilterByExpressions(q.FilteringExpression);
 
+        // Released app versions parse categoryId and coverUrl as non-null, so a
+        // single uncategorised user food (manual "Create", or an AI category
+        // that didn't resolve) failed the whole "Last eaten" / "My foods" page.
+        // 0 means "no category" (same as food/menu); a food without its own
+        // photo shows its category's picture.
         Expression<Func<Food, GetAllFoodDto>> toDto = x => new GetAllFoodDto
         {
-            Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
+            Id = x.Id, Name = x.Name, CategoryId = x.CategoryId ?? 0,
             CategoryName = x.Category != null ? x.Category.Name : null,
-            CoverUrl = x.CoverUrl,
+            CoverUrl = x.CoverUrl != null && x.CoverUrl != ""
+                ? x.CoverUrl
+                : x.Category != null ? x.Category.CoverUrl : "",
             IsFavourite = fIds.Contains(x.Id),
             Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
             IsUserFood = x.UserId.HasValue
@@ -142,8 +152,19 @@ public class FoodService(
             return (page, foods.Count);
         }
 
-        return (resultQuery
-            .Sort(q)
+        // Without an explicit sort Skip/Take had no stable order (pages could
+        // repeat or drop rows). The user's own foods come first, newest on top,
+        // so a food they just created or scanned leads its category and search.
+        var ordered = q.SortPropName is not null
+            ? resultQuery.Sort(q)
+            : userId.HasValue
+                ? resultQuery
+                    .OrderByDescending(x => x.UserId == userId)
+                    .ThenByDescending(x => x.UserId == userId ? x.Id : 0)
+                    .ThenBy(x => x.Id)
+                : resultQuery.OrderBy(x => x.Id);
+
+        return (ordered
             .Page(q)
             .Select(toDto), await resultQuery.CountAsync());
     }
@@ -154,10 +175,13 @@ public class FoodService(
             .AsNoTracking()
             .Select(x => new FoodDto
             {
-                Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
+                // Same null-safe shape as GetAllFoods (released apps read both as non-null).
+                Id = x.Id, Name = x.Name, CategoryId = x.CategoryId ?? 0,
                 Description = x.Description,
                 CategoryName = x.Category != null ? x.Category.Name : null,
-                CoverUrl = x.CoverUrl,
+                CoverUrl = x.CoverUrl != null && x.CoverUrl != ""
+                    ? x.CoverUrl
+                    : x.Category != null ? x.Category.CoverUrl : "",
                 Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 IsUserFood = x.UserId.HasValue,
                 UserId = x.UserId,
@@ -186,9 +210,11 @@ public class FoodService(
             .SelectMany(x => x.FavouriteFoods)
             .Select(x => new GetAllFoodDto
             {
-                Id = x.Id, Name = x.Name, CategoryId = x.CategoryId,
+                Id = x.Id, Name = x.Name, CategoryId = x.CategoryId ?? 0,
                 CategoryName = x.Category != null ? x.Category.Name : null,
-                CoverUrl = x.CoverUrl,
+                CoverUrl = x.CoverUrl != null && x.CoverUrl != ""
+                    ? x.CoverUrl
+                    : x.Category != null ? x.Category.CoverUrl : "",
                 Metrics = x.Metrics.Select(foodMetrics => new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),
                 IsUserFood = x.UserId.HasValue
             })
@@ -226,18 +252,7 @@ public class FoodService(
             throw new FoodCategoryRequiredException();
         }
 
-        if (dto.CategoryId.HasValue)
-        {
-            // AI scan/voice picks the category id itself and can return one that
-            // doesn't exist (0, hallucinated, deleted). A user's own food doesn't
-            // need a category, so drop it instead of failing the whole meal log.
-            if (foodUserId.HasValue)
-            {
-                if (!await dbContext.FoodCategories.AnyAsync(x => x.Id == dto.CategoryId.Value))
-                    dto.CategoryId = null;
-            }
-            else await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId.Value);
-        }
+        dto.CategoryId = await ValidCategoryId(dto.CategoryId, foodUserId.HasValue);
 
         var food = dbContext.Foods.Add(new Food()
         {
@@ -280,8 +295,13 @@ public class FoodService(
         if (food.UserId.HasValue && dto.UserId.HasValue && food.UserId != dto.UserId)
             throw new FoodUpdateForbiddenException();
 
-        if (dto.CategoryId.HasValue)
-            await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(dto.CategoryId.Value);
+        // dto.UserId comes from the client — a user's food is edited only by its owner.
+        if (food.UserId.HasValue && food.UserId != authorizedUserId)
+            throw new FoodUpdateForbiddenException();
+
+        // The diary returns categoryId 0 for an uncategorised food and the app
+        // sends it back on edit; that used to 404 and the edit never saved.
+        dto.CategoryId = await ValidCategoryId(dto.CategoryId, food.UserId.HasValue);
 
         await dbContext.Transactional(async () =>
         {
@@ -309,6 +329,27 @@ public class FoodService(
         });
 
         return food;
+    }
+
+    /// <summary>
+    /// A user's own food doesn't need a category, and the app can send one that
+    /// doesn't exist: AI scan/voice picks the id itself (0, hallucinated,
+    /// deleted) and the diary reports an uncategorised food as 0. Such an id is
+    /// dropped instead of failing the whole add/edit. Catalogue foods still
+    /// require a real category.
+    /// </summary>
+    private async Task<long?> ValidCategoryId(long? categoryId, bool isUserFood)
+    {
+        if (!categoryId.HasValue)
+            return null;
+
+        if (!isUserFood)
+        {
+            await dbContext.FoodCategories.ExistsOrThrowsNotFoundException(categoryId.Value);
+            return categoryId;
+        }
+
+        return await dbContext.FoodCategories.AnyAsync(x => x.Id == categoryId.Value) ? categoryId : null;
     }
 
     /// <summary>
@@ -388,7 +429,9 @@ public class FoodService(
                 FoodName = x.Food.Name,
                 CategoryId = x.Food.CategoryId == null ? 0 : x.Food.CategoryId,
                 CategoryName = x.Food.Category != null ? x.Food.Category.Name : "",
-                CoverUrl = x.Food.CoverUrl,
+                CoverUrl = x.Food.CoverUrl != null && x.Food.CoverUrl != ""
+                    ? x.Food.CoverUrl
+                    : x.Food.Category != null ? x.Food.Category.CoverUrl : null,
                 Weight = x.Weight,
                 Metrics = x.Food.Metrics.Select(foodMetrics =>
                     new GetNormDto(foodMetrics.Metric, foodMetrics.Value)),

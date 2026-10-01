@@ -30,7 +30,8 @@ public class BillingController(
     RcService rcService,
     CouponService couponService,
     PlanExtraService planExtraService,
-    SubscriptionService subscriptionService)
+    SubscriptionService subscriptionService,
+    FamilyService familyService)
     : AuthorizedController
 {
     #region Plans (admin-managed)
@@ -87,11 +88,15 @@ public class BillingController(
     [ProducesResponseType<WrapperGeneric<GetMySubscriptionDto>>(200)]
     public async Task<Wrapper> GetMySubscription() => (await subscriptionService.GetMy(this.UserId), 200);
 
+    /// <param name="plan">Premium / Pro</param>
+    /// <param name="query"></param>
+    /// <param name="family">true — oilaviy paketlar (2 kishi); default — oddiy paketlar</param>
     [HttpGet("orders/subscription/plans/{plan}")]
     [RoleAuthorize(EnumRole.User)]
     [ProducesResponseType<WrapperGeneric<IEnumerable<GetPlanExtras>>>(200)]
-    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, [FromQuery] DataQueryRequest query) =>
-        await orderService.GetPlanExtras(plan, query, this.UserId);
+    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, [FromQuery] DataQueryRequest query,
+        [FromQuery] bool family = false) =>
+        await orderService.GetPlanExtras(plan, query, this.UserId, family);
 
     [HttpPost("orders/subscription")]
     [RoleAuthorize(EnumRole.User)]
@@ -111,6 +116,30 @@ public class BillingController(
     [RoleAuthorize(EnumRole.User)]
     public async Task<Wrapper> MakePaymentLink(long orderId) =>
         (await orderService.MakePaymentLink(this.UserId, orderId), 200);
+
+    #endregion
+
+    #region Family plan
+
+    /// <summary>
+    /// Oilaviy tarif egasining ikkinchi odam uchun kodlari (eng yangisi birinchi).
+    /// Kod oilaviy paket to'langanda yaratiladi; status: Active / Redeemed / Expired.
+    /// </summary>
+    [HttpGet("family/codes")]
+    [RoleAuthorize(EnumRole.User)]
+    [ProducesResponseType<WrapperGeneric<List<FamilyCodeDto>>>(200)]
+    public async Task<Wrapper> GetMyFamilyCodes() => (await familyService.GetMy(this.UserId), 200);
+
+    /// <summary>
+    /// Ikkinchi odam oilaviy kodni faollashtiradi — paket muddaticha premium oladi
+    /// (<c>requiresTokenRefresh</c>: tokenni yangilash kerak). Xatolar: family_code_not_found,
+    /// family_code_used, family_code_expired, family_code_self.
+    /// </summary>
+    [HttpPost("family/redeem")]
+    [RoleAuthorize(EnumRole.User)]
+    [ProducesResponseType<WrapperGeneric<RedeemFamilyCodeResultDto>>(200)]
+    public async Task<Wrapper> RedeemFamilyCode([FromBody] RedeemFamilyCodeDto dto) =>
+        (await familyService.Redeem(this.UserId, dto), 200);
 
     #endregion
 

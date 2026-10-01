@@ -49,12 +49,17 @@ public class PlanExtraService(AppDbContext dbContext)
               ?? throw new PlanExtraNotFoundException()
             : new PlanExtra();
 
+        // Omitted by older dashboard builds — keep what the package already is.
+        var isFamily = dto.IsFamily ?? planExtra.IsFamily;
+
         if (dto.IsActive)
         {
+            // A family package sits next to the regular one of the same duration.
             var duplicateExists = await dbContext.PlanExtras.AnyAsync(x =>
                 x.Id != planExtra.Id
                 && x.Plan == dto.Plan
                 && x.DurationInMonths == dto.Duration
+                && x.IsFamily == isFamily
                 && x.IsActive);
 
             if (duplicateExists)
@@ -66,6 +71,7 @@ public class PlanExtraService(AppDbContext dbContext)
         planExtra.Fee = ToTiyn(dto.Fee);
         planExtra.OriginalFee = ToTiyn(dto.OriginalFee);
         planExtra.IsActive = dto.IsActive;
+        planExtra.IsFamily = isFamily;
         // An inactive package must never be advertised as the best offer.
         planExtra.IsPopular = dto.IsPopular && dto.IsActive;
 
@@ -93,11 +99,12 @@ public class PlanExtraService(AppDbContext dbContext)
         await dbContext.SaveChangesAsync();
     }
 
-    /// <summary>Only one package per plan may be the "best offer".</summary>
+    /// <summary>Only one package per plan (regular and family lists apart) may be the "best offer".</summary>
     private async Task ClearPopularOnOthers(PlanExtra planExtra)
     {
         await dbContext.PlanExtras
-            .Where(x => x.Plan == planExtra.Plan && x.Id != planExtra.Id && x.IsPopular)
+            .Where(x => x.Plan == planExtra.Plan && x.IsFamily == planExtra.IsFamily && x.Id != planExtra.Id &&
+                        x.IsPopular)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsPopular, false));
     }
 
@@ -112,6 +119,7 @@ public class PlanExtraService(AppDbContext dbContext)
         OriginalFee = x.OriginalFee / 100d,
         IsActive = x.IsActive,
         IsPopular = x.IsPopular,
+        IsFamily = x.IsFamily,
         CreatedAt = x.CreatedAt
     };
 
@@ -124,6 +132,7 @@ public class PlanExtraService(AppDbContext dbContext)
         OriginalFee = x.OriginalFee / 100d,
         IsActive = x.IsActive,
         IsPopular = x.IsPopular,
+        IsFamily = x.IsFamily,
         CreatedAt = x.CreatedAt
     };
 }

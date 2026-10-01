@@ -29,7 +29,8 @@ public class OrderService(
     IServiceProvider serviceProvider,
     AuthService authService,
     CouponService couponService,
-    ReferralDiscountService referralDiscountService)
+    ReferralDiscountService referralDiscountService,
+    FamilyService familyService)
 {
     public async Task<CreateSubscriptionOrderResponseDto> CreateSubscriptionOrder(long userId,
         CreateSubscriptionOrderDto dto)
@@ -45,6 +46,10 @@ public class OrderService(
             throw new UserAlreadySubscribedException();
 
         var planExtra = await dbContext.PlanExtras.GetByIdOrThrowsNotFoundException(dto.PlanExtraId);
+
+        // Store'da oilaviy mahsulot yo'q: IAP orqali oylik narx to'lanib, ikkinchi odamga kod ketardi.
+        if (planExtra.IsFamily && dto.Provider == EnumPaymentProviders.Iap)
+            throw new FamilyPlanStoreUnavailableException();
 
         if (await dbContext.Orders
                 .AnyAsync(x => x.UserId == userId
@@ -269,7 +274,16 @@ public class OrderService(
         subscription.CancelledAt = null;
         subscription.Source = EnumSubscriptionSource.Payment;
 
+        // Oilaviy tarif: ikkinchi odam uchun kod obuna bilan bitta SaveChanges'da yoziladi —
+        // to'lov qabul qilinib, kod yo'qolib qolmaydi.
+        var familyCode = orderExtra.PlanExtra.IsFamily
+            ? await familyService.IssueForOrder(order.UserId, order.Id, orderExtra.PlanExtra.DurationInMonths)
+            : null;
+
         await dbContext.SaveChangesAsync();
+
+        if (familyCode is not null)
+            await familyService.NotifyIssued(familyCode);
         
         BackgroundJob.Enqueue<LeadService>(service => service.HandleEventAsync(new Core.Services.Crm.Contracts.HandleLeadEventDto(subscription.UserId, EnumLeadEvent.Purchased)));
 
@@ -293,18 +307,24 @@ public class OrderService(
         });
     }
 
-    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, DataQueryRequest q, long? userId = null)
+    /// <param name="family">
+    /// true — faqat oilaviy paketlar, false — faqat oddiy paketlar (eski ilovalar oilaviy
+    /// paketni oddiy "oylik" deb ko'rsatib yubormasligi uchun default shu).
+    /// </param>
+    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, DataQueryRequest q, long? userId = null,
+        bool family = false)
     {
         var percent = userId.HasValue ? await referralDiscountService.GetAvailablePercent(userId.Value) : 0;
 
         return await dbContext
             .PlanExtras
-            .Where(x => x.Plan == plan && x.IsActive)
+            .Where(x => x.Plan == plan && x.IsActive && x.IsFamily == family)
             .Select(x => new GetPlanExtras
             {
                 Id = x.Id, Duration = x.DurationInMonths, IsActive = x.IsActive,
                 Plan = x.Plan,
                 IsPopular = x.IsPopular,
+                IsFamily = x.IsFamily,
                 Fee = x.Fee / 100d,
                 OriginalFee = x.OriginalFee / 100d,
                 ReferralDiscountPercent = percent,

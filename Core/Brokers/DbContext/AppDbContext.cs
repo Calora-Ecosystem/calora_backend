@@ -109,6 +109,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<PaymeTransaction> PaymeTransactions { get; set; }
     public DbSet<Coupon> Coupons { get; set; }
     public DbSet<CouponUsage> CouponUsages { get; set; }
+    public DbSet<FamilyCode> FamilyCodes { get; set; }
 
     #endregion
 
