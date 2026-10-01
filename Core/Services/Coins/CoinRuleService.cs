@@ -1,6 +1,7 @@
 using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
 using Core.Entities.Coins;
+using Core.Entities.Coins.Enum;
 using Core.Enums;
 using Core.Services.Coins.Contracts;
 using Core.Services.Coins.Exceptions;
@@ -10,10 +11,14 @@ using Microsoft.Extensions.Options;
 namespace Core.Services.Coins;
 
 /// <summary>
-/// Qadam → coin qoidalari (har N qadam = 1 coin, kunlik limit). Qoidalar sana bo'yicha tarix sifatida
+/// Coin sozlamalari (dashboard'dan boshqariladi):
+/// <list type="bullet">
+/// <item>Qadam → coin qoidalari (har N qadam = 1 coin, kunlik limit). Qoidalar sana bo'yicha tarix sifatida
 /// saqlanadi: har kun o'sha kunda amal qilgan qoida bilan hisoblanadi, shuning uchun qoidani
 /// o'zgartirish o'tgan kunlarga orqaga qarab coin qo'shmaydi. Faqat bugungi va kelajakdagi
-/// qoidalarni o'zgartirish mumkin.
+/// qoidalarni o'zgartirish mumkin.</item>
+/// <item>Coin hisoblash kuni (<see cref="CoinSetting"/>) va barcha coinlarni o'chirish (<see cref="CoinReset"/>).</item>
+/// </list>
 /// </summary>
 [Injectable]
 public class CoinRuleService(AppDbContext dbContext, IOptions<CoinConfig> options)
@@ -23,6 +28,25 @@ public class CoinRuleService(AppDbContext dbContext, IOptions<CoinConfig> option
 
     private CoinConfig Config => options.Value;
     private CoinRuleSet? _ruleSet;
+    private DateTime? _earnStart;
+
+    /// <summary>
+    /// Coin hisoblash boshlanadigan kun: dashboard sozlamasi, bo'lmasa <c>CoinConfig.CoinsEarnStartDate</c>.
+    /// <paramref name="fresh"/> — so'rov ichidagi keshni chetlab, bazadan qayta o'qish.
+    /// </summary>
+    public async Task<DateTime> GetEarnStartDate(bool fresh = false)
+    {
+        if (!fresh && _earnStart.HasValue) return _earnStart.Value;
+
+        var date = await dbContext.CoinSettings
+            .AsNoTracking()
+            .OrderBy(x => x.Id)
+            .Select(x => (DateTime?)x.EarnStartDate)
+            .FirstOrDefaultAsync();
+
+        _earnStart = (date ?? Config.CoinsEarnStartDate).Date;
+        return _earnStart.Value;
+    }
 
     /// <summary>Barcha qoidalar (so'rov davomida bir marta o'qiladi — jadval juda kichik).</summary>
     public async Task<CoinRuleSet> GetRuleSet()
@@ -102,7 +126,7 @@ public class CoinRuleService(AppDbContext dbContext, IOptions<CoinConfig> option
             Current = current,
             Next = result.FirstOrDefault(x => x.EffectiveFrom > today),
             History = Enumerable.Reverse(result).ToList(),
-            CoinsEarnStartDate = Config.CoinsEarnStartDate.Date,
+            CoinsEarnStartDate = await GetEarnStartDate(),
             Today = today
         };
     }
@@ -150,6 +174,125 @@ public class CoinRuleService(AppDbContext dbContext, IOptions<CoinConfig> option
         _ruleSet = null;
 
         return await GetAdminRules();
+    }
+
+    /// <summary>Coin hisoblash kuni, hozirgi coinlar holati va reset tarixi.</summary>
+    public async Task<AdminCoinEarnStartDto> GetEarnStart()
+    {
+        var setting = await dbContext.CoinSettings
+            .AsNoTracking()
+            .OrderBy(x => x.Id)
+            .Select(x => new
+            {
+                x.EarnStartDate, x.UpdatedAt,
+                UpdatedBy = x.UpdatedBy != null ? x.UpdatedBy.Name : null
+            })
+            .FirstOrDefaultAsync();
+
+        var start = (setting?.EarnStartDate ?? Config.CoinsEarnStartDate).Date;
+        var startRef = start.Year * 10000L + start.Month * 100 + start.Day;
+        var steps = EnumCoinTxType.Steps;
+
+        var wallets = dbContext.CoinWallets.AsNoTracking();
+
+        var resets = await dbContext.CoinResets
+            .AsNoTracking()
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(20)
+            .Select(x => new AdminCoinResetDto
+            {
+                Id = x.Id,
+                CreatedAt = x.CreatedAt,
+                CreatedBy = x.CreatedBy != null ? x.CreatedBy.Name : null,
+                EarnStartDate = x.EarnStartDate,
+                UsersAffected = x.UsersAffected,
+                BalanceRemoved = x.BalanceRemoved,
+                EarnedRemoved = x.EarnedRemoved,
+                TransactionsRemoved = x.TransactionsRemoved
+            })
+            .ToListAsync();
+
+        var earliestRef = await dbContext.CoinTransactions
+            .Where(x => x.Type == steps && x.RefId > 0)
+            .MinAsync(x => x.RefId);
+
+        return new AdminCoinEarnStartDto
+        {
+            EarnStartDate = start,
+            IsDefault = setting is null,
+            UpdatedBy = setting?.UpdatedBy,
+            UpdatedAt = setting?.UpdatedAt,
+            Today = DateTime.Now.Date,
+            WalletsWithCoins = await wallets.CountAsync(x => x.Balance != 0 || x.TotalEarned != 0 || x.TotalSpent != 0),
+            Balance = await wallets.SumAsync(x => x.Balance),
+            Earned = await wallets.SumAsync(x => x.TotalEarned),
+            Transactions = await dbContext.CoinTransactions.CountAsync(),
+            EarliestStepDay = earliestRef is > 0
+                ? new DateTime((int)(earliestRef.Value / 10000), (int)(earliestRef.Value / 100 % 100), (int)(earliestRef.Value % 100))
+                : null,
+            StepCoinsBeforeStart = await dbContext.CoinTransactions
+                .Where(x => x.Type == steps && x.RefId < startRef)
+                .SumAsync(x => x.Amount),
+            Resets = resets
+        };
+    }
+
+    /// <summary>
+    /// Coin hisoblash kunini o'rnatadi. <see cref="SaveCoinEarnStartDto.ResetCoins"/> bo'lsa barcha userlarning
+    /// coin balansi va coin tarixi o'chiriladi (do'kon xaridlari va berilgan Premium qoladi) — keyin coin faqat
+    /// yangi kundan boshlab qayta yig'iladi. Reset'siz faqat kun o'zgaradi: sana oldinga surilsa eski kunlar
+    /// coini qoladi, orqaga surilsa o'sha kunlar uchun coin qo'shiladi.
+    /// </summary>
+    public async Task<AdminCoinEarnStartDto> SaveEarnStart(SaveCoinEarnStartDto dto, long adminId)
+    {
+        var day = dto.EarnStartDate.Date;
+        var today = DateTime.Now.Date;
+        if (day < new DateTime(2020, 1, 1) || day > today.AddYears(1))
+            throw new CoinEarnStartInvalidException();
+
+        await dbContext.Transactional(async () =>
+        {
+            // SyncStepCoins hamyon qatorini FOR UPDATE bilan qulflaydi — bu qulf parallel sinxronlarni shu
+            // tranzaksiya tugaguncha kutdiradi, ular keyin yangi kunni o'qiydi (eski coin qayta yozilmaydi).
+            await dbContext.Database.ExecuteSqlRawAsync("lock table coin_wallets in exclusive mode");
+
+            var setting = await dbContext.CoinSettings.OrderBy(x => x.Id).FirstOrDefaultAsync()
+                          ?? dbContext.CoinSettings.Add(new CoinSetting()).Entity;
+            setting.EarnStartDate = day;
+            setting.UpdatedById = adminId;
+
+            if (dto.ResetCoins)
+            {
+                var wallets = dbContext.CoinWallets;
+                var users = await wallets.CountAsync(x => x.Balance != 0 || x.TotalEarned != 0 || x.TotalSpent != 0);
+                var balance = await wallets.SumAsync(x => x.Balance);
+                var earned = await wallets.SumAsync(x => x.TotalEarned);
+
+                var removed = await dbContext.CoinTransactions.ExecuteDeleteAsync();
+
+                var now = DateTime.Now;
+                await wallets.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.Balance, 0)
+                    .SetProperty(x => x.TotalEarned, 0)
+                    .SetProperty(x => x.TotalSpent, 0)
+                    .SetProperty(x => x.UpdatedAt, now));
+
+                dbContext.CoinResets.Add(new CoinReset
+                {
+                    EarnStartDate = day,
+                    UsersAffected = users,
+                    BalanceRemoved = balance,
+                    EarnedRemoved = earned,
+                    TransactionsRemoved = removed,
+                    CreatedById = adminId
+                });
+            }
+
+            await dbContext.SaveChangesAsync();
+        });
+
+        _earnStart = null;
+        return await GetEarnStart();
     }
 
     /// <summary>

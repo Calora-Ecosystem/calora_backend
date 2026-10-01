@@ -148,3 +148,61 @@ public record CoinRuleImpactDto
     /// <summary>Faol (≥1 coin) user har kuni o'rtacha yig'adigan coin — tarif narxini "necha kunda" ga aylantirish uchun.</summary>
     public double AvgCoinsPerEarningDay { get; init; }
 }
+
+/// <summary>Dashboard: coin hisoblash kuni, hozirgi coinlar holati va reset tarixi.</summary>
+public record AdminCoinEarnStartDto
+{
+    /// <summary>Shu kundan boshlab qadam coin beradi (kelajak bo'lsa — o'sha kungacha coin yozilmaydi).</summary>
+    public DateTime EarnStartDate { get; init; }
+
+    /// <summary>Dashboard'da hali o'rnatilmagan — appsettings qiymati.</summary>
+    public bool IsDefault { get; init; }
+
+    public string? UpdatedBy { get; init; }
+    public DateTime? UpdatedAt { get; init; }
+    public DateTime Today { get; init; }
+
+    /// <summary>Balansi yoki tarixi bor hamyonlar.</summary>
+    public int WalletsWithCoins { get; init; }
+
+    /// <summary>Barcha hamyonlardagi joriy balans.</summary>
+    public long Balance { get; init; }
+
+    /// <summary>Barcha hamyonlarning umr bo'yi ishlab topgan coinlari.</summary>
+    public long Earned { get; init; }
+
+    public int Transactions { get; init; }
+
+    /// <summary>Coin yozilgan eng erta qadam kuni.</summary>
+    public DateTime? EarliestStepDay { get; init; }
+
+    /// <summary>Hisoblash kunidan oldingi kunlar uchun yozilgan qadam coinlari (reset qilinmagan bo'lsa qoladi).</summary>
+    public long StepCoinsBeforeStart { get; init; }
+
+    /// <summary>Yangidan eskiga.</summary>
+    public List<AdminCoinResetDto> Resets { get; init; } = [];
+}
+
+public record AdminCoinResetDto
+{
+    public long Id { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public string? CreatedBy { get; init; }
+    public DateTime EarnStartDate { get; init; }
+    public int UsersAffected { get; init; }
+    public long BalanceRemoved { get; init; }
+    public long EarnedRemoved { get; init; }
+    public int TransactionsRemoved { get; init; }
+}
+
+public class SaveCoinEarnStartDto
+{
+    /// <summary>Coin hisoblash boshlanadigan kun (o'tgan kun ham bo'lishi mumkin — o'sha kundan qayta hisoblanadi).</summary>
+    [Required] public DateTime EarnStartDate { get; set; }
+
+    /// <summary>
+    /// true — barcha userlarning coin balansi va coin tarixi o'chiriladi (hamyonlar 0). Do'kon xaridlari va
+    /// berilgan Premium qoladi. Keyin coin faqat <see cref="EarnStartDate"/>dan boshlab qayta yig'iladi.
+    /// </summary>
+    public bool ResetCoins { get; set; }
+}

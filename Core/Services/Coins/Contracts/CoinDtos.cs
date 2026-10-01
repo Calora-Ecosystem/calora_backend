@@ -21,6 +21,9 @@ public class WalletDto
 
     /// <summary>Kelajakda kuchga kiradigan qoida (e'lon qilish uchun); yo'q bo'lsa null.</summary>
     public CoinRuleBriefDto? NextRule { get; set; }
+
+    /// <summary>Coin hisoblash boshlanadigan kun (dashboard'dan). Kelajak bo'lsa — hali coin yig'ilmaydi.</summary>
+    public DateTime EarnStartDate { get; set; }
 }
 
 public class CoinTransactionDto
