@@ -4,6 +4,7 @@ using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
 using Core.Brokers.DbContext;
 using Core.Entities.Billing;
+using Core.Entities.Billing.Enum;
 using Core.Services.Billing.Contracts;
 using Core.Services.Billing.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -45,21 +46,18 @@ public class PlanExtraService(AppDbContext dbContext)
             throw new PlanExtraFeeInvalidException();
 
         var planExtra = dto.Id.HasValue
-            ? await dbContext.PlanExtras.FirstOrDefaultAsync(x => x.Id == dto.Id.Value)
+            ? await dbContext.PlanExtras
+                .Include(x => x.Features)
+                .FirstOrDefaultAsync(x => x.Id == dto.Id.Value)
               ?? throw new PlanExtraNotFoundException()
             : new PlanExtra();
 
-        // Omitted by older dashboard builds — keep what the package already is.
-        var isFamily = dto.IsFamily ?? planExtra.IsFamily;
-
         if (dto.IsActive)
         {
-            // A family package sits next to the regular one of the same duration.
             var duplicateExists = await dbContext.PlanExtras.AnyAsync(x =>
                 x.Id != planExtra.Id
                 && x.Plan == dto.Plan
                 && x.DurationInMonths == dto.Duration
-                && x.IsFamily == isFamily
                 && x.IsActive);
 
             if (duplicateExists)
@@ -71,7 +69,6 @@ public class PlanExtraService(AppDbContext dbContext)
         planExtra.Fee = ToTiyn(dto.Fee);
         planExtra.OriginalFee = ToTiyn(dto.OriginalFee);
         planExtra.IsActive = dto.IsActive;
-        planExtra.IsFamily = isFamily;
         // An inactive package must never be advertised as the best offer.
         planExtra.IsPopular = dto.IsPopular && dto.IsActive;
 
@@ -80,10 +77,30 @@ public class PlanExtraService(AppDbContext dbContext)
 
         await dbContext.SaveChangesAsync();
 
+        if (dto.Features is not null)
+        {
+            var existingFeatures = await dbContext.PlanFeatures
+                .Where(f => f.PlanId == planExtra.Id)
+                .ToListAsync();
+            dbContext.PlanFeatures.RemoveRange(existingFeatures);
+
+            foreach (var f in dto.Features)
+            {
+                dbContext.PlanFeatures.Add(new PlanFeature
+                {
+                    PlanId = planExtra.Id,
+                    FeatureKey = f.FeatureKey,
+                    Value = f.Value ?? string.Empty
+                });
+            }
+
+            await dbContext.SaveChangesAsync();
+        }
+
         if (planExtra.IsPopular)
             await ClearPopularOnOthers(planExtra);
 
-        return ToDto(planExtra);
+        return await GetById(planExtra.Id);
     }
 
     public async Task Delete(long id)
@@ -95,16 +112,18 @@ public class PlanExtraService(AppDbContext dbContext)
         if (await dbContext.SubscriptionOrders.AnyAsync(x => x.PlanExtraId == id))
             throw new PlanExtraInUseException();
 
+        var features = await dbContext.PlanFeatures.Where(f => f.PlanId == id).ToListAsync();
+        dbContext.PlanFeatures.RemoveRange(features);
+
         dbContext.PlanExtras.Remove(planExtra);
         await dbContext.SaveChangesAsync();
     }
 
-    /// <summary>Only one package per plan (regular and family lists apart) may be the "best offer".</summary>
+    /// <summary>Only one package per plan may be the "best offer".</summary>
     private async Task ClearPopularOnOthers(PlanExtra planExtra)
     {
         await dbContext.PlanExtras
-            .Where(x => x.Plan == planExtra.Plan && x.IsFamily == planExtra.IsFamily && x.Id != planExtra.Id &&
-                        x.IsPopular)
+            .Where(x => x.Plan == planExtra.Plan && x.Id != planExtra.Id && x.IsPopular)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsPopular, false));
     }
 
@@ -119,20 +138,30 @@ public class PlanExtraService(AppDbContext dbContext)
         OriginalFee = x.OriginalFee / 100d,
         IsActive = x.IsActive,
         IsPopular = x.IsPopular,
-        IsFamily = x.IsFamily,
+        Features = x.Features.Select(f => new PlanFeatureDto
+        {
+            FeatureKey = f.FeatureKey,
+            Value = f.Value
+        }).ToList(),
         CreatedAt = x.CreatedAt
     };
 
-    private static GetPlanExtras ToDto(PlanExtra x) => new()
+    public List<PlanFeatureDefinitionDto> GetAvailableFeatures()
     {
-        Id = x.Id,
-        Plan = x.Plan,
-        Duration = x.DurationInMonths,
-        Fee = x.Fee / 100d,
-        OriginalFee = x.OriginalFee / 100d,
-        IsActive = x.IsActive,
-        IsPopular = x.IsPopular,
-        IsFamily = x.IsFamily,
-        CreatedAt = x.CreatedAt
-    };
+        return
+        [
+            new PlanFeatureDefinitionDto
+            {
+                FeatureKey = EnumPlanFeature.AiScans,
+                Name = "AI Scans",
+                Description = "AI food recognition limit (e.g. number count or 'unlimited')"
+            },
+            new PlanFeatureDefinitionDto
+            {
+                FeatureKey = EnumPlanFeature.Family,
+                Name = "Family",
+                Description = "Family plan access (grants secondary member coupon)"
+            }
+        ];
+    }
 }

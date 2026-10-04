@@ -6,6 +6,7 @@ using Core.Brokers.DbContext;
 using Core.Entities.Course;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -14,9 +15,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Core.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261004023655_CleanFamilyAndRefactorPlanFeatures")]
+    partial class CleanFamilyAndRefactorPlanFeatures
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -188,6 +191,45 @@ namespace Core.Migrations
                         .HasDatabaseName("ix_users_referral_code");
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("Core.Entities.Auth.UserAiQuota", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("BonusLimit")
+                        .HasColumnType("integer")
+                        .HasColumnName("bonus_limit");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Used")
+                        .HasColumnType("integer")
+                        .HasColumnName("used");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_ai_quotas");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_user_ai_quotas_user_id");
+
+                    b.ToTable("user_ai_quotas", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Auth.UserDaily", b =>
@@ -775,8 +817,10 @@ namespace Core.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("FeatureKey")
-                        .HasColumnType("integer")
+                    b.Property<string>("FeatureKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("feature_key");
 
                     b.Property<long>("PlanId")
@@ -896,49 +940,6 @@ namespace Core.Migrations
                         .HasDatabaseName("ix_subscription_orders_plan_extra_id");
 
                     b.ToTable("subscription_orders", (string)null);
-                });
-
-            modelBuilder.Entity("Core.Entities.Billing.UserFeatureUsage", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<int>("BonusLimit")
-                        .HasColumnType("integer")
-                        .HasColumnName("bonus_limit");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("FeatureKey")
-                        .HasColumnType("integer")
-                        .HasColumnName("feature_key");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int>("Used")
-                        .HasColumnType("integer")
-                        .HasColumnName("used");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_user_feature_usages");
-
-                    b.HasIndex("UserId", "FeatureKey")
-                        .IsUnique()
-                        .HasDatabaseName("ix_user_feature_usages_user_id_feature_key");
-
-                    b.ToTable("user_feature_usages", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Coins.CoinReset", b =>
@@ -2662,6 +2663,18 @@ namespace Core.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Core.Entities.Auth.UserAiQuota", b =>
+                {
+                    b.HasOne("Core.Entities.Auth.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_ai_quotas_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Core.Entities.Auth.UserDaily", b =>
                 {
                     b.HasOne("Core.Entities.Auth.User", "User")
@@ -2808,18 +2821,6 @@ namespace Core.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("PlanExtra");
-                });
-
-            modelBuilder.Entity("Core.Entities.Billing.UserFeatureUsage", b =>
-                {
-                    b.HasOne("Core.Entities.Auth.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_user_feature_usages_users_user_id");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Core.Entities.Coins.CoinReset", b =>

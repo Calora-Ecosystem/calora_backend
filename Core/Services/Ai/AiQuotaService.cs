@@ -1,43 +1,64 @@
 using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
+using Core.Entities.Billing;
+using Core.Entities.Billing.Enum;
 using Core.Enums;
 using Core.Services.Ai.Contracts;
 using Core.Services.Ai.Exceptions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace Core.Services.Ai;
 
 /// <summary>
-/// Premium bo'lmagan userlar uchun bepul AI limiti (rasm skan va ovoz bitta hovuzdan).
-/// Limit butun dastur davomida amal qiladi (kunlik emas). Faqat muvaffaqiyatli
-/// (bo'sh bo'lmagan) natija limitni kamaytiradi — mobile bilan bir xil qoida.
+/// AI (rasm skan va ovoz) foydalanish limiti servisi.
+/// Limit yagona haqiqat manbasi (single source of truth) bo'lgan <see cref="PlanFeature"/> orqali aniqlanadi.
 /// </summary>
 [Injectable]
-public class AiQuotaService(AppDbContext dbContext, IOptions<AiQuotaConfig> options)
+public class AiQuotaService(AppDbContext dbContext)
 {
-    private int FreeLimit => options.Value.FreeLimit;
+    public const EnumPlanFeature Feature = EnumPlanFeature.AiScans;
 
     public async Task<AiQuotaDto> Get(long userId, bool? isPremium = null)
     {
-        isPremium ??= await IsPremium(userId);
-
-        var quota = await dbContext.UserAiQuotas
+        var userPlan = await dbContext.Subscriptions
             .AsNoTracking()
-            .Where(x => x.UserId == userId)
+            .Where(x => x.UserId == userId && x.IsActive)
+            .Select(x => x.SubscriptionPlan)
+            .FirstOrDefaultAsync();
+
+        var isPrem = isPremium ?? (userPlan != default && userPlan != EnumSPlans.Free);
+        var effectivePlan = isPrem ? (userPlan != default ? userPlan : EnumSPlans.Premium) : EnumSPlans.Free;
+
+        var (isUnlimited, baseLimit) = await ResolvePlanFeatureLimit(effectivePlan);
+
+        if (isUnlimited)
+        {
+            return new AiQuotaDto
+            {
+                IsPremium = true,
+                Unlimited = true,
+                Limit = 0,
+                Used = 0,
+                Remaining = 999999
+            };
+        }
+
+        var usage = await dbContext.UserFeatureUsages
+            .AsNoTracking()
+            .Where(x => x.UserId == userId && x.FeatureKey == Feature)
             .Select(x => new { x.Used, x.BonusLimit })
             .FirstOrDefaultAsync();
 
-        var limit = FreeLimit + (quota?.BonusLimit ?? 0);
-        var used = quota?.Used ?? 0;
+        var totalLimit = baseLimit + (usage?.BonusLimit ?? 0);
+        var used = usage?.Used ?? 0;
 
         return new AiQuotaDto
         {
-            IsPremium = isPremium.Value,
-            Unlimited = isPremium.Value,
-            Limit = limit,
+            IsPremium = false,
+            Unlimited = false,
+            Limit = totalLimit,
             Used = used,
-            Remaining = Math.Max(0, limit - used)
+            Remaining = Math.Max(0, totalLimit - used)
         };
     }
 
@@ -58,29 +79,36 @@ public class AiQuotaService(AppDbContext dbContext, IOptions<AiQuotaConfig> opti
         return true;
     }
 
-    /// <summary>Muvaffaqiyatli AI natijasidan keyin bitta bepul so'rovni yechadi (atomik).</summary>
+    /// <summary>Muvaffaqiyatli AI natijasidan keyin bitta bepul so'rovni yechadi.</summary>
     public async Task Consume(long userId)
     {
-        await EnsureRow(userId);
+        var feature = await dbContext.UserFeatureUsages
+                          .FirstOrDefaultAsync(x => x.UserId == userId && x.FeatureKey == Feature)
+                      ?? new UserFeatureUsage
+                      {
+                          FeatureKey = Feature,
+                          UserId = userId
+                      };
 
-        var freeLimit = FreeLimit;
-        await dbContext.UserAiQuotas
-            .Where(x => x.UserId == userId && x.Used < freeLimit + x.BonusLimit)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.Used, x => x.Used + 1)
-                .SetProperty(x => x.UpdatedAt, DateTime.Now));
+        feature.Used += 1;
+        dbContext.UserFeatureUsages.Update(feature);
+        await dbContext.SaveChangesAsync();
     }
 
     /// <summary>Marketplace'dan olingan qo'shimcha bepul AI so'rovlar.</summary>
     public async Task AddBonus(long userId, int count)
     {
-        await EnsureRow(userId);
+        var feature = await dbContext.UserFeatureUsages
+                          .FirstOrDefaultAsync(x => x.UserId == userId && x.FeatureKey == Feature)
+                      ?? new UserFeatureUsage
+                      {
+                          FeatureKey = Feature,
+                          UserId = userId
+                      };
 
-        await dbContext.UserAiQuotas
-            .Where(x => x.UserId == userId)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.BonusLimit, x => x.BonusLimit + count)
-                .SetProperty(x => x.UpdatedAt, DateTime.Now));
+        feature.BonusLimit += count;
+        dbContext.UserFeatureUsages.Update(feature);
+        await dbContext.SaveChangesAsync();
     }
 
     /// <summary>JWT <c>plan</c> claim bilan bir xil qoida: faol va Free emas.</summary>
@@ -88,12 +116,23 @@ public class AiQuotaService(AppDbContext dbContext, IOptions<AiQuotaConfig> opti
         dbContext.Subscriptions.AnyAsync(x =>
             x.UserId == userId && x.IsActive && x.SubscriptionPlan != EnumSPlans.Free);
 
-    private async Task EnsureRow(long userId)
+    private async Task<(bool isUnlimited, int baseLimit)> ResolvePlanFeatureLimit(EnumSPlans plan)
     {
-        var now = DateTime.Now;
-        await dbContext.Database.ExecuteSqlInterpolatedAsync($@"
-insert into user_ai_quotas (user_id, used, bonus_limit, created_at, updated_at)
-values ({userId}, 0, 0, {now}, {now})
-on conflict (user_id) do nothing");
+        var featureValue = await dbContext.PlanFeatures
+            .AsNoTracking()
+            .Where(f => f.PlanExtra.Plan == plan && f.FeatureKey == Feature && f.PlanExtra.IsActive)
+            .Select(f => f.Value)
+            .FirstOrDefaultAsync();
+
+        if (featureValue != null)
+        {
+            if (string.Equals(featureValue.Trim(), "unlimited", StringComparison.OrdinalIgnoreCase))
+                return (true, 0);
+
+            if (int.TryParse(featureValue, out var configuredLimit))
+                return (false, configuredLimit);
+        }
+
+        return (plan > EnumSPlans.Free /*in this case, if plan != free, unlimited*/, 0);
     }
 }
