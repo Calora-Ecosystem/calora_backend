@@ -175,6 +175,15 @@ public class BillingController(
     public async Task<Wrapper> CheckCoupon([FromQuery] string code) =>
         (await couponService.CheckCoupon(this.UserId, code), 200);
 
+    /// <summary>
+    /// Foydalanuvchining o'zi yaratgan (masalan, oilaviy tarifdagi) kuponlari ro'yxati (status: Active / Redeemed / Expired).
+    /// </summary>
+    [HttpGet("coupons/my")]
+    [RoleAuthorize(EnumRole.User)]
+    [ProducesResponseType<WrapperGeneric<List<MyFamilyCouponDto>>>(200)]
+    public async Task<Wrapper> GetMyFamilyCoupons() =>
+        (await couponService.GetMyFamilyCoupons(this.UserId), 200);
+
     [HttpPost("coupons")]
     [RoleAuthorize(EnumRole.SuperAdmin)]
     public async Task<Wrapper> CreateOrUpdateCoupon([FromBody] CreateOrUpdateCouponDto dto)

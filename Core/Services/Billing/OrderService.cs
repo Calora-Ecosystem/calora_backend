@@ -47,7 +47,9 @@ public class OrderService(
             (dto.Provider == EnumPaymentProviders.Iap || await IsStoreManaged(userId)))
             throw new UserAlreadySubscribedException();
 
-        var planExtra = await dbContext.PlanExtras.GetByIdOrThrowsNotFoundException(dto.PlanExtraId);
+        var planExtra = await dbContext.PlanExtras
+            .AsNoTracking()
+            .GetByIdOrThrowsNotFoundException(dto.PlanExtraId);
 
         var isFamily = planExtra.Plan == EnumSPlans.Family;
 
@@ -234,7 +236,9 @@ public class OrderService(
 
         var now = DateTime.Now;
 
-        var planExtra = await dbContext.PlanExtras.FirstOrDefaultAsync(x => x.Plan == orderExtra.Plan && x.IsActive);
+        var planExtra = await dbContext.PlanExtras
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Plan == orderExtra.Plan && x.IsActive);
 
         if (planExtra is null) return false;
 
@@ -345,6 +349,7 @@ public class OrderService(
     public async Task<string> MakePaymentLink(long userId, long orderId)
     {
         var order = await dbContext.Orders
+                        .AsNoTracking()
                         .FirstOrDefaultAsync(x => x.Id == orderId && x.UserId == userId)
                     ?? throw new OrderNotFoundException();
 

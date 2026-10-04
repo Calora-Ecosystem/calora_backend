@@ -1,4 +1,4 @@
-﻿using BRB.Core.Common.Extensions;
+using BRB.Core.Common.Extensions;
 using Core.Services.FoodService.Exceptions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
@@ -33,6 +33,7 @@ public class FoodService(
     public async Task<Wrapper> GetAllCategory(DataQueryRequest q)
     {
         return await dbContext.FoodCategories
+            .AsNoTracking()
             // .Select(x => new
             // {
             //     x.Id,
@@ -68,7 +69,7 @@ public class FoodService(
 
     public async Task<Wrapper> GetAllFoods(long? userId, GetAllFoodsQuery q)
     {
-        var queryable = dbContext.Foods.AsQueryable();
+        var queryable = dbContext.Foods.AsNoTracking();
 
         // A user sees the catalogue plus their own foods; an anonymous caller
         // only the catalogue — never other users' private foods.
@@ -79,7 +80,9 @@ public class FoodService(
         var fIds = new List<long>(); //user favourite food ids
 
         if (userId.HasValue)
-            fIds = await dbContext.UserExtras.Where(x => x.UserId == userId.Value)
+            fIds = await dbContext.UserExtras
+                .AsNoTracking()
+                .Where(x => x.UserId == userId.Value)
                 .SelectMany(x => x.FavouriteFoods.Select(food => food.Id)).ToListAsync();
 
         List<long>? latestIds = null;
@@ -94,6 +97,7 @@ public class FoodService(
             // Recency is the row Id, not DailyMenu.Date: Date is day-only and
             // can be back-dated, yet a food just logged must show up first.
             latestIds = await dbContext.DailyMenus
+                .AsNoTracking()
                 .Where(x => x.UserId == userId)
                 .GroupBy(x => x.FoodId)
                 .Select(g => new { FoodId = g.Key, LastId = g.Max(m => m.Id) })
@@ -455,6 +459,7 @@ public class FoodService(
     public async Task<DailyMenu> AddDailyMenuItem(long userId, AddDailyMenuDto dto)
     {
         var food = await dbContext.Foods
+                       .AsNoTracking()
                        .Include(x => x.Metrics)
                        .FirstOrDefaultAsync(x =>
                            x.Id == dto.FoodId && (!x.UserId.HasValue || x.UserId == userId)) ??

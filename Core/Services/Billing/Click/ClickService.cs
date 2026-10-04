@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using BRB.Core.EF.Attributes;
 using Core.Services.Billing.Exceptions;
 using Core.Brokers.DbContext;
@@ -246,6 +246,7 @@ public class ClickService(
     public async Task<string> MakeClickPaymentLink(long orderId, decimal amount)
     {
         var transaction = await appDbContext.ClickTransactions
+            .AsNoTracking()
             .FirstOrDefaultAsync(x => x.OrderId == orderId) ?? throw new TransactionNotFoundException();
 
         amount /= 100; //convert to sum

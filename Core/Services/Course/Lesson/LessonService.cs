@@ -16,7 +16,7 @@ public class LessonService(AppDbContext dbContext)
 {
     public async Task<Wrapper> GetAll(DataQueryRequest query, long? courseId = null)
     {
-        var q = dbContext.Lessons.AsQueryable();
+        var q = dbContext.Lessons.AsNoTracking();
         if (courseId is not null)
             q = q.Where(x => x.CourseId == courseId);
 

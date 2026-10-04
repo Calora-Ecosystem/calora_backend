@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -366,9 +366,12 @@ public class AuthService(
     private async Task<string> MakeJwtFromUser(long userId, long deviceId)
     {
         var user = await dbContext.Users
+            .AsNoTracking()
             .GetByIdOrThrowsNotFoundException(userId);
 
-        var subscription = await dbContext.Subscriptions.FirstOrDefaultAsync(x => x.UserId == user.Id && x.IsActive);
+        var subscription = await dbContext.Subscriptions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.UserId == user.Id && x.IsActive);
 
         var claims = new List<Claim>();
 

@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using BRB.Core.EF.Attributes;
 using Core.Services.Billing.Exceptions;
@@ -81,8 +81,10 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config, 
     {
         var orderId = long.Parse(dto.Account.OrderId);
 
-        var order = await dbContext.Orders.FirstOrDefaultAsync(x =>
-            x.Id == orderId && x.Status == EnumOrderStatus.Pending);
+        var order = await dbContext.Orders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x =>
+                x.Id == orderId && x.Status == EnumOrderStatus.Pending);
 
         if (order is null)
             return new ErrorResponseDto()
@@ -97,7 +99,9 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config, 
                 Error = ResponseErrors.WrongAmount,
             };
 
-        var transaction = dbContext.PaymeTransactions.FirstOrDefault(x => x.OrderId == orderId);
+        var transaction = await dbContext.PaymeTransactions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.OrderId == orderId);
 
         if (transaction is null)
             return new ErrorResponseDto()
@@ -409,7 +413,9 @@ public class PaymeService(AppDbContext dbContext, IOptions<PaymeConfig> config, 
 
     public async Task<string> MakeClickPaymentLink(long orderId, long orderAmount)
     {
-        var transaction = await dbContext.PaymeTransactions.FirstOrDefaultAsync(x => x.OrderId == orderId) ??
+        var transaction = await dbContext.PaymeTransactions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.OrderId == orderId) ??
                           throw new TransactionNotFoundException();
 
         var data = $"m={config.Value.MerchantId};ac.order_id={orderId};a={transaction.Amount}";

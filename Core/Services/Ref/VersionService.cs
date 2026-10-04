@@ -1,4 +1,4 @@
-﻿using BRB.Core.Common.Extensions;
+using BRB.Core.Common.Extensions;
 using Core.Services.Ref.Exceptions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
@@ -16,12 +16,13 @@ public class VersionService(AppDbContext dbContext)
 {
     public async Task<Wrapper> GetAll(DataQueryRequest q)
     {
-        return await dbContext.Versions.GetByDataQueryAsync(q);
+        return await dbContext.Versions.AsNoTracking().GetByDataQueryAsync(q);
     }
 
     public async Task<Version> GetLatestVersion()
     {
         return await dbContext.Versions
+            .AsNoTracking()
             .OrderByDescending(x => x.CreatedAt)
             .FirstOrDefaultAsync(x => x.IsActive) ?? throw new ActiveVersionNotFoundException();
     }
@@ -29,8 +30,10 @@ public class VersionService(AppDbContext dbContext)
     public async Task<CheckDto> Check(string version)
     {
         var entity =
-            await dbContext.Versions.FirstOrDefaultAsync(x =>
-                x.Key == version.ToLowerInvariant()) ??
+            await dbContext.Versions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x =>
+                    x.Key == version.ToLowerInvariant()) ??
             throw new VersionNotFoundException();
 
         return new CheckDto()

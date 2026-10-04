@@ -34,6 +34,7 @@ public partial class NotificationService(
     public async Task<Wrapper> GetAllNotifications(long userId, DataQueryRequest q)
     {
         var query = dbContext.PushNotifications
+            .AsNoTracking()
             .Where(x => x.UserId == userId && x.SentAt.HasValue);
 
         return (await query
@@ -96,6 +97,7 @@ public partial class NotificationService(
     {
         var message =
             await dbContext.ReminderMessages
+                .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Type == reminder.Type && x.Menu == reminder.Menu) ?? new ReminderMessage()
             {
                 Title = $"Reminding: {reminder.Type}{(reminder.Menu.HasValue ? $"-{reminder.Menu}" : "")}"

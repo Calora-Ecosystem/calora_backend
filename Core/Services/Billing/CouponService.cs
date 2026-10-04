@@ -51,6 +51,73 @@ public class CouponService(AppDbContext context)
             .FirstOrDefaultAsync(x => x.Id == id) ?? throw new CouponNotFoundException();
     }
 
+    public async Task<List<MyFamilyCouponDto>> GetMyFamilyCoupons(long userId)
+    {
+        var now = DateTime.Now;
+
+        var coupons = await context.Coupons
+            .AsNoTracking()
+            .Where(x => x.CreatedByUserId == userId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .ToListAsync();
+
+        if (coupons.Count == 0)
+            return [];
+
+        var couponIds = coupons.Select(x => x.Id).ToList();
+
+        var usages = await context.CouponUsages
+            .AsNoTracking()
+            .Where(x => couponIds.Contains(x.CouponId))
+            .OrderByDescending(x => x.CreatedAt)
+            .Join(context.Users, usage => usage.UserId, user => user.Id, (usage, user) => new
+            {
+                usage.CouponId,
+                usage.UserId,
+                UserName = user.Name,
+                UserPhone = user.Phone,
+                usage.CreatedAt
+            })
+            .ToListAsync();
+
+        return coupons.Select(coupon =>
+        {
+            var couponUsages = usages.Where(u => u.CouponId == coupon.Id).ToList();
+            var firstUsage = couponUsages.FirstOrDefault();
+
+            var isRedeemed = coupon.Usages > 0 || couponUsages.Count > 0;
+            var isExpired = coupon.ExpireAt.HasValue && coupon.ExpireAt.Value < now;
+
+            var status = isRedeemed
+                ? "Redeemed"
+                : (isExpired || !coupon.IsActive)
+                    ? "Expired"
+                    : "Active";
+
+            return new MyFamilyCouponDto
+            {
+                Id = coupon.Id,
+                Code = coupon.Code,
+                Amount = coupon.Amount,
+                IsActive = coupon.IsActive,
+                ExpireAt = coupon.ExpireAt,
+                CreatedAt = coupon.CreatedAt,
+                UsedAt = firstUsage?.CreatedAt,
+                UsedByUserIds = couponUsages.Select(u => u.UserId).ToList(),
+                UsedByUsers = couponUsages.Select(u => new FamilyCouponUserDto
+                {
+                    UserId = u.UserId,
+                    Name = u.UserName,
+                    Phone = u.UserPhone
+                }).ToList(),
+                UsedByUserId = firstUsage?.UserId,
+                UsedByName = firstUsage?.UserName,
+                Status = status
+            };
+        }).ToList();
+    }
+
     public async Task<Wrapper> GetCouponUsages(long couponId, DataQueryRequest q)
     {
         return await context.CouponUsages
@@ -65,7 +132,7 @@ public class CouponService(AppDbContext context)
 
     public async Task<CheckCouponDto> CheckCoupon(long userId, long couponId)
     {
-        var coupon = await context.Coupons.GetByIdOrThrowsNotFoundException(couponId);
+        var coupon = await context.Coupons.AsNoTracking().GetByIdOrThrowsNotFoundException(couponId);
         return await CheckCoupon(userId, coupon.Code);
     }
 
@@ -73,6 +140,7 @@ public class CouponService(AppDbContext context)
     {
         var coupon =
             await context.Coupons
+                .AsNoTracking()
                 .FirstOrDefaultAsync(x => EF.Functions.ILike(x.Code, code) && x.IsActive
                                                                            && (!x.OneTime || x.Usages == 0)
                                                                            && (!x.ExpireAt.HasValue ||

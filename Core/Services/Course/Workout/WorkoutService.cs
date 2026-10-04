@@ -21,7 +21,7 @@ public class WorkoutService(AppDbContext dbContext)
     public async Task<Wrapper> GetAll(long userId, DataQueryRequest query, long? courseId = null,
         EnumActivityLevel? level = null)
     {
-        var q = dbContext.Workouts.AsQueryable();
+        var q = dbContext.Workouts.AsNoTracking();
 
         if (courseId is not null)
             q = q.Where(x => x.CourseId == courseId);
@@ -180,6 +180,7 @@ public class WorkoutService(AppDbContext dbContext)
     {
         return await dbContext
             .Exercises
+            .AsNoTracking()
             .AsSplitQuery()
             .Where(x => x.WorkoutId == workoutId)
             .Select(x => new GetExerciseDto
@@ -269,7 +270,7 @@ public class WorkoutService(AppDbContext dbContext)
 
     public async Task<List<ComputationDto>> GetExerciseComputations(long id)
     {
-        var exercise = await dbContext.Exercises.GetByIdOrThrowsNotFoundException(id);
+        var exercise = await dbContext.Exercises.AsNoTracking().GetByIdOrThrowsNotFoundException(id);
         return await GetComputations(exercise.WorkoutId, exercise.Id);
     }
 
