@@ -29,7 +29,6 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<UserNormGeneral> UserNorms { get; set; }
     public DbSet<UserDaily> UserDailies { get; set; }
     public DbSet<UserNormByMenu> UserNormByMenus { get; set; }
-    public DbSet<UserAiQuota> UserAiQuotas { get; set; }
 
     #endregion
 
@@ -112,7 +111,7 @@ public class AppDbContext : DefaultConfiguredDbContext
     public DbSet<PaymeTransaction> PaymeTransactions { get; set; }
     public DbSet<Coupon> Coupons { get; set; }
     public DbSet<CouponUsage> CouponUsages { get; set; }
-    public DbSet<FamilyCode> FamilyCodes { get; set; }
+    public DbSet<UserFeatureUsage> UserFeatureUsages { get; set; }
 
     #endregion
 
