@@ -122,7 +122,8 @@ public class DashboardService(AppDbContext context)
         var activeSubs = context.Subscriptions.Where(x => x.IsActive && x.EndsAt > now);
         var premiumCount = await activeSubs.CountAsync(x => x.SubscriptionPlan == EnumSPlans.Premium);
         var proCount = await activeSubs.CountAsync(x => x.SubscriptionPlan == EnumSPlans.Pro);
-        var premiumUsers = premiumCount + proCount;
+        var familyCount = await activeSubs.CountAsync(x => x.SubscriptionPlan == EnumSPlans.Family);
+        var premiumUsers = premiumCount + proCount + familyCount;
         var freeUsers = Math.Max(totalUsers - premiumUsers, 0);
 
         var planBreakdown = new List<PlanBreakdownDto>
@@ -130,6 +131,7 @@ public class DashboardService(AppDbContext context)
             new() { Plan = EnumSPlans.Free, Count = freeUsers },
             new() { Plan = EnumSPlans.Premium, Count = premiumCount },
             new() { Plan = EnumSPlans.Pro, Count = proCount },
+            new() { Plan = EnumSPlans.Family, Count = familyCount },
         };
 
         // ── Kunlik registratsiya trendi (oxirgi 30 kun) ──────────────
@@ -198,7 +200,7 @@ public class DashboardService(AppDbContext context)
 
         var premiumQuery = context.Subscriptions
             .Where(x => x.StartsAt >= fromStart && x.StartsAt < toEnd
-                        && (x.SubscriptionPlan == EnumSPlans.Premium || x.SubscriptionPlan == EnumSPlans.Pro));
+                        && x.SubscriptionPlan != EnumSPlans.Free);
         var newPremium = await premiumQuery.CountAsync();
 
         var regRows = await context.Users
@@ -639,7 +641,7 @@ public class DashboardService(AppDbContext context)
 
         var premiumUserIds = await context.Subscriptions
             .AsNoTracking()
-            .Where(s => s.SubscriptionPlan == EnumSPlans.Premium)
+            .Where(s => s.SubscriptionPlan != EnumSPlans.Free)
             .Select(s => s.UserId)
             .Distinct()
             .ToListAsync();

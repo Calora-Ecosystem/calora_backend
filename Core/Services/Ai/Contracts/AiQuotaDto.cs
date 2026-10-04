@@ -14,9 +14,3 @@ public class AiQuotaDto
     public int Used { get; set; }
     public int Remaining { get; set; }
 }
-
-public class AiQuotaConfig
-{
-    /// <summary>Har bir userga ro'yxatdan o'tgandan keyin beriladigan bepul AI so'rovlar soni.</summary>
-    public int FreeLimit { get; set; } = 5;
-}

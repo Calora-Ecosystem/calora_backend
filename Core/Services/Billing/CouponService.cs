@@ -24,6 +24,8 @@ public class CouponService(AppDbContext context)
                 ExpireAt = x.ExpireAt,
                 AllowedUserIds = x.AllowedUserIds,
                 IsActive = x.IsActive,
+                CreatedByUserId = x.CreatedByUserId,
+                CreatedByName = x.CreatedByUser != null ? x.CreatedByUser.Name : null,
                 CreatedAt = x.CreatedAt,
                 UpdatedAt = x.UpdatedAt
             })
@@ -41,6 +43,8 @@ public class CouponService(AppDbContext context)
                 Amount = x.Amount,
                 AllowedUserIds = x.AllowedUserIds,
                 IsActive = x.IsActive,
+                CreatedByUserId = x.CreatedByUserId,
+                CreatedByName = x.CreatedByUser != null ? x.CreatedByUser.Name : null,
                 CreatedAt = x.CreatedAt,
                 UpdatedAt = x.UpdatedAt
             })
@@ -78,6 +82,9 @@ public class CouponService(AppDbContext context)
 
         if (coupon.AllowedUserIds != null && !coupon.AllowedUserIds.Contains(userId))
             throw new CouponNotFoundException();
+
+        if (coupon.CreatedByUserId.HasValue && coupon.CreatedByUserId.Value == userId)
+            throw new CouponSelfUseException();
 
         return new CheckCouponDto
         {
@@ -146,7 +153,7 @@ public class CouponService(AppDbContext context)
             await CheckCoupon(userId, coupon.Code);
 
             coupon.Usages++;
-
+            
             if (coupon is { OneTime: true, Usages: >= 1 })
             {
                 coupon.IsActive = false;
