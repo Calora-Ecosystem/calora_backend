@@ -13,16 +13,17 @@ namespace Core.Migrations
             migrationBuilder.AlterColumn<int>(
                 name: "feature_key",
                 table: "user_feature_usages",
-                type: "integer",
+                type: "integer USING feature_key::integer",
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "character varying(100)",
-                oldMaxLength: 100);
+                oldMaxLength: 100
+                );
 
             migrationBuilder.AlterColumn<int>(
                 name: "feature_key",
                 table: "plan_features",
-                type: "integer",
+                type: "integer USING feature_key::integer",
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "character varying(100)",
