@@ -28,6 +28,6 @@ public class CreateOrUpdatePlanExtraDto
     [SwaggerSchema("Marks this package as the \"best offer\". Only one per plan")]
     public bool IsPopular { get; set; }
 
-    [SwaggerSchema("Tarif xususiyatlari (masalan featureKey: 'AiScans', value: 'unlimited'; featureKey: 'Family', value: 'true')")]
+    [SwaggerSchema("Tarif xususiyatlari (masalan featureKey: 'AiScans', value: 'unlimited')")]
     public List<PlanFeatureDto>? Features { get; set; }
 }

@@ -97,7 +97,7 @@ public class BillingController(
     [ProducesResponseType<WrapperGeneric<GetMySubscriptionDto>>(200)]
     public async Task<Wrapper> GetMySubscription() => (await subscriptionService.GetMy(this.UserId), 200);
 
-    /// <param name="plan">Premium / Pro</param>
+    /// <param name="plan">Premium / Pro / Family</param>
     /// <param name="query"></param>
     [HttpGet("orders/subscription/plans/{plan}")]
     [RoleAuthorize(EnumRole.User)]

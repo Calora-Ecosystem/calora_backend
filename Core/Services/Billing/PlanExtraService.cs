@@ -155,12 +155,6 @@ public class PlanExtraService(AppDbContext dbContext)
                 FeatureKey = EnumPlanFeature.AiScans,
                 Name = "AI Scans",
                 Description = "AI food recognition limit (e.g. number count or 'unlimited')"
-            },
-            new PlanFeatureDefinitionDto
-            {
-                FeatureKey = EnumPlanFeature.Family,
-                Name = "Family",
-                Description = "Family plan access (grants secondary member coupon)"
             }
         ];
     }

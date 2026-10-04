@@ -49,8 +49,7 @@ public class OrderService(
 
         var planExtra = await dbContext.PlanExtras.GetByIdOrThrowsNotFoundException(dto.PlanExtraId);
 
-        var isFamily = await dbContext.PlanFeatures
-            .AnyAsync(f => f.PlanId == planExtra.Id && f.FeatureKey == EnumPlanFeature.Family);
+        var isFamily = planExtra.Plan == EnumSPlans.Family;
 
         // Store'da oilaviy mahsulot yo'q: IAP orqali oylik narx to'lanib, ikkinchi odamga kod ketardi.
         if (isFamily && dto.Provider == EnumPaymentProviders.Iap)
@@ -279,9 +278,8 @@ public class OrderService(
         subscription.CancelledAt = null;
         subscription.Source = EnumSubscriptionSource.Payment;
 
-        // Oilaviy tarif: paketda family feature bo'lsa, ikkinchi odam uchun 100% chegirmali Coupon yaratiladi.
-        var hasFamily = await dbContext.PlanFeatures
-            .AnyAsync(f => f.PlanId == orderExtra.PlanExtraId && f.FeatureKey == EnumPlanFeature.Family);
+        // Oilaviy tarif: xarid qilingan tarif Family bo'lsa, ikkinchi odam uchun 100% chegirmali Coupon yaratiladi.
+        var hasFamily = orderExtra.Plan == EnumSPlans.Family;
 
         Coupon? familyCoupon = null;
         if (hasFamily)
@@ -296,7 +294,8 @@ public class OrderService(
                 Amount = orderExtra.PlanExtra.Fee,
                 OneTime = true,
                 IsActive = true,
-                ExpireAt = now.AddDays(30)
+                ExpireAt = now.AddDays(30),
+                CreatedByUserId = order.UserId
             };
 
             dbContext.Coupons.Add(familyCoupon);

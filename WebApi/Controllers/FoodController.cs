@@ -64,7 +64,7 @@ public class FoodController(FoodService service, AiQuotaService aiQuotaService) 
     /// AI orqali ovqatni aniqlash (rasm yoki ovoz). Premium — cheksiz; boshqalar uchun
     /// bepul limit (<c>food/recognization/quota</c>). Limit tugasa 403 <c>ai_free_limit_exceeded</c>.
     /// </summary>
-    [RoleAuthorize(EnumRole.User, Plans = [EnumSPlans.Free, EnumSPlans.Premium])]
+    [RoleAuthorize(EnumRole.User, Plans = [EnumSPlans.Free, EnumSPlans.Premium, EnumSPlans.Family])]
     [HttpPost("recognization")]
     public async Task<WrapperGeneric<IEnumerable<FoodResultDto>>> RecognizeFood([FromForm] RecognizeFoodDto dto) =>
         (await service.RecognizeFood(dto, this.UserId), 200);

@@ -7,8 +7,5 @@ namespace Core.Entities.Billing.Enum;
 public enum EnumPlanFeature
 {
     /// <summary>AI orqali taomlarni aniqlash (rasm/ovoz) limiti.</summary>
-    AiScans = 1,
-
-    /// <summary>Oilaviy tarif — ikkinchi foydalanuvchiga kupon beradi.</summary>
-    Family = 2
+    AiScans = 1
 }
