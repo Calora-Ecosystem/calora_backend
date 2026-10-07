@@ -8,6 +8,10 @@ public record GetCouponsDto
     public DateTime? ExpireAt { get; set; }
     public List<long>? AllowedUserIds { get; set; }
     public bool IsActive { get; set; }
+    public long? CreatedByUserId { get; set; }
+    public string? CreatedByName { get; set; }
+    public List<long>? UsedByUserIds { get; set; }
+    public DateTime? UsedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public bool OneTime { get; set; }

@@ -144,6 +144,7 @@ public partial class NotificationService
             return;
 
         var notifications = await dbContext.PushNotifications
+            .AsNoTracking()
             .Where(x => notificationIds.Contains(x.Id) && !x.SentAt.HasValue)
             .ToListAsync();
 
@@ -279,6 +280,7 @@ public partial class NotificationService
 
         // 1. Process future-scheduled notifications that have not been enqueued yet
         var scheduledNotifications = await dbContext.PushNotifications
+            .AsNoTracking()
             .Where(x => !x.EnqueuedAt.HasValue && x.Scheduled.HasValue && x.Scheduled > now)
             .OrderBy(x => x.CreatedAt)
             .Take(1000)

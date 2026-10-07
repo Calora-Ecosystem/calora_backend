@@ -1,4 +1,4 @@
-﻿using BRB.Core.Common.Models.Base;
+using BRB.Core.Common.Models.Base;
 using Core.Enums;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,9 +20,5 @@ public class PlanExtra : AuditableModelBase<long>
     /// </summary>
     public bool IsPopular { get; set; }
 
-    /// <summary>
-    /// Oilaviy tarif (2 kishi): to'langanda xaridor premium oladi va ikkinchi odam uchun
-    /// <see cref="FamilyCode"/> yaratiladi. Oddiy tariflar ro'yxatida ko'rinmaydi.
-    /// </summary>
-    public bool IsFamily { get; set; }
+    public ICollection<PlanFeature> Features { get; set; } = new List<PlanFeature>();
 }

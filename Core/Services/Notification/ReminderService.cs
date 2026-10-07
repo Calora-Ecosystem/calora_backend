@@ -1,4 +1,4 @@
-﻿using BRB.Core.Common.Extensions;
+using BRB.Core.Common.Extensions;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -74,6 +74,7 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
         var today = now.Date;
 
         var messages = await dbContext.ReminderMessages
+            .AsNoTracking()
             .Where(x => x.IsActive && x.Time != null && x.Type == EnumMomentType.Food && x.Menu != null
                         && x.Time > nowSpan && x.Time <= windowEndSpan)
             .ToListAsync();
@@ -118,6 +119,7 @@ public class ReminderService(AppDbContext dbContext, NotificationService notific
         var windowEndSpan = windowEnd.TimeOfDay;
 
         await (await dbContext.Reminders
+                .AsNoTracking()
                 .Where(x =>
                     x.Type == EnumMomentType.Water
                         ? x.Time.Hours != 0 && nowSpan.Hours % x.Time.Hours == 0

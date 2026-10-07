@@ -6,6 +6,7 @@ using Core.Brokers.DbContext;
 using Core.Entities.Course;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -14,9 +15,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Core.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261004025220_RefactorUserAiQuotaToUserFeatureUsage")]
+    partial class RefactorUserAiQuotaToUserFeatureUsage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -514,10 +517,6 @@ namespace Core.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<long?>("CreatedByUserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("created_by_user_id");
-
                     b.Property<DateTime?>("ExpireAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("expire_at");
@@ -544,9 +543,6 @@ namespace Core.Migrations
                     b.HasIndex("Code")
                         .IsUnique()
                         .HasDatabaseName("ix_coupons_code");
-
-                    b.HasIndex("CreatedByUserId")
-                        .HasDatabaseName("ix_coupons_created_by_user_id");
 
                     b.ToTable("coupons", (string)null);
                 });
@@ -782,8 +778,10 @@ namespace Core.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("FeatureKey")
-                        .HasColumnType("integer")
+                    b.Property<string>("FeatureKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("feature_key");
 
                     b.Property<long>("PlanId")
@@ -922,8 +920,10 @@ namespace Core.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("FeatureKey")
-                        .HasColumnType("integer")
+                    b.Property<string>("FeatureKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("feature_key");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -2739,16 +2739,6 @@ namespace Core.Migrations
                         .HasConstraintName("fk_click_transactions_orders_order_id");
 
                     b.Navigation("Order");
-                });
-
-            modelBuilder.Entity("Core.Entities.Billing.Coupon", b =>
-                {
-                    b.HasOne("Core.Entities.Auth.User", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .HasConstraintName("fk_coupons_users_created_by_user_id");
-
-                    b.Navigation("CreatedByUser");
                 });
 
             modelBuilder.Entity("Core.Entities.Billing.Order", b =>

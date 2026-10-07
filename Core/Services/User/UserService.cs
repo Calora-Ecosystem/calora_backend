@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -53,7 +53,9 @@ public class UserService(
 
     public async Task<Wrapper> GetAllUsers(DataQueryRequest query)
     {
-        return await context.Users.Select(x => new GetAllUsersDto
+        return await context.Users
+            .AsNoTracking()
+            .Select(x => new GetAllUsersDto
             {
                 Id = x.Id, Name = x.Name, Email = x.Email,
                 Phone = x.Phone,
@@ -300,6 +302,7 @@ public class UserService(
     private async Task<List<UserProgressSummaryDto>> UserProgressSummary(long userId)
     {
         return await context.UserNorms
+            .AsNoTracking()
             .AsSplitQuery()
             .Where(x => x.UserId == userId)
             .GroupJoin(context.UserDailies
@@ -527,6 +530,7 @@ group by ung.user_id
         to ??= DateTime.Now.Date.AddDays(1);
 
         var extra = await context.UserExtras
+            .AsNoTracking()
             .FirstOrDefaultAsync(x => x.UserId == userId) ?? throw new UserExtraNotFoundException();
 
         var totalFoots = Math.Round(await context.UserDailies

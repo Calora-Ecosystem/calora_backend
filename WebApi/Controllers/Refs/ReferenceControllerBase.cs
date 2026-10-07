@@ -26,6 +26,7 @@ public abstract class ReferenceControllerBase<T>(AppDbContext dbContext)
         var total = await query.CountAsync();
 
         var items = await dbContext.Set<T>()
+            .AsNoTracking()
             .Sort(q)
             .FilterByExpressions(q.FilteringExpression)
             .Page(q)

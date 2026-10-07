@@ -1,16 +1,27 @@
 ---
 name: family-plan-api
-description: Oilaviy tarif (2 kishi) — PlanExtra.IsFamily, to'lovda ikkinchi odamga FAMILY-XXXXXX kod, billing/family/redeem bilan 1 oy premium
+description: Oilaviy tarif (2 kishi) — PlanExtra (Family), to'lovda ikkinchi odam uchun Coupon (FAMILY-XXXXXX), GET billing/family/coupons yoki billing/coupons/my
 type: reference
 ---
 
-# Oilaviy tarif (2 kishi)
+# Oilaviy tarif (Family Plan)
 
-- Paket: `plan_extras.is_family = true` — **admin dashboard'da yaratiladi** (Tariflar sahifasida "Oilaviy" belgisi; narx, muddat, faollik shu yerda). Migratsiya narx seed qilmaydi; paket bo'lmasa ilova oilaviy tarifni ko'rsatmaydi. `CreateOrUpdatePlanExtraDto.IsFamily` nullable — yubormagan eski dashboard qiymatni o'zgartirmaydi. Dublikat/IsPopular tekshiruvi oddiy va oilaviy paketlarda alohida.
-- Ro'yxat: `GET billing/orders/subscription/plans/Premium` — default **faqat oddiy** paketlar (eski ilovalar oilaviyni "oylik" deb ko'rsatmasin); `?family=true` — faqat oilaviy.
-- Sotib olish: oddiy order oqimi (`orders/subscription`), lekin **faqat Click/Payme** — IAP bilan `family_plan_store_unavailable` (store'da oilaviy mahsulot yo'q; IAP orqali oylik narx to'lanib kod ketardi).
-- To'lov qabul qilinganda (`OrderService.AcceptSubscriptionPaymentAsync`): xaridor odatdagidek premium bo'ladi va shu order uchun bitta `family_codes` qatori (`FAMILY-XXXXXX`, `months` = paket muddati, `expire_at` = +30 kun) obuna bilan **bitta SaveChanges**da yoziladi. `order_id` unique — provayder qayta yuborsa ikkinchi kod chiqmaydi. Egasiga push (kod matni bilan).
-- `GET billing/family/codes` — egasining kodlari (eng yangisi birinchi): code, months, status (Active / Redeemed / Expired), expireAt, redeemedAt, redeemedBy (ism).
-- `POST billing/family/redeem {code}` — ikkinchi odam: kod atomik band qilinadi (`ExecuteUpdate ... where redeemed_by_id is null`), `SubscriptionService.GrantPremiumDays(source=Family)`; javob `{ownerName, months, endsAt, requiresTokenRefresh: true}`. Xatolar: `family_code_not_found` (404), `family_code_used`, `family_code_expired`, `family_code_self`. Egasiga "kod faollashdi" push.
-- `subscriptions.source = Family` (5) — muddati o'tsa `expire_granted_subscriptions` job o'chiradi (Coins/Referral kabi). `GET billing/subscription/my` → `isFamily` (oxirgi sotib olingan paket oilaviymi).
-- Mobile: Tariflar → Oila → PremiumSheet(family) → to'lovdan keyin kod oynasi (nusxa/ulashish); Profil → Obuna'da kod kartasi va "Oila kodini kiritish"; promo-kod maydoni ham `FAMILY-` kodini qabul qiladi.
+- **Paket**: `PlanExtra` ro'yxatida `Plan == EnumSPlans.Family`. Sotib olish: Payme / Click orqali (IAP store mahsuloti yo'q — `FamilyPlanStoreUnavailableException`).
+- **To'lov qabul qilinganda** (`OrderService.AcceptSubscriptionPaymentAsync`):
+  - Xaridor (owner) obunasi `Family` rejasiga o'tadi va faollashadi.
+  - Ikkinchi odam uchun bitta `FAMILY-XXXXXX` kodi bilan 100% chegirmali bir martalik (`OneTime = true`) kupon yaratiladi:
+    - `CreatedByUserId = order.UserId`
+    - `ExpireAt = now.AddDays(30)`
+    - `Amount = orderExtra.PlanExtra.Fee`
+  - Kupon egasiga push-bildirishnoma jo'natiladi (`NotifyFamilyCouponIssued`).
+- **Kuponlarni ko'rish**:
+  - `GET billing/family/coupons` (shuningdek `GET billing/coupons/my` va `GET billing/family/codes`):
+    - `[RoleAuthorize(EnumRole.User)]`
+    - Egasi o'zi yaratgan barcha kuponlar ro'yxatini oladi (`MyFamilyCouponDto`):
+      - `Id`, `Code`, `Amount`, `IsActive`, `ExpireAt`, `CreatedAt`
+      - `Status`: `"Active"` | `"Redeemed"` | `"Expired"`
+      - `UsedAt`, `UsedByUserId`, `UsedByName`, `UsedByUsers` (ishlatgan odamning ismi va telefoni).
+- **Ikkinchi odam kuponni ishlatishi**:
+  - Standart obuna oqimi: `GET billing/coupons/check?code=FAMILY-XXXXXX` orqali tekshiradi va `POST billing/orders/subscription` da `CouponId` bilan yuboradi.
+  - Kupon 100% chegirma bergani sababli to'lov summasi 0 bo'ladi va obuna bir zumda faollashadi (`order.Amount == 0`).
+  - Kupon egasi o'zining kuponini o'zi ishlata olmaydi (`CouponSelfUseException` - `coupon_self_use`).

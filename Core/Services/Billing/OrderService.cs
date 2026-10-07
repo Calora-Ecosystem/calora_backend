@@ -1,4 +1,4 @@
-﻿using BRB.Core.Common.Models;
+using BRB.Core.Common.Models;
 using Core.Services.Billing.Exceptions;
 using BRB.Core.EF.Attributes;
 using BRB.Core.EF.Extensions;
@@ -16,6 +16,8 @@ using Core.Helpers;
 using Core.Services.Crm;
 using Core.Services.Crm.Enum;
 using Core.Services.User.Exceptions;
+using Core.Services.Notification;
+using Core.Services.Notification.Contracts;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,7 +32,7 @@ public class OrderService(
     AuthService authService,
     CouponService couponService,
     ReferralDiscountService referralDiscountService,
-    FamilyService familyService)
+    NotificationService notificationService)
 {
     public async Task<CreateSubscriptionOrderResponseDto> CreateSubscriptionOrder(long userId,
         CreateSubscriptionOrderDto dto)
@@ -45,10 +47,14 @@ public class OrderService(
             (dto.Provider == EnumPaymentProviders.Iap || await IsStoreManaged(userId)))
             throw new UserAlreadySubscribedException();
 
-        var planExtra = await dbContext.PlanExtras.GetByIdOrThrowsNotFoundException(dto.PlanExtraId);
+        var planExtra = await dbContext.PlanExtras
+            .AsNoTracking()
+            .GetByIdOrThrowsNotFoundException(dto.PlanExtraId);
+
+        var isFamily = planExtra.Plan == EnumSPlans.Family;
 
         // Store'da oilaviy mahsulot yo'q: IAP orqali oylik narx to'lanib, ikkinchi odamga kod ketardi.
-        if (planExtra.IsFamily && dto.Provider == EnumPaymentProviders.Iap)
+        if (isFamily && dto.Provider == EnumPaymentProviders.Iap)
             throw new FamilyPlanStoreUnavailableException();
 
         if (await dbContext.Orders
@@ -230,7 +236,9 @@ public class OrderService(
 
         var now = DateTime.Now;
 
-        var planExtra = await dbContext.PlanExtras.FirstOrDefaultAsync(x => x.Plan == orderExtra.Plan && x.IsActive);
+        var planExtra = await dbContext.PlanExtras
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Plan == orderExtra.Plan && x.IsActive);
 
         if (planExtra is null) return false;
 
@@ -274,25 +282,74 @@ public class OrderService(
         subscription.CancelledAt = null;
         subscription.Source = EnumSubscriptionSource.Payment;
 
-        // Oilaviy tarif: ikkinchi odam uchun kod obuna bilan bitta SaveChanges'da yoziladi —
-        // to'lov qabul qilinib, kod yo'qolib qolmaydi.
-        var familyCode = orderExtra.PlanExtra.IsFamily
-            ? await familyService.IssueForOrder(order.UserId, order.Id, orderExtra.PlanExtra.DurationInMonths)
-            : null;
+        // Oilaviy tarif: xarid qilingan tarif Family bo'lsa, ikkinchi odam uchun 100% chegirmali Coupon yaratiladi.
+        var hasFamily = orderExtra.Plan == EnumSPlans.Family;
+
+        Coupon? familyCoupon = null;
+        if (hasFamily)
+        {
+            string couponCode;
+            do couponCode = CodeGenerator.Generate("FAMILY-", 6);
+            while (await dbContext.Coupons.AnyAsync(c => c.Code == couponCode));
+
+            familyCoupon = new Coupon
+            {
+                Code = couponCode,
+                Amount = orderExtra.PlanExtra.Fee,
+                OneTime = true,
+                IsActive = true,
+                ExpireAt = now.AddDays(30),
+                CreatedByUserId = order.UserId
+            };
+
+            dbContext.Coupons.Add(familyCoupon);
+        }
 
         await dbContext.SaveChangesAsync();
 
-        if (familyCode is not null)
-            await familyService.NotifyIssued(familyCode);
+        if (familyCoupon is not null)
+            await NotifyFamilyCouponIssued(order.UserId, familyCoupon.Code);
         
         BackgroundJob.Enqueue<LeadService>(service => service.HandleEventAsync(new Core.Services.Crm.Contracts.HandleLeadEventDto(subscription.UserId, EnumLeadEvent.Purchased)));
 
         return true;
     }
 
+    private async Task NotifyFamilyCouponIssued(long ownerId, string code)
+    {
+        try
+        {
+            var language = await dbContext.UserExtras
+                .Where(x => x.UserId == ownerId)
+                .Select(x => (EnumLanguage?)x.Language)
+                .FirstOrDefaultAsync() ?? EnumLanguage.Uzbek;
+
+            var (title, description) = language switch
+            {
+                EnumLanguage.Russian => ("👨‍👩 Семейный тариф активен!", $"Код для близкого: {code}. Отправьте его — он получит Premium на месяц."),
+                EnumLanguage.English => ("👨‍👩 Family plan is on!", $"Code for your partner: {code}. Send it — they get a month of Premium."),
+                EnumLanguage.Cyrillic => ("👨‍👩 Оилавий тариф фаол!", $"Яқинингиз учун код: {code}. Юборинг — у бир ойлик Premium олади."),
+                _ => ("👨‍👩 Oilaviy tarif faol!", $"Yaqiningiz uchun kod: {code}. Yuboring — u bir oylik Premium oladi.")
+            };
+
+            await notificationService.CreateOrUpdatePushNotification(new PushNotificationDto
+            {
+                UserId = ownerId,
+                Title = title,
+                Description = description,
+                Meta = new Dictionary<string, string> { ["type"] = "coupon", ["code"] = code }
+            });
+        }
+        catch
+        {
+            // Push xabari yetib bormasa ham to'lov va kupon muvaffaqiyatli saqlangan.
+        }
+    }
+
     public async Task<string> MakePaymentLink(long userId, long orderId)
     {
         var order = await dbContext.Orders
+                        .AsNoTracking()
                         .FirstOrDefaultAsync(x => x.Id == orderId && x.UserId == userId)
                     ?? throw new OrderNotFoundException();
 
@@ -307,24 +364,25 @@ public class OrderService(
         });
     }
 
-    /// <param name="family">
-    /// true — faqat oilaviy paketlar, false — faqat oddiy paketlar (eski ilovalar oilaviy
-    /// paketni oddiy "oylik" deb ko'rsatib yubormasligi uchun default shu).
-    /// </param>
-    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, DataQueryRequest q, long? userId = null,
-        bool family = false)
+    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, DataQueryRequest q, long? userId = null)
     {
         var percent = userId.HasValue ? await referralDiscountService.GetAvailablePercent(userId.Value) : 0;
 
         return await dbContext
             .PlanExtras
-            .Where(x => x.Plan == plan && x.IsActive && x.IsFamily == family)
+            .Where(x => x.Plan == plan && x.IsActive)
             .Select(x => new GetPlanExtras
             {
-                Id = x.Id, Duration = x.DurationInMonths, IsActive = x.IsActive,
+                Id = x.Id,
+                Duration = x.DurationInMonths,
+                IsActive = x.IsActive,
                 Plan = x.Plan,
                 IsPopular = x.IsPopular,
-                IsFamily = x.IsFamily,
+                Features = x.Features.Select(f => new PlanFeatureDto
+                {
+                    FeatureKey = f.FeatureKey,
+                    Value = f.Value
+                }).ToList(),
                 Fee = x.Fee / 100d,
                 OriginalFee = x.OriginalFee / 100d,
                 ReferralDiscountPercent = percent,

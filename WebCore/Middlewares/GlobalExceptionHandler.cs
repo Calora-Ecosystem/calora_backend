@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using BRB.Core.Common.Exceptions.Common;
 using ResultWrapper.Library;
 
@@ -11,6 +11,11 @@ public class GlobalExceptionHandlerMiddleware : IMiddleware
         try
         {
             await next(context);
+        }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // Client closed connection / canceled request; ignore and do not report to Sentry
+            context.Response.StatusCode = 499;
         }
         catch (Exception ex)
         {

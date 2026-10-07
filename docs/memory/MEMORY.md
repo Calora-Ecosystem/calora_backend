@@ -7,4 +7,5 @@
 - [Wallet, Coins & Referral API](wallet-coins-referral-api.md) — N qadam = 1 coin (dashboard qoidasi, sana tarixi bilan), do'kon, reyting, referral + admin analitika.
 - [Step Groups API](step-groups-api.md) — userlar yaratadigan qadam guruhlari, taklif kodi, guruh ichidagi reyting.
 - [Weekly Report API](weekly-report-api.md) — GET reports/weekly: 7 kunlik kkal/makros/qadam/suv, top taom, streak, badge'lar (Du–Ya).
-- [Family Plan API](family-plan-api.md) — oilaviy tarif (2 kishi): to'lovda ikkinchi odamga FAMILY- kod, billing/family/redeem bilan premium.
+- [Family Plan Coupons API](family-plan-api.md) — Oilaviy tarif kuponlari, GET billing/family/coupons yoki coupons/my (status, ishlatgan odam).
+

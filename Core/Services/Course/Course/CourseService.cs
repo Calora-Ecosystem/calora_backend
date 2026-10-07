@@ -20,6 +20,7 @@ public class CourseService(AppDbContext context)
     public async Task<Wrapper> GetAll(GetCourseQueryRequest query)
     {
         return await context.Courses
+            .AsNoTracking()
             .Where(x => x.Gender == query.Gender || x.Gender == null)
             .Select(x => new GetCourseDto
             {
@@ -141,10 +142,10 @@ public class CourseService(AppDbContext context)
 
         // oldingi va keyingi elementlarni olish
         var before = beforeItemId != null
-            ? await context.Set<T>().FirstOrDefaultAsync(x => x.Id == beforeItemId) ?? throw new NotFoundException()
+            ? await context.Set<T>().AsNoTracking().FirstOrDefaultAsync(x => x.Id == beforeItemId) ?? throw new NotFoundException()
             : null;
         var after = afterItemId != null
-            ? await context.Set<T>().FirstOrDefaultAsync(x => x.Id == afterItemId) ?? throw new NotFoundException()
+            ? await context.Set<T>().AsNoTracking().FirstOrDefaultAsync(x => x.Id == afterItemId) ?? throw new NotFoundException()
             : null;
 
         if (before == null && after == null)
