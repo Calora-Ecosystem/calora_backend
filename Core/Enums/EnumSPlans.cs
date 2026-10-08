@@ -3,7 +3,6 @@ namespace Core.Enums;
 public enum EnumSPlans
 {
     Free = 1,
-    Premium,
-    Pro,
-    Family
+    Premium = 2,
+    Family = 4
 }
