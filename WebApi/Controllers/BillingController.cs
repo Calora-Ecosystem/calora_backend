@@ -100,10 +100,11 @@ public class BillingController(
     /// <param name="plan">Premium / Pro / Family</param>
     /// <param name="query"></param>
     [HttpGet("orders/subscription/plans/{plan}")]
+    [HttpGet("orders/subscription/plans")]
     [RoleAuthorize(EnumRole.User)]
     [ProducesResponseType<WrapperGeneric<IEnumerable<GetPlanExtras>>>(200)]
-    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, [FromQuery] DataQueryRequest query) =>
-        await orderService.GetPlanExtras(plan, query, this.UserId);
+    public async Task<Wrapper> GetPlanExtras([FromQuery] DataQueryRequest query) =>
+        await orderService.GetPlanExtras(query);
 
     [HttpPost("orders/subscription")]
     [RoleAuthorize(EnumRole.User)]

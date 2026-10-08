@@ -364,13 +364,13 @@ public class OrderService(
         });
     }
 
-    public async Task<Wrapper> GetPlanExtras(EnumSPlans plan, DataQueryRequest q, long? userId = null)
+    public async Task<Wrapper> GetPlanExtras(DataQueryRequest q, long? userId = null)
     {
         var percent = userId.HasValue ? await referralDiscountService.GetAvailablePercent(userId.Value) : 0;
 
         return await dbContext
             .PlanExtras
-            .Where(x => x.Plan == plan && x.IsActive)
+            .Where(x => x.IsActive)
             .Select(x => new GetPlanExtras
             {
                 Id = x.Id,
