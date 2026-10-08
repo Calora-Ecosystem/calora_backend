@@ -121,16 +121,14 @@ public class DashboardService(AppDbContext context)
         // ── Obuna kesimi (faol obunalar) ─────────────────────────────
         var activeSubs = context.Subscriptions.Where(x => x.IsActive && x.EndsAt > now);
         var premiumCount = await activeSubs.CountAsync(x => x.SubscriptionPlan == EnumSPlans.Premium);
-        var proCount = await activeSubs.CountAsync(x => x.SubscriptionPlan == EnumSPlans.Pro);
         var familyCount = await activeSubs.CountAsync(x => x.SubscriptionPlan == EnumSPlans.Family);
-        var premiumUsers = premiumCount + proCount + familyCount;
+        var premiumUsers = premiumCount + familyCount;
         var freeUsers = Math.Max(totalUsers - premiumUsers, 0);
 
         var planBreakdown = new List<PlanBreakdownDto>
         {
             new() { Plan = EnumSPlans.Free, Count = freeUsers },
             new() { Plan = EnumSPlans.Premium, Count = premiumCount },
-            new() { Plan = EnumSPlans.Pro, Count = proCount },
             new() { Plan = EnumSPlans.Family, Count = familyCount },
         };
 
