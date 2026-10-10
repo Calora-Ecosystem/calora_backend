@@ -14,6 +14,7 @@ using Hangfire.MemoryStorage.Database;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -44,6 +45,7 @@ public static class ApplicationConfigurationExtensions
 
         builder
             .ConfigureKestrel()
+            .ConfigureForwardedHeaders()
             .ConfigureHostConfigurations(appName)
             .ConfigureLogger()
             .ConfigureSwagger(appName)
@@ -65,6 +67,8 @@ public static class ApplicationConfigurationExtensions
     {
         if (!app.Environment.IsDevelopment())
         {
+            app.UseForwardedHeaders();
+            
             app.Use(async (context, next) =>
             {
                 var forwardedFor = string.Join(context.Request.Headers["X-Forwarded-For"], ", ");
@@ -79,6 +83,8 @@ public static class ApplicationConfigurationExtensions
                 await next();
             });
         }
+
+        
         
         if (!app.Environment.IsProduction())
         {
@@ -117,6 +123,19 @@ public static class ApplicationConfigurationExtensions
 
 
         return app;
+    }
+
+    public static WebApplicationBuilder ConfigureForwardedHeaders(this WebApplicationBuilder builder)
+    {
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.ForwardLimit = null;
+            options.KnownNetworks.Clear();
+            options.KnownProxies.Clear();
+        });
+        
+        return builder;
     }
 
     public static WebApplicationBuilder AddSwaggerServer(this WebApplicationBuilder builder, string url,
