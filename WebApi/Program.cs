@@ -46,8 +46,7 @@ builder.Services.AddRateLimiter(options =>
 
     static string GetClientKey(HttpContext context) =>
         (context.User.Identity is { IsAuthenticated: true } ? context.User.FindFirst(CustomClaims.UserId)?.Value : null)
-        ?? context.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim()
-        ?? context.Request.Headers["X-Real-IP"].FirstOrDefault()
+        ?? context.Connection.RemoteIpAddress?.ToString()
         ?? "anonymous";
 
     options.AddPolicy("otp_limit", context =>
