@@ -62,25 +62,6 @@ public static class ApplicationConfigurationExtensions
 
     public static WebApplication ConfigureDefaults(this WebApplication app)
     {
-        app.UseSerilogRequestLogging(options =>
-        {
-            options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms (Client: {ClientIp}, X-Forwarded-For: {ForwardedFor})";
-
-            options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
-            {
-                if (httpContext.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
-                {
-                    diagnosticContext.Set("ForwardedFor", forwardedFor.ToString());
-                }
-                else
-                {
-                    diagnosticContext.Set("ForwardedFor", "none");
-                }
-                
-                diagnosticContext.Set("ClientIp", httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
-            };
-        });
-        
         if (!app.Environment.IsProduction())
         {
             app.UseSwagger();
