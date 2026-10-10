@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Npgsql;
@@ -62,6 +63,23 @@ public static class ApplicationConfigurationExtensions
 
     public static WebApplication ConfigureDefaults(this WebApplication app)
     {
+        if (!app.Environment.IsDevelopment())
+        {
+            app.Use(async (context, next) =>
+            {
+                var forwardedFor = string.Join(context.Request.Headers["X-Forwarded-For"], ", ");
+                var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+                app.Logger.LogInformation("HTTP {Method} {Path} | Client: {ClientIp} | Forwarded-For: {ForwardedFor}",
+                    context.Request.Method,
+                    context.Request.Path,
+                    clientIp,
+                    forwardedFor);
+
+                await next();
+            });
+        }
+        
         if (!app.Environment.IsProduction())
         {
             app.UseSwagger();
