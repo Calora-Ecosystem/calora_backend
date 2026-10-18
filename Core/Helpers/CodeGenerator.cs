@@ -12,4 +12,11 @@ public static class CodeGenerator
 
     public static string Generate(string prefix, int length) =>
         prefix + RandomNumberGenerator.GetString(Alphabet, length);
+
+    /// <summary>
+    /// User kiritgan kodni bazadagi ko'rinishga keltiradi: faqat harf va raqamlar, katta harfda.
+    /// Chiziqcha va bo'shliqlar tushib qoladi — avval "CAL-XXXXX" ko'rinishida ulashilgan kodlar ham topiladi.
+    /// </summary>
+    public static string Normalize(string code) =>
+        new string(code.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
 }
