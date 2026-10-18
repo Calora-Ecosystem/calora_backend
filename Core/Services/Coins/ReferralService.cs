@@ -23,7 +23,7 @@ namespace Core.Services.Coins;
 /// <summary>
 /// "Do'stni taklif qilish".
 /// <list type="number">
-/// <item>Har bir userning taklif kodi bor (<c>CALORA-XXXX</c>).</item>
+/// <item>Har bir userning taklif kodi bor (<c>CALORAXXXXXX</c>, chiziqchasiz).</item>
 /// <item>User do'stining kodini Invite friends sahifasida tasdiqlaydi (<see cref="Apply"/>) — "men shu userdan kirdim".</item>
 /// <item>Do'st onboarding'ni tugatgach (profil yaratilgach) "faol" bo'ladi (<see cref="TryQualify"/>).</item>
 /// <item>Har <see cref="CoinConfig.ReferralPremiumFriends"/> ta faol do'st uchun taklif qiluvchiga
@@ -42,7 +42,8 @@ public class ReferralService(
     IOptions<CoinConfig> options,
     ILogger<ReferralService> logger)
 {
-    private const string CodePrefix = "CALORA-";
+    // Chiziqchasiz (CALORAXXXXXX) — messenjerda bir bosishda to'liq belgilanadi.
+    private const string CodePrefix = "CALORA";
     private const int CodeLength = 6;
     private const string ReferrerTxTitle = "coin_tx_referral";
     private const string ReferredTxTitle = "coin_tx_referral_welcome";
@@ -114,7 +115,7 @@ public class ReferralService(
     /// </summary>
     public async Task<ApplyReferralResultDto> Apply(long userId, ApplyReferralCodeDto dto)
     {
-        var code = dto.Code.Trim().ToUpperInvariant();
+        var code = CodeGenerator.Normalize(dto.Code);
 
         if (await dbContext.Referrals.AnyAsync(x => x.ReferredUserId == userId))
             throw new ReferralAlreadyAppliedException();

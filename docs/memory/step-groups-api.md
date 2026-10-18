@@ -6,7 +6,9 @@ type: reference
 
 # Qadam guruhlari API
 
-`StepGroupController` (`step-groups`), `StepGroupService`. Jadvallar: `step_groups` (name, invite_code unique `CAL-XXXXX`, owner_id), `step_group_members` (group_id+user_id unique).
+`StepGroupController` (`step-groups`), `StepGroupService`. Jadvallar: `step_groups` (name, invite_code unique `CALXXXXX`, owner_id), `step_group_members` (group_id+user_id unique).
+
+- Kod chiziqchasiz (eski `CAL-XXXXX` kodlar 20261018 migratsiyasida o'tkazilgan). `join` kodi `CodeGenerator.Normalize` (faqat harf/raqam, katta harf) bilan solishtiriladi — `CAL-XXXXX` deb yozilsa ham topiladi.
 
 - `GET step-groups?from&to` — mening guruhlarim (memberCount, totalSteps, isOwner).
 - `GET step-groups/{id}?from&to` — a'zolar qadam bo'yicha reytingi (`steps, index, isMe, isOwner`). Faqat a'zolar ko'radi (aks holda 404).

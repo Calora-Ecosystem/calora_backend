@@ -19,7 +19,8 @@ public class StepGroupService(AppDbContext dbContext)
 {
     public const int MaxMembers = 50;
     public const int MaxGroupsPerUser = 20;
-    private const string CodePrefix = "CAL-";
+    // Chiziqchasiz (CALXXXXX) — messenjerda bir bosishda to'liq belgilanadi.
+    private const string CodePrefix = "CAL";
 
     public async Task<List<StepGroupDto>> GetMy(long userId, DateTime? from, DateTime? to)
     {
@@ -120,7 +121,7 @@ public class StepGroupService(AppDbContext dbContext)
     /// <summary>Taklif kodi orqali qo'shilish. Allaqachon a'zo bo'lsa guruhni qaytaradi.</summary>
     public async Task<StepGroupDetailDto> Join(long userId, JoinStepGroupDto dto)
     {
-        var code = dto.Code.Trim().ToUpperInvariant();
+        var code = CodeGenerator.Normalize(dto.Code);
 
         var group = await dbContext.StepGroups
                         .AsNoTracking()
