@@ -116,7 +116,7 @@ public class AiQuotaService(AppDbContext dbContext)
         dbContext.Subscriptions.AnyAsync(x =>
             x.UserId == userId && x.IsActive && x.SubscriptionPlan != EnumSPlans.Free);
 
-    private async Task<(bool isUnlimited, int baseLimit)> ResolvePlanFeatureLimit(EnumSPlans plan)
+    public async Task<(bool isUnlimited, int baseLimit)> ResolvePlanFeatureLimit(EnumSPlans plan)
     {
         var featureValue = await dbContext.PlanFeatures
             .AsNoTracking()

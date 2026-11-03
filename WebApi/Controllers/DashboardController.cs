@@ -2,6 +2,8 @@ using BRB.Core.Common.Models;
 using Core.Attributes;
 using Core.Entities.Coins.Enum;
 using Core.Enums;
+using Core.Services.Ai;
+using Core.Services.Ai.Contracts;
 using Core.Services.Billing;
 using Core.Services.Billing.Contracts;
 using Core.Services.Coins;
@@ -23,7 +25,8 @@ public class DashboardController(
     CoinService coinService,
     CoinRuleService coinRuleService,
     MarketAdminService marketAdminService,
-    ReferralAdminService referralAdminService)
+    ReferralAdminService referralAdminService,
+    ScanUsageAdminService scanUsageAdminService)
     : AuthorizedController
 {
     [HttpGet("summary")]
@@ -83,6 +86,30 @@ public class DashboardController(
     public async Task<Wrapper> GetAiStatistics(
         [FromQuery] int? days = 28, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null) =>
         (await dashboardService.GetAiStatistics(days, from, to), 200);
+
+    #endregion
+
+    #region AI skan limiti (kimda nechta bepul skan bor, qanchasi ishlatilgan)
+
+    /// <summary>Free tarif limiti sozlamasi, limiti tugaganlar, bonuslar va skanlar jurnali bo'yicha jami.</summary>
+    [HttpGet("ai/scans/summary")]
+    [ProducesResponseType<WrapperGeneric<AdminScanSummaryDto>>(200)]
+    public async Task<Wrapper> GetScanSummary() => (await scanUsageAdminService.GetSummary(), 200);
+
+    /// <summary>
+    /// Userlar bo'yicha bepul skan limiti. <c>status</c>: scanned | exhausted | available | free | premium | bonus | all;
+    /// <c>sort</c>: used | scans | remaining | recent | newest; <c>search</c> — ism, email, telefon yoki user id.
+    /// </summary>
+    [HttpGet("ai/scans/users")]
+    [ProducesResponseType<WrapperGeneric<IEnumerable<AdminScanUserDto>>>(200)]
+    public Task<Wrapper> GetScanUsers([FromQuery] string? status, [FromQuery] string? sort,
+        [FromQuery] string? search, [FromQuery] DataQueryRequest q) =>
+        scanUsageAdminService.GetUsers(status, sort, search, q);
+
+    /// <summary>Userning limiti va oxirgi 100 ta skan so'rovi.</summary>
+    [HttpGet("ai/scans/users/{userId:long:min(1)}")]
+    [ProducesResponseType<WrapperGeneric<AdminScanUserDetailDto>>(200)]
+    public async Task<Wrapper> GetScanUser(long userId) => (await scanUsageAdminService.GetUser(userId), 200);
 
     #endregion
 

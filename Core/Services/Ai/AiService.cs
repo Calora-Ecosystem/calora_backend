@@ -21,7 +21,7 @@ public class AiService(
     Client client, AppDbContext context, IMemoryCache cache, ILogger<AiService> logger, EventLogService eventLog)
 {
     private const string Model = "gemini-2.5-flash";
-    private const string EventSource = "ai.food_recognition";
+    public const string EventSource = "ai.food_recognition";
     private static readonly List<string> _foodMetrics = [
         nameof(EnumMetrics.Kcal),
         nameof(EnumMetrics.Protein),
