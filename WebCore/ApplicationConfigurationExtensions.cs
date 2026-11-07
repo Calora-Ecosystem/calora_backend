@@ -71,7 +71,7 @@ public static class ApplicationConfigurationExtensions
             
             app.Use(async (context, next) =>
             {
-                var forwardedFor = string.Join(context.Request.Headers["X-Forwarded-For"], ", ");
+                var forwardedFor = string.Join(", ", context.Request.Headers["X-Forwarded-For"].ToArray());
                 var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
                 app.Logger.LogInformation("HTTP {Method} {Path} | Client: {ClientIp} | Forwarded-For: {ForwardedFor}",
