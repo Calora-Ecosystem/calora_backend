@@ -126,7 +126,7 @@ public static class ApplicationConfigurationExtensions
                 await next();
             });
 
-            app.UseForwardedHeaders();
+            Microsoft.AspNetCore.Builder.ForwardedHeadersExtensions.UseForwardedHeaders(app);
 
             app.Use(async (context, next) =>
             {
