@@ -60,31 +60,22 @@ public static class ApplicationConfigurationExtensions
             .AddServices()
             .ConfigureEmail();
 
+        //fallback for useRateLimiter
+        builder.Services.AddRateLimiter(options => { });
+
+        builder.Services.AddResponseCompression(options =>
+        {
+            options.EnableForHttps = true;
+        });
+
         return builder;
     }
 
     public static WebApplication ConfigureDefaults(this WebApplication app)
     {
-        if (!app.Environment.IsDevelopment())
-        {
-            app.UseForwardedHeaders();
-            
-            app.Use(async (context, next) =>
-            {
-                var forwardedFor = string.Join(", ", context.Request.Headers["X-Forwarded-For"].ToArray());
-                var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-
-                app.Logger.LogInformation("HTTP {Method} {Path} | Client: {ClientIp} | Forwarded-For: {ForwardedFor}",
-                    context.Request.Method,
-                    context.Request.Path,
-                    clientIp,
-                    forwardedFor);
-
-                await next();
-            });
-        }
-
-        
+        app.UseForwardedHeaders();
+        app.UseMiddleware<Middlewares.GlobalExceptionHandlerMiddleware>();
+        app.UseGracefulShutdown();
         
         if (!app.Environment.IsProduction())
         {
@@ -98,29 +89,59 @@ public static class ApplicationConfigurationExtensions
         }
 
         app.UseCors();
+        
+        app.UseHealthChecks("/healthy");
+        
+        app.UseRateLimiter();
 
-        app.UseMiddleware<Middlewares.GlobalExceptionHandlerMiddleware>();
-
-
-        app.UseStaticFiles(new StaticFileOptions()
+        app.UseResponseCompression();
+        app.UseStaticFiles(new StaticFileOptions
         {
             RequestPath = "/file",
             HttpsCompression = HttpsCompressionMode.Compress,
             ServeUnknownFileTypes = true,
-            OnPrepareResponse = (context) =>
+            OnPrepareResponse = ctx =>
             {
-                context.Context.Response.Headers.Append("Cache-Control", $"public,max-age={2 * 24 * 60 * 60}");
+                ctx.Context.Response.Headers["Cache-Control"] = $"public,max-age={2 * 24 * 60 * 60},immutable";
             }
         });
-
-
-        app.UseHealthChecks("/healthy");
-        app.UseGracefulShutdown();
+        
+        app.UseAuthentication();
         app.UseAuthorization();
-        // app.UseAuthentication();
         app.UseCustom404Page("");
         app.MapControllers();
 
+
+        return app;
+    }
+
+    public static WebApplication UseForwardedHeaders(this WebApplication app)
+    {
+        if (!app.Environment.IsDevelopment())
+        {
+            app.Use(async (context, next) =>
+            {
+                var forwardedFor = context.Request.Headers["X-Forwarded-For"].ToString();
+                app.Logger.LogInformation("X-Forwarded-For: {ForwardedFor}", forwardedFor);
+                await next();
+            });
+
+            app.UseForwardedHeaders();
+
+            app.Use(async (context, next) =>
+            {
+                var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                var userAgent = context.Request.Headers.UserAgent.ToString();
+                app.Logger.LogInformation("HTTP {Method} {Path} | Client: {ClientIp} | User Agent: {UserAgent}",
+                    context.Request.Method,
+                    context.Request.Path,
+                    clientIp,
+                    userAgent
+                );
+
+                await next();
+            });
+        }
 
         return app;
     }
@@ -134,7 +155,7 @@ public static class ApplicationConfigurationExtensions
             options.KnownNetworks.Clear();
             options.KnownProxies.Clear();
         });
-        
+
         return builder;
     }
 
@@ -154,7 +175,7 @@ public static class ApplicationConfigurationExtensions
     private static WebApplicationBuilder ConfigureKestrel(this WebApplicationBuilder builder)
     {
         builder.Services.Configure<KestrelServerOptions>(options => { options.Limits.MaxRequestBodySize = null; });
-        builder.Services.Configure<FormOptions>(options => { options.MultipartBodyLengthLimit = long.MaxValue / 2;});
+        builder.Services.Configure<FormOptions>(options => { options.MultipartBodyLengthLimit = long.MaxValue / 2; });
 
         return builder;
     }
@@ -190,7 +211,7 @@ public static class ApplicationConfigurationExtensions
 
         builder.Logging.ClearProviders();
         builder.Logging.AddSerilog();
-        
+
         if (!builder.Environment.IsDevelopment())
             builder.Logging.SetMinimumLevel(LogLevel.Information);
 
