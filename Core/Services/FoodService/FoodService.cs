@@ -379,8 +379,12 @@ public class FoodService(
             .ExecuteDeleteAsync();
     }
 
-    public async Task<List<FoodResultDto>> RecognizeFood(RecognizeFoodDto dto, long userId)
+    public async Task<List<FoodResultDto>> RecognizeFood(RecognizeFoodDto dto, long userId,
+        CancellationToken cancellationToken = default)
     {
+        if (dto.File.Length == 0)
+            throw new EmptyRecognitionFileException();
+
         // Premium bo'lmaganlar uchun bepul limit (rasm va ovoz bitta hovuzdan).
         var metered = await aiQuotaService.EnsureCanUse(userId);
 
@@ -398,13 +402,17 @@ public class FoodService(
             _ => EnumLanguage.Uzbek,
         };
 
-        var stream = dto.File.OpenReadStream();
         byte[] buffer = new byte[dto.File.Length];
-        await stream.ReadExactlyAsync(buffer, 0, buffer.Length);
+        await using (var stream = dto.File.OpenReadStream())
+            await stream.ReadExactlyAsync(buffer, cancellationToken);
 
-        var result = await aiService.RecognizeForFood(buffer, dto.File.ContentType, language, userId);
+        // Gemini vaqtincha ishlamasa AiService 503 (ai_service_unavailable) tashlaydi —
+        // bu holda limit yechilmaydi, user keyinroq qayta urinadi.
+        var result = await aiService.RecognizeForFood(buffer, dto.File.ContentType, language, userId,
+            cancellationToken);
 
-        // Faqat muvaffaqiyatli natija limitdan yechiladi.
+        // Faqat muvaffaqiyatli natija limitdan yechiladi. Natija olingan bo'lsa, client uzilgan
+        // bo'lsa ham limit yechiladi (Gemini token sarflandi), shuning uchun token uzatilmaydi.
         if (metered && result.Count > 0)
             await aiQuotaService.Consume(userId);
 

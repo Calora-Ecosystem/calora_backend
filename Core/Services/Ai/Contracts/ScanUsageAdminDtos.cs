@@ -107,7 +107,7 @@ public record AdminScanEventDto
     public long Id { get; init; }
     public DateTime CreatedAt { get; init; }
 
-    /// <summary>success | empty_result | provider_error | invalid_result | parse_error.</summary>
+    /// <summary>success | empty_result | provider_error | provider_unavailable | invalid_result | parse_error.</summary>
     public string Outcome { get; init; } = null!;
 
     public EnumEventStatus Status { get; init; }

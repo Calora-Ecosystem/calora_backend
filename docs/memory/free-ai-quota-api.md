@@ -8,6 +8,7 @@ type: reference
 
 ## AI (food recognization)
 - `POST food/recognization` barcha User'lar uchun ochiq; limit `AiQuotaService` orqali `PlanFeature` (Free uchun dinamik limit, Premium uchun unlimited) va `UserFeatureUsage` (key: `ai_scans`) orqali boshqariladi. Faqat muvaffaqiyatli natija yechiladi. Limit tugasa 403 `ai_free_limit_exceeded`.
+- Gemini vaqtincha ishlamasa (Polly retry/timeout/circuit'dan keyin) 503 `ai_service_unavailable`, bo'sh fayl 400 `file_is_empty` — ikkalasida limit yechilmaydi. Sozlamalar: `Gemini:Resilience` (`GeminiResilience.cs`).
 - `GET food/recognization/quota` → `{isPremium, unlimited, limit, used, remaining}`. Jadval `user_feature_usages` (bonus marketplace `AiScans`dan).
 
 ## Obuna

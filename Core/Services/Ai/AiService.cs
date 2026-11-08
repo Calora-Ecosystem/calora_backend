@@ -3,6 +3,7 @@ using System.Text.Json;
 using BRB.Core.Common.Models;
 using BRB.Core.EF.Attributes;
 using Core.Brokers.DbContext;
+using Core.Brokers.GeminiBroker;
 using Core.Services.Ai.Exceptions;
 using Core.Enums;
 using Core.Services.Ai.Contracts;
@@ -12,13 +13,19 @@ using Google.GenAI.Types;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Polly.Registry;
 using Type = Google.GenAI.Types.Type;
 
 namespace Core.Services.Ai;
 
 [Injectable]
 public class AiService(
-    Client client, AppDbContext context, IMemoryCache cache, ILogger<AiService> logger, EventLogService eventLog)
+    Client client,
+    AppDbContext context,
+    IMemoryCache cache,
+    ILogger<AiService> logger,
+    EventLogService eventLog,
+    ResiliencePipelineProvider<string> pipelineProvider)
 {
     private const string Model = "gemini-2.5-flash";
     public const string EventSource = "ai.food_recognition";
@@ -150,19 +157,16 @@ public class AiService(
     }
 
     public async Task<List<FoodResultDto>> RecognizeForFood(byte[] fileBuffer, string mimeType,
-        EnumLanguage language = EnumLanguage.Uzbek, long? userId = null)
+        EnumLanguage language = EnumLanguage.Uzbek, long? userId = null,
+        CancellationToken cancellationToken = default)
     {
         SentrySdk.SetTag("ai_model", Model);
         SentrySdk.SetTag("ai_mime_type", mimeType);
         SentrySdk.SetTag("ai_file_size_bytes", fileBuffer.Length.ToString());
         SentrySdk.SetTag("ai_language", language.ToString());
 
-        var stopwatch = Stopwatch.StartNew();
-        GenerateContentResponse? response;
-        try
-        {
-            response = await client.Models.GenerateContentAsync(
-                model: Model, contents: new Content()
+        // Prompt bir marta quriladi — retry'lar DB/cache'ga qayta murojaat qilmaydi.
+        var contents = new Content()
                 {
                     Parts = new List<Part>()
                     {
@@ -197,20 +201,56 @@ Rules:
                         }
                     }
                 }
-            }, config: _config
-            );
+            };
+
+        var pipeline = pipelineProvider.GetPipeline(GeminiResilience.PipelineKey);
+        var attempts = 0;
+        var stopwatch = Stopwatch.StartNew();
+        GenerateContentResponse? response;
+        try
+        {
+            response = await pipeline.ExecuteAsync(async ct =>
+            {
+                attempts++;
+                // SDK CancellationToken qabul qilmaydi: WaitAsync umumiy timeout yoki client
+                // so'rovni bekor qilganda kutishni to'xtatadi; HTTP so'rovning o'zini esa
+                // SDK'ning HttpOptions.Timeout'i uzadi.
+                return await client.Models.GenerateContentAsync(model: Model, contents: contents, config: _config)
+                    .WaitAsync(ct);
+            }, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(
+                "Gemini request canceled by caller after {DurationMs}ms (attempts={Attempts})",
+                stopwatch.ElapsedMilliseconds, attempts);
+            throw;
         }
         catch (Exception ex)
         {
             stopwatch.Stop();
+            var unavailable = GeminiResilience.IsRejectedByPipeline(ex) || GeminiResilience.IsTransient(ex);
+
             SentrySdk.SetTag("ai_duration_ms", stopwatch.ElapsedMilliseconds.ToString());
+            SentrySdk.SetTag("ai_attempts", attempts.ToString());
             logger.LogError(ex,
-                "Gemini request failed after {DurationMs}ms (model={Model}, mimeType={MimeType}, fileSizeBytes={FileSizeBytes})",
-                stopwatch.ElapsedMilliseconds, Model, mimeType, fileBuffer.Length);
-            await eventLog.LogAsync(EventSource, "provider_error", EnumEventStatus.Error, userId,
-                stopwatch.ElapsedMilliseconds, ex.GetType().Name, ex.Message,
-                new Dictionary<string, string> { ["model"] = Model, ["mimeType"] = mimeType });
-            throw;
+                "Gemini request failed after {DurationMs}ms and {Attempts} attempt(s) (model={Model}, mimeType={MimeType}, fileSizeBytes={FileSizeBytes})",
+                stopwatch.ElapsedMilliseconds, attempts, Model, mimeType, fileBuffer.Length);
+            await eventLog.LogAsync(EventSource, unavailable ? "provider_unavailable" : "provider_error",
+                EnumEventStatus.Error, userId, stopwatch.ElapsedMilliseconds, ex.GetType().Name, ex.Message,
+                new Dictionary<string, string>
+                {
+                    ["model"] = Model,
+                    ["mimeType"] = mimeType,
+                    ["attempts"] = attempts.ToString(),
+                });
+
+            if (!unavailable)
+                throw;
+
+            // 503 GlobalExceptionHandler'da Sentry'ga yuborilmaydi — asl xatoni shu yerda yuboramiz.
+            SentrySdk.CaptureException(ex);
+            throw new AiServiceUnavailableException();
         }
 
         stopwatch.Stop();
